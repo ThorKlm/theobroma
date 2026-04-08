@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+venv/
+.env
+data/
+*.csv
+*.sdf
+*.sdf.gz
+*.tar.gz
+*.zip
+*.mdb
+*.rar
+*.owl
+.idea/

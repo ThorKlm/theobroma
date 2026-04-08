@@ -1,0 +1,20 @@
+{% if pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?{{ request.query_string.decode().replace('page='+page|string, 'page='+(page-1)|string) if 'page=' in request.query_string.decode() else request.query_string.decode()+'&page='+(page-1)|string }}">&laquo; Prev</a>
+    {% endif %}
+    {% for p in range(1, pages+1) %}
+        {% if p == page %}
+        <span class="current">{{ p }}</span>
+        {% elif p <= 3 or p >= pages-2 or (p >= page-2 and p <= page+2) %}
+        <a href="?{{ request.query_string.decode().replace('page='+page|string, 'page='+p|string) if 'page=' in request.query_string.decode() else request.query_string.decode()+'&page='+p|string }}">{{ p }}</a>
+        {% elif p == 4 or p == pages-3 %}
+        <span class="info">&hellip;</span>
+        {% endif %}
+    {% endfor %}
+    {% if page < pages %}
+    <a href="?{{ request.query_string.decode().replace('page='+page|string, 'page='+(page+1)|string) if 'page=' in request.query_string.decode() else request.query_string.decode()+'&page='+(page+1)|string }}">Next &raquo;</a>
+    {% endif %}
+    <span class="info">{{ "{:,}".format(total) }} results</span>
+</div>
+{% endif %}

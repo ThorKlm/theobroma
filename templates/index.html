@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}THEOBROMA — Natural Products Database{% endblock %}
+{% block content %}
+<div class="hero">
+    <h1>THEOBROMA</h1>
+    <p class="subtitle">An open global multi-kingdom natural products database for virtual screening and drug discovery</p>
+    <div class="stat-row">
+        <div class="stat-item">
+            <div class="stat-num">{{ "{:,}".format(total) }}</div>
+            <div class="stat-label">Compounds</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-num">{{ n_sources }}</div>
+            <div class="stat-label">Source databases</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-num">5</div>
+            <div class="stat-label">Kingdoms</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-num">6</div>
+            <div class="stat-label">Continents</div>
+        </div>
+    </div>
+    <div class="kingdoms-row">
+        {% for k in kingdoms %}
+        <a href="/browse?kingdom={{ k.kingdom }}" class="kingdom-chip">
+            <span class="kingdom-dot" style="background:var(--kingdom-{{ k.kingdom|lower|default('unknown') }})"></span>
+            {{ k.kingdom }} <strong>{{ "{:,}".format(k.cnt) }}</strong>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+<div class="search-box">
+    <form action="/search" method="get" class="search-form">
+        <select name="type">
+            <option value="name">Compound name</option>
+            <option value="smiles">SMILES</option>
+            <option value="inchikey">InChIKey</option>
+            <option value="organism">Source organism</option>
+            <option value="source">Source database</option>
+            <option value="region">Geographic region</option>
+            <option value="kingdom">Kingdom</option>
+        </select>
+        <input type="text" name="q" placeholder="Search compounds..." autocomplete="off">
+        <button type="submit">Search</button>
+    </form>
+</div>
+{% endblock %}

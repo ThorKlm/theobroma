@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ c.name or c.comp_id }} — THEOBROMA{% endblock %}
+{% block content %}
+<div class="compound-header">
+    <h1>{{ c.name or 'Unnamed compound' }}</h1>
+    <span class="compound-id">{{ c.comp_id }}</span>
+    {% if c.kingdom %}
+    <span class="badge badge-{{ c.kingdom|lower|default('unknown') }}" style="margin-left:0.5rem;">{{ c.kingdom }}</span>
+    {% endif %}
+</div>
+<div class="compound-grid">
+    <div class="card">
+        <h3 style="margin-bottom:0.75rem;font-family:'DM Serif Display',serif;">Structure</h3>
+        <table class="prop-table">
+            <tr><th>SMILES</th><td style="word-break:break-all;">{{ c.smiles }}</td></tr>
+            {% if c.inchi %}<tr><th>InChI</th><td style="word-break:break-all;font-size:0.75rem;">{{ c.inchi }}</td></tr>{% endif %}
+            {% if c.inchikey %}<tr><th>InChIKey</th><td>{{ c.inchikey }}</td></tr>{% endif %}
+        </table>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom:0.75rem;font-family:'DM Serif Display',serif;">Properties</h3>
+        <table class="prop-table">
+            <tr><th>Molecular weight</th><td>{{ "%.2f"|format(c.mw) if c.mw else '—' }}</td></tr>
+            <tr><th>LogP</th><td>{{ "%.2f"|format(c.logp) if c.logp else '—' }}</td></tr>
+            <tr><th>TPSA</th><td>{{ "%.1f"|format(c.tpsa) if c.tpsa else '—' }}</td></tr>
+            <tr><th>HBA</th><td>{{ c.hba if c.hba is not none else '—' }}</td></tr>
+            <tr><th>HBD</th><td>{{ c.hbd if c.hbd is not none else '—' }}</td></tr>
+            <tr><th>Rings</th><td>{{ c.n_rings if c.n_rings is not none else '—' }}</td></tr>
+            <tr><th>Rotatable bonds</th><td>{{ c.rotatable_bonds if c.rotatable_bonds is not none else '—' }}</td></tr>
+            <tr><th>NP-likeness</th><td>{{ "%.3f"|format(c.np_likeness) if c.np_likeness else '—' }}</td></tr>
+        </table>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom:0.75rem;font-family:'DM Serif Display',serif;">Classification</h3>
+        <table class="prop-table">
+            <tr><th>Kingdom</th><td>{{ c.kingdom or '—' }}</td></tr>
+            <tr><th>ClassyFire superclass</th><td>{{ c.classyfire_superclass or '—' }}</td></tr>
+            <tr><th>NP Classifier class</th><td>{{ c.np_class or '—' }}</td></tr>
+        </table>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom:0.75rem;font-family:'DM Serif Display',serif;">Source</h3>
+        <table class="prop-table">
+            <tr><th>Source database</th><td>{{ c.source_db or '—' }}</td></tr>
+            <tr><th>Source organism</th><td>{{ c.source_organism or '—' }}</td></tr>
+            <tr><th>Geographic region</th><td>{{ c.region or '—' }}</td></tr>
+        </table>
+    </div>
+</div>
+<div style="margin-top:1rem;">
+    <h3 style="font-family:'DM Serif Display',serif;margin-bottom:0.5rem;">External links</h3>
+    {% if c.inchikey %}
+    <a href="https://www.google.com/search?q={{ c.inchikey }}" class="btn" style="margin-right:0.5rem;" target="_blank">Google</a>
+    <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{ c.inchikey }}" class="btn" style="margin-right:0.5rem;background:var(--kingdom-marine);" target="_blank">PubChem</a>
+    <a href="https://coconut.naturalproducts.net/compound/search?q={{ c.inchikey }}" class="btn" style="background:var(--kingdom-plant);" target="_blank">COCONUT</a>
+    {% endif %}
+</div>
+{% endblock %}

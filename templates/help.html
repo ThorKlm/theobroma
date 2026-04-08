@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Help — THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Help</h1>
+<div class="help-content">
+    <h2>About THEOBROMA</h2>
+    <p>THEOBROMA is an open, curated natural products database aggregating compounds from 21+ source
+    databases spanning five biological kingdoms (plant, fungi, bacteria, marine, food) and six continents.
+    It is designed to support structure-based virtual screening, cheminformatics research, and drug discovery
+    from natural product chemical space.</p>
+
+    <h2>Search</h2>
+    <p>The search interface supports queries by:</p>
+    <p><strong>Compound name</strong> — partial matching, case-insensitive (e.g., <code>curcumin</code>).</p>
+    <p><strong>SMILES</strong> — exact canonical SMILES match.</p>
+    <p><strong>InChIKey</strong> — exact 27-character InChIKey match (e.g., <code>VFLDPWHFBUODDF-FCXRPNKRSA-N</code>).</p>
+    <p><strong>Source organism</strong> — search by the organism that produces the compound (e.g., <code>Curcuma longa</code>).</p>
+    <p><strong>Source database</strong> — filter by the originating database (e.g., <code>IMPPAT</code>, <code>COCONUT</code>).</p>
+    <p><strong>Geographic region</strong> — search by the geographic region of origin (e.g., <code>India</code>, <code>Africa</code>).</p>
+    <p><strong>Kingdom</strong> — filter by biological kingdom (plant, fungi, bacteria, marine, food).</p>
+
+    <h2>Browse</h2>
+    <p>The browse interface allows filtering the entire compound library by kingdom and/or source database,
+    with paginated results showing key properties for each compound.</p>
+
+    <h2 id="cite">How to cite</h2>
+    <p>If you use THEOBROMA in your research, please cite:</p>
+    <pre>Klamt, T. et al. (2026). THEOBROMA: an open global multi-kingdom natural products
+database for virtual screening and drug discovery. Nucleic Acids Research (submitted).</pre>
+    <p>Please also cite the original source databases for any compounds you use. The <code>source_db</code>
+    field in each record indicates the originating database.</p>
+
+    <h2>API</h2>
+    <p>THEOBROMA provides a JSON API at <code>/api/search</code> for programmatic access:</p>
+    <pre>GET /api/search?q=QUERY&type=TYPE&limit=N
+
+Parameters:
+  q      — search query (required)
+  type   — name | smiles | inchikey | kingdom | organism (default: name)
+  limit  — max results, 1-1000 (default: 50)
+
+Example:
+  curl "https://theobroma.l3s.uni-hannover.de/api/search?q=quercetin&type=name&limit=5"</pre>
+
+    <h2 id="license">License</h2>
+    <p>THEOBROMA operates under a dual-tier licensing model:</p>
+    <p><strong>Tier 1 — CC BY 4.0:</strong> Compounds from open-access sources (COCONUT, MIBiG, NPAtlas, CSIRO,
+    phytochemdb, EMNPD, CyanoMetDB, SWMD, YMDB, AfroDb, SANCDB, ANPDB).</p>
+    <p><strong>Tier 2 — CC BY-NC 4.0:</strong> Compounds from sources with non-commercial restrictions
+    (HERB, Phyto4Health, IMPPAT, MeFSAT, FooDB, VIETHERB).</p>
+    <p>Each compound record includes a <code>license_tier</code> field. Users performing commercial
+    applications should filter for Tier 1 compounds.</p>
+    <p>The THEOBROMA web application source code is available under the MIT License on
+    <a href="https://github.com/ThorKlm/theobroma">GitHub</a>.</p>
+
+    <h2>Source databases</h2>
+    <p>THEOBROMA aggregates data from the following sources (see publication for full citations):</p>
+    <p>COCONUT 2.0, CMAUP, TCMBank, HERB 2.0, TM-MC 2.0, NPASS 3.0, FooDB, CMNPD, IMPPAT 2.0,
+    Phyto4Health, StreptomeDB, NPAtlas, MeFSAT, MicotoXilico, MIBiG 4.0, phytochemdb, CSIRO Australian NP,
+    VIETHERB, ANPDB, SANCDB, AfroDb, ConMedNP, CamMedNP, LANaPDB, CyanoMetDB, SWMD, YMDB, EMNPD.</p>
+
+    <h2>Contact</h2>
+    <p>For questions, data issues, or collaboration inquiries, please open an issue on
+    <a href="https://github.com/ThorKlm/theobroma/issues">GitHub</a> or contact the corresponding author.</p>
+</div>
+{% endblock %}

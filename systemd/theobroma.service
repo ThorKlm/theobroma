@@ -1,0 +1,15 @@
+[Unit]
+Description=THEOBROMA Natural Products Database
+After=network.target postgresql.service
+
+[Service]
+User=thorben.klamt
+WorkingDirectory=/home/thorben.klamt/theobroma
+Environment="DATABASE_URL=postgresql://theobroma:theobroma@localhost:5432/theobroma"
+Environment="DATA_DIR=/home/thorben.klamt/theobroma/data"
+ExecStart=/home/thorben.klamt/theobroma/venv/bin/gunicorn -b 0.0.0.0:5000 -w 2 --timeout 120 app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

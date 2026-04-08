@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Statistics — THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Database Statistics</h1>
+<div class="stat-row" style="margin-bottom:2rem;">
+    <div class="stat-item">
+        <div class="stat-num">{{ "{:,}".format(total) }}</div>
+        <div class="stat-label">Total compounds</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-num">{{ sources|length }}</div>
+        <div class="stat-label">Source databases</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-num">{{ kingdoms|length }}</div>
+        <div class="stat-label">Kingdoms</div>
+    </div>
+</div>
+{% if prop_stats %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <h3 style="font-family:'DM Serif Display',serif;margin-bottom:0.75rem;">Mean physicochemical properties</h3>
+    <table class="prop-table" style="max-width:500px;">
+        <tr><th>Molecular weight</th><td>{{ "%.1f"|format(prop_stats.avg_mw) if prop_stats.avg_mw else '—' }}</td></tr>
+        <tr><th>LogP</th><td>{{ "%.2f"|format(prop_stats.avg_logp) if prop_stats.avg_logp else '—' }}</td></tr>
+        <tr><th>TPSA</th><td>{{ "%.1f"|format(prop_stats.avg_tpsa) if prop_stats.avg_tpsa else '—' }}</td></tr>
+        <tr><th>HBA</th><td>{{ "%.1f"|format(prop_stats.avg_hba) if prop_stats.avg_hba else '—' }}</td></tr>
+        <tr><th>HBD</th><td>{{ "%.1f"|format(prop_stats.avg_hbd) if prop_stats.avg_hbd else '—' }}</td></tr>
+    </table>
+</div>
+{% endif %}
+<div class="stats-grid">
+    <div class="card">
+        <h3 style="font-family:'DM Serif Display',serif;margin-bottom:0.75rem;">Compounds by kingdom</h3>
+        <div class="bar-chart">
+            {% set max_k = kingdoms[0].cnt if kingdoms else 1 %}
+            {% for k in kingdoms %}
+            <div class="bar-row">
+                <span class="bar-label">{{ k.kingdom }}</span>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width:{{ (k.cnt / max_k * 100)|round(1) }}%;background:var(--kingdom-{{ k.kingdom|lower|default('unknown') }})"></div>
+                </div>
+                <span class="bar-value">{{ "{:,}".format(k.cnt) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <h3 style="font-family:'DM Serif Display',serif;margin-bottom:0.75rem;">Compounds by source</h3>
+        <div class="bar-chart">
+            {% set max_s = sources[0].cnt if sources else 1 %}
+            {% for s in sources[:15] %}
+            <div class="bar-row">
+                <span class="bar-label" title="{{ s.source_db }}">{{ s.source_db }}</span>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width:{{ (s.cnt / max_s * 100)|round(1) }}%"></div>
+                </div>
+                <span class="bar-value">{{ "{:,}".format(s.cnt) }}</span>
+            </div>
+            {% endfor %}
+            {% if sources|length > 15 %}
+            <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">...and {{ sources|length - 15 }} more sources</p>
+            {% endif %}
+        </div>
+    </div>
+    {% if regions %}
+    <div class="card">
+        <h3 style="font-family:'DM Serif Display',serif;margin-bottom:0.75rem;">Compounds by geographic region</h3>
+        <div class="bar-chart">
+            {% set max_r = regions[0].cnt if regions else 1 %}
+            {% for r in regions[:15] %}
+            <div class="bar-row">
+                <span class="bar-label" title="{{ r.region }}">{{ r.region }}</span>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width:{{ (r.cnt / max_r * 100)|round(1) }}%;background:var(--kingdom-marine)"></div>
+                </div>
+                <span class="bar-value">{{ "{:,}".format(r.cnt) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

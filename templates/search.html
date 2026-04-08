@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Search — THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Search</h1>
+<div class="search-box">
+    <form action="/search" method="get" class="search-form">
+        <select name="type">
+            {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Kingdom")] %}
+            <option value="{{ val }}" {{ 'selected' if search_type == val }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="q" value="{{ query }}" placeholder="Search compounds..." autocomplete="off">
+        <button type="submit">Search</button>
+    </form>
+</div>
+{% if query %}
+<p style="margin:1rem 0;color:var(--text-muted);font-size:0.87rem;">
+    {{ "{:,}".format(total) }} result{{ 's' if total != 1 }} for <strong>{{ query }}</strong> in {{ search_type }}
+</p>
+{% endif %}
+{% if results %}
+<table class="results-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>SMILES</th>
+            <th>Kingdom</th>
+            <th>Source</th>
+            <th>Organism</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in results %}
+        <tr>
+            <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
+            <td>{{ r.name or '—' }}</td>
+            <td class="smiles-cell" title="{{ r.smiles }}">{{ r.smiles[:60] }}{{ '...' if r.smiles|length > 60 }}</td>
+            <td>
+                {% if r.kingdom %}
+                <span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom }}</span>
+                {% endif %}
+            </td>
+            <td>{{ r.source_db or '—' }}</td>
+            <td>{{ r.source_organism or '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% include "_pagination.html" %}
+{% elif query %}
+<p style="margin:2rem 0;text-align:center;color:var(--text-muted);">No results found.</p>
+{% endif %}
+{% endblock %}

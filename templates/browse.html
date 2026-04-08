@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Browse — THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Browse Compounds</h1>
+<div class="card" style="margin-bottom:1.5rem;">
+    <form action="/browse" method="get" class="search-form">
+        <select name="kingdom">
+            <option value="">All kingdoms</option>
+            {% for k in all_kingdoms %}
+            <option value="{{ k }}" {{ 'selected' if kingdom == k }}>{{ k }}</option>
+            {% endfor %}
+        </select>
+        <select name="source">
+            <option value="">All sources</option>
+            {% for s in all_sources %}
+            <option value="{{ s }}" {{ 'selected' if source == s }}>{{ s }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Filter</button>
+    </form>
+</div>
+<p style="margin:0.5rem 0;color:var(--text-muted);font-size:0.87rem;">
+    {{ "{:,}".format(total) }} compound{{ 's' if total != 1 }}
+    {% if kingdom %} in <strong>{{ kingdom }}</strong>{% endif %}
+    {% if source %} from <strong>{{ source }}</strong>{% endif %}
+</p>
+{% if results %}
+<table class="results-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>SMILES</th>
+            <th>Kingdom</th>
+            <th>Source</th>
+            <th>MW</th>
+            <th>LogP</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in results %}
+        <tr>
+            <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
+            <td>{{ r.name or '—' }}</td>
+            <td class="smiles-cell" title="{{ r.smiles }}">{{ r.smiles[:50] }}{{ '...' if r.smiles|length > 50 }}</td>
+            <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom or '?' }}</span></td>
+            <td>{{ r.source_db or '—' }}</td>
+            <td>{{ "%.1f"|format(r.mw) if r.mw else '—' }}</td>
+            <td>{{ "%.2f"|format(r.logp) if r.logp else '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% include "_pagination.html" %}
+{% else %}
+<p style="margin:2rem 0;text-align:center;color:var(--text-muted);">No compounds found.</p>
+{% endif %}
+{% endblock %}

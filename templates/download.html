@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Download — THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Download</h1>
+<p style="margin-bottom:1rem;color:var(--text-muted);">
+    Download the complete THEOBROMA dataset. Data from open sources is available under
+    <strong>CC BY 4.0</strong>; data from sources with non-commercial restrictions is under
+    <strong>CC BY-NC 4.0</strong>. Each record includes a <code>license_tier</code> column indicating which license applies.
+</p>
+<div class="download-grid">
+    {% for f in files %}
+    <div class="download-card">
+        <h3>{{ f.fmt }}</h3>
+        <p class="size">{{ f.size }}</p>
+        <a href="/download/{{ f.name }}" class="btn">Download {{ f.fmt }}</a>
+    </div>
+    {% endfor %}
+    {% if not files %}
+    <div class="download-card">
+        <h3>Coming soon</h3>
+        <p class="size">Download files are being prepared.</p>
+    </div>
+    {% endif %}
+</div>
+<div class="card" style="margin-top:2rem;">
+    <h3 style="font-family:'DM Serif Display',serif;margin-bottom:0.75rem;">Programmatic access</h3>
+    <p>Use the JSON API to query THEOBROMA programmatically:</p>
+    <pre>curl "https://theobroma.l3s.uni-hannover.de/api/search?q=curcumin&type=name&limit=10"</pre>
+    <p style="margin-top:0.75rem;">The API returns JSON with fields: <code>comp_id</code>, <code>name</code>,
+    <code>smiles</code>, <code>inchikey</code>, <code>kingdom</code>, <code>source_db</code>,
+    <code>source_organism</code>, <code>region</code>.</p>
+</div>
+<div class="card" style="margin-top:1rem;">
+    <h3 style="font-family:'DM Serif Display',serif;margin-bottom:0.75rem;">Zenodo archive</h3>
+    <p>A versioned, DOI-stamped archive of the complete dataset is available on
+    <a href="https://zenodo.org/" target="_blank">Zenodo</a> (DOI forthcoming).</p>
+</div>
+{% endblock %}
