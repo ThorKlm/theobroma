@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Search — THEOBROMA{% endblock %}
+{% from "_sort_header.html" import sort_header %}
+{% block title %}Search &mdash; THEOBROMA{% endblock %}
 {% block content %}
 <h1 class="section-title">Search</h1>
 <div class="search-box">
@@ -14,41 +15,37 @@
     </form>
 </div>
 {% if query %}
-<p style="margin:1rem 0;color:var(--text-muted);font-size:0.87rem;">
-    {{ "{:,}".format(total) }} result{{ 's' if total != 1 }} for <strong>{{ query }}</strong> in {{ search_type }}
-</p>
+<p class="results-info">{{ "{:,}".format(total) }} result{{ 's' if total != 1 }} for <strong>{{ query }}</strong> in {{ search_type }}</p>
 {% endif %}
 {% if results %}
 <table class="results-table">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>SMILES</th>
-            <th>Kingdom</th>
-            <th>Source</th>
-            <th>Organism</th>
-        </tr>
-    </thead>
+    <thead><tr>
+        <th>{{ sort_header("comp_id", "ID", sort, order) }}</th>
+        <th>{{ sort_header("name", "Name", sort, order) }}</th>
+        <th>SMILES</th>
+        <th>{{ sort_header("kingdom", "Kingdom", sort, order) }}</th>
+        <th>{{ sort_header("source_db", "Source", sort, order) }}</th>
+        <th>{{ sort_header("source_organism", "Organism", sort, order) }}</th>
+        <th>{{ sort_header("mw", "MW", sort, order) }}</th>
+        <th>License</th>
+    </tr></thead>
     <tbody>
-        {% for r in results %}
-        <tr>
-            <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
-            <td>{{ r.name or '—' }}</td>
-            <td class="smiles-cell" title="{{ r.smiles }}">{{ r.smiles[:60] }}{{ '...' if r.smiles|length > 60 }}</td>
-            <td>
-                {% if r.kingdom %}
-                <span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom }}</span>
-                {% endif %}
-            </td>
-            <td>{{ r.source_db or '—' }}</td>
-            <td>{{ r.source_organism or '—' }}</td>
-        </tr>
-        {% endfor %}
+    {% for r in results %}
+    <tr>
+        <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
+        <td>{{ r.name or '&mdash;'|safe }}</td>
+        <td class="smiles-cell" title="{{ r.smiles }}">{{ r.smiles[:50] }}{{ '...' if r.smiles|length > 50 }}</td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
+        <td>{{ r.source_db or '&mdash;'|safe }}</td>
+        <td>{{ r.source_organism or '&mdash;'|safe }}</td>
+        <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
+        <td><span class="license-badge license-{{ 'open' if r.license_tier == 'CC BY 4.0' or r.license_tier == 'CC0' else 'nc' }}">{{ r.license_tier or 'CC BY 4.0' }}</span></td>
+    </tr>
+    {% endfor %}
     </tbody>
 </table>
 {% include "_pagination.html" %}
 {% elif query %}
-<p style="margin:2rem 0;text-align:center;color:var(--text-muted);">No results found.</p>
+<p class="no-results">No results found.</p>
 {% endif %}
 {% endblock %}

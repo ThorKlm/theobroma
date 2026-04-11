@@ -7,15 +7,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    {% block head %}{% endblock %}
 </head>
 <body>
 <header>
     <div class="header-inner">
-        <a href="/" class="logo">
-            <span class="logo-icon">🌿</span>
-            <span class="logo-text">THEOBROMA</span>
-        </a>
+        <a href="/" class="logo"><span class="logo-icon">&#127807;</span><span class="logo-text">THEOBROMA</span></a>
         <nav>
             <a href="/">Home</a>
             <a href="/search">Search</a>
@@ -27,18 +23,16 @@
         </nav>
     </div>
 </header>
-<main>
-    {% block content %}{% endblock %}
-</main>
+<main>{% block content %}{% endblock %}</main>
 <footer>
     <div class="footer-inner">
         <div class="footer-left">
-            <p><strong>THEOBROMA</strong> — An open global multi-kingdom natural products database</p>
+            <p><strong>THEOBROMA</strong> &mdash; An open multi-kingdom natural products database</p>
             <p>Hosted by <a href="https://www.l3s.de">L3S Research Center</a>, Leibniz University Hannover</p>
         </div>
         <div class="footer-right">
-            <p><a href="https://github.com/ThorKlm/theobroma">GitHub</a> ·
-               <a href="/help#cite">How to Cite</a> ·
+            <p><a href="https://github.com/ThorKlm/theobroma">GitHub</a> &middot;
+               <a href="/help#cite">How to Cite</a> &middot;
                <a href="/help#license">License</a></p>
             <p class="footer-license">CC BY 4.0 / CC BY-NC 4.0</p>
         </div>

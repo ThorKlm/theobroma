@@ -1,16 +1,15 @@
 {% extends "base.html" %}
-{% block title %}{{ c.name or c.comp_id }} — THEOBROMA{% endblock %}
+{% block title %}{{ c.name or c.comp_id }} &mdash; THEOBROMA{% endblock %}
 {% block content %}
 <div class="compound-header">
     <h1>{{ c.name or 'Unnamed compound' }}</h1>
     <span class="compound-id">{{ c.comp_id }}</span>
-    {% if c.kingdom %}
-    <span class="badge badge-{{ c.kingdom|lower|default('unknown') }}" style="margin-left:0.5rem;">{{ c.kingdom }}</span>
-    {% endif %}
+    {% if c.kingdom %}<span class="badge badge-{{ c.kingdom|lower|default('unknown') }}" style="margin-left:0.5rem;">{{ c.kingdom|kingdom_label }}</span>{% endif %}
+    <span class="license-badge license-{{ 'open' if c.license_tier == 'CC BY 4.0' or c.license_tier == 'CC0' else 'nc' }}" style="margin-left:0.5rem;">{{ c.license_tier or 'CC BY 4.0' }}</span>
 </div>
 <div class="compound-grid">
     <div class="card">
-        <h3 style="margin-bottom:0.75rem;font-family:'DM Serif Display',serif;">Structure</h3>
+        <h3 class="card-title">Structure</h3>
         <table class="prop-table">
             <tr><th>SMILES</th><td style="word-break:break-all;">{{ c.smiles }}</td></tr>
             {% if c.inchi %}<tr><th>InChI</th><td style="word-break:break-all;font-size:0.75rem;">{{ c.inchi }}</td></tr>{% endif %}
@@ -18,41 +17,52 @@
         </table>
     </div>
     <div class="card">
-        <h3 style="margin-bottom:0.75rem;font-family:'DM Serif Display',serif;">Properties</h3>
+        <h3 class="card-title">Properties</h3>
         <table class="prop-table">
-            <tr><th>Molecular weight</th><td>{{ "%.2f"|format(c.mw) if c.mw else '—' }}</td></tr>
-            <tr><th>LogP</th><td>{{ "%.2f"|format(c.logp) if c.logp else '—' }}</td></tr>
-            <tr><th>TPSA</th><td>{{ "%.1f"|format(c.tpsa) if c.tpsa else '—' }}</td></tr>
-            <tr><th>HBA</th><td>{{ c.hba if c.hba is not none else '—' }}</td></tr>
-            <tr><th>HBD</th><td>{{ c.hbd if c.hbd is not none else '—' }}</td></tr>
-            <tr><th>Rings</th><td>{{ c.n_rings if c.n_rings is not none else '—' }}</td></tr>
-            <tr><th>Rotatable bonds</th><td>{{ c.rotatable_bonds if c.rotatable_bonds is not none else '—' }}</td></tr>
-            <tr><th>NP-likeness</th><td>{{ "%.3f"|format(c.np_likeness) if c.np_likeness else '—' }}</td></tr>
+            <tr><th>Molecular weight</th><td>{{ "%.2f"|format(c.mw) if c.mw else '&mdash;'|safe }}</td></tr>
+            <tr><th>LogP</th><td>{{ "%.2f"|format(c.logp) if c.logp else '&mdash;'|safe }}</td></tr>
+            <tr><th>TPSA</th><td>{{ "%.1f"|format(c.tpsa) if c.tpsa else '&mdash;'|safe }}</td></tr>
+            <tr><th>HBA</th><td>{{ c.hba if c.hba is not none else '&mdash;'|safe }}</td></tr>
+            <tr><th>HBD</th><td>{{ c.hbd if c.hbd is not none else '&mdash;'|safe }}</td></tr>
+            <tr><th>Rings</th><td>{{ c.n_rings if c.n_rings is not none else '&mdash;'|safe }}</td></tr>
+            <tr><th>Rotatable bonds</th><td>{{ c.rotatable_bonds if c.rotatable_bonds is not none else '&mdash;'|safe }}</td></tr>
         </table>
     </div>
     <div class="card">
-        <h3 style="margin-bottom:0.75rem;font-family:'DM Serif Display',serif;">Classification</h3>
+        <h3 class="card-title">Provenance</h3>
         <table class="prop-table">
-            <tr><th>Kingdom</th><td>{{ c.kingdom or '—' }}</td></tr>
-            <tr><th>ClassyFire superclass</th><td>{{ c.classyfire_superclass or '—' }}</td></tr>
-            <tr><th>NP Classifier class</th><td>{{ c.np_class or '—' }}</td></tr>
+            <tr><th>Primary source</th><td><strong>{{ c.source_db or '&mdash;'|safe }}</strong></td></tr>
+            <tr><th>Also found in</th><td>
+                {% if all_sources_list|length > 1 %}
+                    {% for s in all_sources_list %}
+                    <span class="source-chip{% if s == c.source_db %} source-primary{% endif %}">{{ s }}</span>
+                    {% endfor %}
+                {% else %}
+                    <span class="source-chip source-primary">{{ c.source_db }}</span> (unique to this source)
+                {% endif %}
+            </td></tr>
+            <tr><th>Source organism</th><td>{{ c.source_organism or '&mdash;'|safe }}</td></tr>
+            <tr><th>Geographic region</th><td>{{ c.region|region_label }}</td></tr>
+            <tr><th>License</th><td>
+                <span class="license-badge license-{{ 'open' if c.license_tier == 'CC BY 4.0' or c.license_tier == 'CC0' else 'nc' }}">{{ c.license_tier or 'CC BY 4.0' }}</span>
+            </td></tr>
         </table>
     </div>
     <div class="card">
-        <h3 style="margin-bottom:0.75rem;font-family:'DM Serif Display',serif;">Source</h3>
+        <h3 class="card-title">Classification</h3>
         <table class="prop-table">
-            <tr><th>Source database</th><td>{{ c.source_db or '—' }}</td></tr>
-            <tr><th>Source organism</th><td>{{ c.source_organism or '—' }}</td></tr>
-            <tr><th>Geographic region</th><td>{{ c.region or '—' }}</td></tr>
+            <tr><th>Kingdom</th><td>{{ c.kingdom|kingdom_label }}</td></tr>
+            <tr><th>ClassyFire superclass</th><td>{{ c.classyfire_superclass or '&mdash;'|safe }}</td></tr>
+            <tr><th>NP Classifier class</th><td>{{ c.np_class or '&mdash;'|safe }}</td></tr>
         </table>
     </div>
 </div>
 <div style="margin-top:1rem;">
-    <h3 style="font-family:'DM Serif Display',serif;margin-bottom:0.5rem;">External links</h3>
+    <h3 class="card-title">External links</h3>
     {% if c.inchikey %}
-    <a href="https://www.google.com/search?q={{ c.inchikey }}" class="btn" style="margin-right:0.5rem;" target="_blank">Google</a>
-    <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{ c.inchikey }}" class="btn" style="margin-right:0.5rem;background:var(--kingdom-marine);" target="_blank">PubChem</a>
-    <a href="https://coconut.naturalproducts.net/compound/search?q={{ c.inchikey }}" class="btn" style="background:var(--kingdom-plant);" target="_blank">COCONUT</a>
+    <a href="https://www.google.com/search?q={{ c.inchikey }}" class="btn" target="_blank">Google</a>
+    <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{ c.inchikey }}" class="btn btn-pubchem" target="_blank">PubChem</a>
+    <a href="https://coconut.naturalproducts.net/compound/search?q={{ c.inchikey }}" class="btn btn-coconut" target="_blank">COCONUT</a>
     {% endif %}
 </div>
 {% endblock %}

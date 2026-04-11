@@ -1,58 +1,62 @@
 {% extends "base.html" %}
-{% block title %}Browse — THEOBROMA{% endblock %}
+{% from "_sort_header.html" import sort_header %}
+{% block title %}Browse &mdash; THEOBROMA{% endblock %}
 {% block content %}
 <h1 class="section-title">Browse Compounds</h1>
 <div class="card" style="margin-bottom:1.5rem;">
     <form action="/browse" method="get" class="search-form">
         <select name="kingdom">
             <option value="">All kingdoms</option>
-            {% for k in all_kingdoms %}
-            <option value="{{ k }}" {{ 'selected' if kingdom == k }}>{{ k }}</option>
-            {% endfor %}
+            {% for k in all_kingdoms %}<option value="{{ k }}" {{ 'selected' if kingdom == k }}>{{ k }}</option>{% endfor %}
         </select>
         <select name="source">
             <option value="">All sources</option>
-            {% for s in all_sources %}
-            <option value="{{ s }}" {{ 'selected' if source == s }}>{{ s }}</option>
-            {% endfor %}
+            {% for s in all_sources %}<option value="{{ s }}" {{ 'selected' if source == s }}>{{ s }}</option>{% endfor %}
+        </select>
+        <select name="region">
+            <option value="">All regions</option>
+            {% for r in all_regions %}<option value="{{ r }}" {{ 'selected' if region == r }}>{{ r }}</option>{% endfor %}
         </select>
         <button type="submit">Filter</button>
     </form>
 </div>
-<p style="margin:0.5rem 0;color:var(--text-muted);font-size:0.87rem;">
+<p class="results-info">
     {{ "{:,}".format(total) }} compound{{ 's' if total != 1 }}
     {% if kingdom %} in <strong>{{ kingdom }}</strong>{% endif %}
     {% if source %} from <strong>{{ source }}</strong>{% endif %}
+    {% if region %} in <strong>{{ region }}</strong>{% endif %}
 </p>
 {% if results %}
 <table class="results-table">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>SMILES</th>
-            <th>Kingdom</th>
-            <th>Source</th>
-            <th>MW</th>
-            <th>LogP</th>
-        </tr>
-    </thead>
+    <thead><tr>
+        <th>{{ sort_header("comp_id", "ID", sort, order) }}</th>
+        <th>{{ sort_header("name", "Name", sort, order) }}</th>
+        <th>SMILES</th>
+        <th>{{ sort_header("kingdom", "Kingdom", sort, order) }}</th>
+        <th>{{ sort_header("source_db", "Source", sort, order) }}</th>
+        <th>{{ sort_header("region", "Region", sort, order) }}</th>
+        <th>{{ sort_header("mw", "MW", sort, order) }}</th>
+        <th>{{ sort_header("logp", "LogP", sort, order) }}</th>
+        <th>License</th>
+    </tr></thead>
     <tbody>
-        {% for r in results %}
-        <tr>
-            <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
-            <td>{{ r.name or '—' }}</td>
-            <td class="smiles-cell" title="{{ r.smiles }}">{{ r.smiles[:50] }}{{ '...' if r.smiles|length > 50 }}</td>
-            <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom or '?' }}</span></td>
-            <td>{{ r.source_db or '—' }}</td>
-            <td>{{ "%.1f"|format(r.mw) if r.mw else '—' }}</td>
-            <td>{{ "%.2f"|format(r.logp) if r.logp else '—' }}</td>
-        </tr>
-        {% endfor %}
+    {% for r in results %}
+    <tr>
+        <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
+        <td>{{ r.name or '&mdash;'|safe }}</td>
+        <td class="smiles-cell" title="{{ r.smiles }}">{{ r.smiles[:45] }}{{ '...' if r.smiles|length > 45 }}</td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
+        <td>{{ r.source_db or '&mdash;'|safe }}</td>
+        <td>{{ r.region|region_label }}</td>
+        <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
+        <td>{{ "%.2f"|format(r.logp) if r.logp else '&mdash;'|safe }}</td>
+        <td><span class="license-badge license-{{ 'open' if r.license_tier == 'CC BY 4.0' or r.license_tier == 'CC0' else 'nc' }}">{{ r.license_tier or 'CC BY 4.0' }}</span></td>
+    </tr>
+    {% endfor %}
     </tbody>
 </table>
 {% include "_pagination.html" %}
 {% else %}
-<p style="margin:2rem 0;text-align:center;color:var(--text-muted);">No compounds found.</p>
+<p class="no-results">No compounds found.</p>
 {% endif %}
 {% endblock %}
