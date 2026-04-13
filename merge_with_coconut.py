@@ -113,7 +113,7 @@ invalid_supp = supp[~supp.index.isin(valid_supp.index)].copy()
 valid_supp = valid_supp.sort_values("_priority", ascending=False)
 
 supp_prov = valid_supp.groupby("inchikey").agg({
-    "source_db": lambda x: "|".join(sorted(set(x))),
+    "source_db": lambda x: "|".join(sorted(set(str(v) for v in x if pd.notna(v)))),
     "region": lambda x: next((r for r in x if r != "global" and pd.notna(r) and str(r) != "nan"), "global"),
     "source_organism": lambda x: next((o for o in x if pd.notna(o) and str(o) != "" and str(o) != "nan"), ""),
 }).reset_index()
@@ -185,7 +185,7 @@ print(f"  No InChIKey (kept as-is): {len(invalid_supp):,}")
 print("  Enriching COCONUT with supplementary metadata...")
 if len(overlap_supp) > 0:
     overlap_info = overlap_supp.groupby("inchikey").agg({
-        "source_db": lambda x: "|".join(sorted(set(x))),
+        "source_db": lambda x: "|".join(sorted(set(str(v) for v in x if pd.notna(v)))),
         "region": lambda x: next((r for r in x if r != "global" and pd.notna(r) and str(r) != "nan"), "global"),
         "source_organism": lambda x: next((o for o in x if pd.notna(o) and str(o) != "" and str(o) != "nan"), ""),
     }).reset_index()

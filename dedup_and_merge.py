@@ -83,7 +83,7 @@ deduped["license_tier"] = deduped["best_license"]
 # Collect all source_dbs per InChIKey for provenance
 print("Collecting source provenance...")
 sources_per_ik = has_ik.groupby("inchikey")["source_db"].apply(
-    lambda x: "|".join(sorted(set(x)))).reset_index()
+    lambda x: "|".join(sorted(set(str(v) for v in x if pd.notna(v))))).reset_index()
 sources_per_ik.columns = ["inchikey", "all_sources"]
 deduped = deduped.merge(sources_per_ik, on="inchikey", how="left")
 
