@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Similarity Search &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Similarity Search</h1>
+<div class="search-box">
+    <form action="/similarity" method="get" class="search-form">
+        <input type="text" name="smiles" value="{{ query_smiles }}" placeholder="Enter SMILES (e.g., OC(=O)c1ccccc1)" style="flex:2;" autocomplete="off">
+        <select name="top_n">
+            {% for n in [10,25,50,100,200] %}
+            <option value="{{ n }}" {{ 'selected' if top_n == n }}>Top {{ n }}</option>
+            {% endfor %}
+        </select>
+        <select name="threshold">
+            {% for t in [0.1,0.2,0.3,0.5,0.7] %}
+            <option value="{{ t }}" {{ 'selected' if threshold == t }}>Tc >= {{ t }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Search</button>
+    </form>
+    {% if not engine_loaded %}
+    <p class="search-hint" style="color:#c0392b;">Similarity search is currently unavailable (vectors not loaded).</p>
+    {% else %}
+    <p class="search-hint">Enter a SMILES string to find structurally similar compounds by Morgan/ECFP4 Tanimoto coefficient.</p>
+    {% endif %}
+</div>
+{% if query_smiles %}
+<div class="card" style="margin:1.5rem 0;">
+    <h3 class="card-title">Query structure</h3>
+    <canvas id="query-canvas" width="300" height="200"></canvas>
+</div>
+{% endif %}
+{% if error %}
+<p class="no-results">{{ error }}</p>
+{% endif %}
+{% if results %}
+<p class="results-info">{{ results|length }} similar compounds found</p>
+<div class="table-scroll">
+<table class="results-table">
+    <thead><tr>
+        <th style="width:60px;">Structure</th>
+        <th>Tanimoto</th>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Kingdom</th>
+        <th>Source</th>
+        <th>Organism</th>
+        <th>MW</th>
+        <th>Region</th>
+    </tr></thead>
+    <tbody>
+    {% for r in results %}
+    <tr>
+        <td><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></td>
+        <td><strong style="color:var(--accent);">{{ "%.3f"|format(r.tanimoto) }}</strong></td>
+        <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
+        <td>{{ r.name or '&mdash;'|safe }}</td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
+        <td>{{ r.source_db or '&mdash;'|safe }}</td>
+        <td class="organism-cell" title="{{ r.source_organism }}">{{ r.source_organism or '&mdash;'|safe }}</td>
+        <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
+        <td>{{ r.region|region_label }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var d = new SmilesDrawer.SmiDrawer({bondLength:8, padding:5});
+    document.querySelectorAll('.smi-thumb').forEach(function(c) {
+        try { d.draw(c.dataset.smiles, c, 'light'); } catch(e) {}
+    });
+    var qc = document.getElementById('query-canvas');
+    if (qc) {
+        var qd = new SmilesDrawer.SmiDrawer({bondLength:15, padding:20});
+        try { qd.draw({{ query_smiles|tojson }}, qc, 'light'); } catch(e) {}
+    }
+});
+</script>
+{% endblock %}
