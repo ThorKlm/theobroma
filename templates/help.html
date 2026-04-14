@@ -4,42 +4,45 @@
 <h1 class="section-title">Help</h1>
 <div class="help-content">
     <h2>About THEOBROMA</h2>
-    <p>THEOBROMA is an open, curated natural products database aggregating compounds from 21+ source databases spanning five biological kingdoms (plant, fungi, bacteria, marine, food) and six continents. It supports structure-based virtual screening, cheminformatics research, and drug discovery from natural product chemical space.</p>
+    <p>THEOBROMA is an open, curated natural products database aggregating compounds from 27 source databases spanning six biological kingdoms (plant, fungi, bacteria, marine, animal, food) and six continents. It supports structure-based virtual screening, cheminformatics research, and drug discovery from natural product chemical space.</p>
     <h2>Search</h2>
-    <p><strong>Compound name</strong> &mdash; partial matching, case-insensitive.</p>
+    <p><strong>Compound name</strong> &mdash; partial matching, case-insensitive. Autocomplete suggestions appear after 2 characters.</p>
     <p><strong>SMILES</strong> &mdash; exact canonical SMILES match.</p>
-    <p><strong>InChIKey</strong> &mdash; exact 27-character InChIKey match.</p>
-    <p><strong>Source organism</strong> &mdash; search by the producing organism.</p>
+    <p><strong>InChIKey</strong> &mdash; exact 27-character match. If found, redirects directly to the compound page.</p>
+    <p><strong>Source organism</strong> &mdash; search by producing organism with autocomplete.</p>
     <p><strong>Source database</strong> &mdash; filter by originating database.</p>
     <p><strong>Geographic region</strong> &mdash; search by region of origin.</p>
     <p><strong>Kingdom</strong> &mdash; filter by biological kingdom.</p>
-    <p>All result tables have <strong>sortable columns</strong> &mdash; click any column header to sort ascending/descending.</p>
+    <p>All result tables have <strong>sortable columns</strong> &mdash; click any column header to sort ascending/descending. Use the <strong>"Named only"</strong> checkbox in Browse to filter out unnamed compounds. Press <strong>/</strong> to focus the search box.</p>
     <h2>Provenance</h2>
-    <p>Each compound tracks its full provenance across all source databases. The <code>all_sources</code> field lists every database where the compound was found (pipe-separated). The primary <code>source_db</code> preferentially shows regional/specialized databases over aggregators like COCONUT, giving credit to the original curators.</p>
+    <p>Each compound tracks its full provenance across all source databases. The <code>all_sources</code> field lists every database where the compound was found (pipe-separated). The primary <code>source_db</code> preferentially shows regional/specialized databases over aggregators like COCONUT.</p>
     <p>Compounds with <strong>"unresolved"</strong> region or kingdom lack geographic or taxonomic metadata in their source databases.</p>
     <h2 id="cite">How to cite</h2>
     <pre>Klamt, T. et al. (2026). THEOBROMA: an open multi-kingdom natural products database
-spanning 21+ sources across five kingdoms and six continents for virtual screening
+spanning 27 sources across six kingdoms and six continents for virtual screening
 and drug discovery. Nucleic Acids Research (submitted).</pre>
     <p>Please also cite the original source databases for any compounds you use.</p>
     <h2>API</h2>
-    <pre>GET /api/search?q=QUERY&amp;type=TYPE&amp;limit=N
+    <pre>GET /api/search?q=QUERY&amp;type=TYPE&amp;limit=N&amp;offset=M&amp;format=FORMAT
 
 Parameters:
-  q     &mdash; search query (required)
-  type  &mdash; name | smiles | inchikey | kingdom | organism (default: name)
-  limit &mdash; max results, 1-1000 (default: 50)
+  q      &mdash; search query (required)
+  type   &mdash; name | smiles | inchikey | kingdom | organism | region | source
+  limit  &mdash; max results, 1-10000 (default: 50)
+  offset &mdash; pagination offset (default: 0)
+  format &mdash; json | csv (default: json)
 
-Example:
-  curl "https://theobroma.l3s.uni-hannover.de/api/search?q=quercetin&amp;type=name&amp;limit=5"</pre>
+GET /api/compound/COMP_ID     &mdash; full compound details
+GET /api/autocomplete?q=QUERY &mdash; name autocomplete
+GET /api/organisms?q=QUERY    &mdash; organism autocomplete
+GET /api/stats                &mdash; database statistics</pre>
     <h2 id="license">License</h2>
-    <p><strong>CC BY 4.0:</strong> Compounds from open-access sources (COCONUT, MIBiG, NPAtlas, CSIRO, phytochemdb, EMNPD, CyanoMetDB, SWMD, YMDB, AfroDb, SANCDB, ANPDB, CMNPD, MeFSAT, MicotoXilico, NPASS).</p>
+    <p><strong>CC BY 4.0:</strong> Compounds from open-access sources (COCONUT, MIBiG, NPAtlas, CSIRO, phytochemdb, EMNPD, CyanoMetDB, ANPDB, SANCDB, CMNPD, MeFSAT, MicotoXilico, NPASS, StreptomeDB, AMDB, MycoCentral, NaturAr, LMDB, TMDB, CMDB, SMDB, AfroDb).</p>
     <p><strong>CC0:</strong> TM-MC 2.0 compounds.</p>
-    <p><strong>CC BY-NC 4.0:</strong> Compounds from HERB, Phyto4Health, IMPPAT, VIETHERB.</p>
+    <p><strong>CC BY-NC 4.0:</strong> Compounds from HERB, Phyto4Health, IMPPAT, FooDB, CMAUPv2.</p>
     <p>Each record includes a <code>license_tier</code> field. When a compound appears in multiple sources, the most permissive license applies.</p>
-    <p>Web application code: MIT License on <a href="https://github.com/ThorKlm/theobroma">GitHub</a>.</p>
-    <h2>Source databases</h2>
-    <p>COCONUT 2.0, CMAUP, TCMBank, HERB 2.0, TM-MC 2.0, NPASS 3.0, FooDB, CMNPD, IMPPAT 2.0, Phyto4Health, StreptomeDB, NPAtlas, MeFSAT, MicotoXilico, MIBiG 4.0, phytochemdb, CSIRO Australian NP, VIETHERB, ANPDB, SANCDB, AfroDb, ConMedNP, CamMedNP, LANaPDB, CyanoMetDB, SWMD, YMDB, EMNPD.</p>
+    <h2>Source databases (27)</h2>
+    <p>COCONUT 2.0, CMAUPv2, NPASS 3.0, HERB 2.0, TM-MC 2.0, FooDB, CMNPD, IMPPAT 2.0, NPAtlas, CSIRO, ANPDB, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, SMDB_Spice, MycoCentral, CyanoMetDB, MeFSAT, LMDB_Lichen, AMDB, NaturAr, CMDB_Cereals, TMDB_Trichoderma, Phyto4Health, AfroDb, SANCDB.</p>
     <h2>Contact</h2>
     <p>Open an issue on <a href="https://github.com/ThorKlm/theobroma/issues">GitHub</a> or contact the corresponding author.</p>
 </div>

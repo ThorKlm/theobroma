@@ -2,7 +2,7 @@
 {% block title %}Download &mdash; THEOBROMA{% endblock %}
 {% block content %}
 <h1 class="section-title">Download</h1>
-<p class="results-info">Download the complete THEOBROMA dataset. Each record includes a <code>license_tier</code> and <code>all_sources</code> column for provenance tracking.</p>
+<p class="results-info">Download the complete THEOBROMA dataset. Each record includes <code>license_tier</code> and <code>all_sources</code> columns for provenance tracking.</p>
 <div class="download-grid">
     {% for f in files %}
     <div class="download-card">
@@ -16,13 +16,23 @@
     {% endif %}
 </div>
 <div class="card" style="margin-top:2rem;">
-    <h3 class="card-title">Programmatic access</h3>
-    <p>Use the JSON API to query THEOBROMA programmatically:</p>
-    <pre>curl "https://theobroma.l3s.uni-hannover.de/api/search?q=curcumin&amp;type=name&amp;limit=10"</pre>
-    <p style="margin-top:0.75rem;">Returns: <code>comp_id</code>, <code>name</code>, <code>smiles</code>, <code>inchikey</code>, <code>kingdom</code>, <code>source_db</code>, <code>all_sources</code>, <code>source_organism</code>, <code>region</code>, <code>license_tier</code>.</p>
+    <h3 class="card-title">Programmatic access (REST API)</h3>
+    <p>THEOBROMA provides a JSON API for programmatic access. All endpoints return JSON by default.</p>
+    <table class="prop-table" style="font-size:0.85rem;">
+        <tr><th style="width:35%"><code>GET /api/search</code></th><td>Search compounds by name, SMILES, InChIKey, organism, kingdom, region, or source. Params: <code>q</code>, <code>type</code>, <code>limit</code>, <code>offset</code>, <code>format</code> (json/csv)</td></tr>
+        <tr><th><code>GET /api/compound/&lt;id&gt;</code></th><td>Full details for a single compound by comp_id</td></tr>
+        <tr><th><code>GET /api/autocomplete</code></th><td>Name autocomplete. Params: <code>q</code> (min 2 chars)</td></tr>
+        <tr><th><code>GET /api/organisms</code></th><td>Organism name autocomplete. Params: <code>q</code></td></tr>
+        <tr><th><code>GET /api/stats</code></th><td>Database summary statistics</td></tr>
+    </table>
+    <h3 class="card-title" style="margin-top:1.5rem;">Examples</h3>
+    <pre>curl "https://theobroma.l3s.uni-hannover.de/api/search?q=curcumin&amp;type=name&amp;limit=10"
+curl "https://theobroma.l3s.uni-hannover.de/api/search?q=Streptomyces&amp;type=organism&amp;format=csv"
+curl "https://theobroma.l3s.uni-hannover.de/api/compound/THEO_0856795"
+curl "https://theobroma.l3s.uni-hannover.de/api/stats"</pre>
 </div>
 <div class="card" style="margin-top:1rem;">
-    <h3 class="card-title">Zenodo archive</h3>
-    <p>A versioned, DOI-stamped archive is available on <a href="https://zenodo.org/" target="_blank">Zenodo</a> (DOI forthcoming).</p>
+    <h3 class="card-title">HuggingFace dataset</h3>
+    <p>The full dataset and precomputed vectors are available on <a href="https://huggingface.co/datasets/ThorKl/theobroma" target="_blank">HuggingFace</a>.</p>
 </div>
 {% endblock %}

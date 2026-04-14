@@ -5,24 +5,31 @@
 <h1 class="section-title">Search</h1>
 <div class="search-box">
     <form action="/search" method="get" class="search-form">
-        <select name="type">
+        <select name="type" id="search-type">
             {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Kingdom")] %}
             <option value="{{ val }}" {{ 'selected' if search_type == val }}>{{ label }}</option>
             {% endfor %}
         </select>
-        <input type="text" name="q" value="{{ query }}" placeholder="Search compounds..." autocomplete="off">
+        <div class="search-input-wrap">
+            <input type="text" name="q" id="search-q" value="{{ query }}" placeholder="Search compounds..." autocomplete="off">
+            <div id="autocomplete-list" class="autocomplete-list"></div>
+        </div>
         <button type="submit">Search</button>
     </form>
+    {% if not query %}
+    <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=OC(=O)c1ccccc1&type=smiles">OC(=O)c1ccccc1</a></p>
+    {% endif %}
 </div>
 {% if query %}
 <p class="results-info">{{ "{:,}".format(total) }} result{{ 's' if total != 1 }} for <strong>{{ query }}</strong> in {{ search_type }}</p>
 {% endif %}
 {% if results %}
+<div class="table-scroll">
 <table class="results-table">
     <thead><tr>
+        <th style="width:60px;">Structure</th>
         <th>{{ sort_header("comp_id", "ID", sort, order) }}</th>
         <th>{{ sort_header("name", "Name", sort, order) }}</th>
-        <th>SMILES</th>
         <th>{{ sort_header("kingdom", "Kingdom", sort, order) }}</th>
         <th>{{ sort_header("source_db", "Source", sort, order) }}</th>
         <th>{{ sort_header("source_organism", "Organism", sort, order) }}</th>
@@ -32,20 +39,56 @@
     <tbody>
     {% for r in results %}
     <tr>
+        <td><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></td>
         <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
         <td>{{ r.name or '&mdash;'|safe }}</td>
-        <td class="smiles-cell" title="{{ r.smiles }}">{{ r.smiles[:50] }}{{ '...' if r.smiles|length > 50 }}</td>
         <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
         <td>{{ r.source_db or '&mdash;'|safe }}</td>
-        <td>{{ r.source_organism or '&mdash;'|safe }}</td>
+        <td class="organism-cell" title="{{ r.source_organism }}">{{ r.source_organism or '&mdash;'|safe }}</td>
         <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
         <td><span class="license-badge license-{{ 'open' if r.license_tier == 'CC BY 4.0' or r.license_tier == 'CC0' else 'nc' }}">{{ r.license_tier or 'CC BY 4.0' }}</span></td>
     </tr>
     {% endfor %}
     </tbody>
 </table>
+</div>
 {% include "_pagination.html" %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var d = new SmilesDrawer.Drawer({width:80,height:60,bondThickness:0.8,bondLength:8,
+        fontSizeLarge:5,fontSizeSmall:3,padding:5,
+        themes:{light:{C:'#1a1a1a',O:'#e74c3c',N:'#3498db',S:'#f39c12',BACKGROUND:'#ffffff'}}});
+    document.querySelectorAll('.smi-thumb').forEach(function(c) {
+        SmilesDrawer.parse(c.dataset.smiles, function(tree){d.draw(tree,c,'light');}, function(){});
+    });
+});
+</script>
 {% elif query %}
 <p class="no-results">No results found.</p>
 {% endif %}
+<script>
+(function(){
+    var input = document.getElementById('search-q');
+    var list = document.getElementById('autocomplete-list');
+    var typesel = document.getElementById('search-type');
+    var timer;
+    input.addEventListener('input', function(){
+        clearTimeout(timer);
+        var q = this.value.trim(), t = typesel.value;
+        if (q.length < 2 || (t !== 'name' && t !== 'organism')) { list.innerHTML=''; return; }
+        timer = setTimeout(function(){
+            fetch((t==='organism'?'/api/organisms':'/api/autocomplete')+'?q='+encodeURIComponent(q))
+            .then(function(r){return r.json()}).then(function(data){
+                list.innerHTML='';
+                data.forEach(function(name){
+                    var div=document.createElement('div'); div.className='ac-item'; div.textContent=name;
+                    div.addEventListener('click',function(){input.value=name;list.innerHTML='';});
+                    list.appendChild(div);
+                });
+            });
+        }, 200);
+    });
+    document.addEventListener('click',function(e){if(!e.target.closest('.search-input-wrap'))list.innerHTML='';});
+})();
+</script>
 {% endblock %}

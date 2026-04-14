@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ c.name or c.comp_id }} &mdash; THEOBROMA{% endblock %}
 {% block content %}
+<div class="back-link"><a href="javascript:history.back();">&larr; Back to results</a></div>
 <div class="compound-header">
     <h1>{{ c.name or 'Unnamed compound' }}</h1>
     <span class="compound-id">{{ c.comp_id }}</span>
@@ -10,9 +11,12 @@
 <div class="compound-grid">
     <div class="card">
         <h3 class="card-title">Structure</h3>
-        <table class="prop-table">
-            <tr><th>SMILES</th><td style="word-break:break-all;">{{ c.smiles }}</td></tr>
-            {% if c.inchi %}<tr><th>InChI</th><td style="word-break:break-all;font-size:0.75rem;">{{ c.inchi }}</td></tr>{% endif %}
+        <div class="structure-container">
+            <canvas id="structure-canvas" width="400" height="300"></canvas>
+        </div>
+        <table class="prop-table" style="margin-top:0.75rem;">
+            <tr><th>SMILES</th><td style="word-break:break-all;font-size:0.78rem;">{{ c.smiles }}</td></tr>
+            {% if c.inchi %}<tr><th>InChI</th><td style="word-break:break-all;font-size:0.72rem;">{{ c.inchi }}</td></tr>{% endif %}
             {% if c.inchikey %}<tr><th>InChIKey</th><td>{{ c.inchikey }}</td></tr>{% endif %}
         </table>
     </div>
@@ -64,5 +68,22 @@
     <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{ c.inchikey }}" class="btn btn-pubchem" target="_blank">PubChem</a>
     <a href="https://coconut.naturalproducts.net/compound/search?q={{ c.inchikey }}" class="btn btn-coconut" target="_blank">COCONUT</a>
     {% endif %}
+    <a href="/api/compound/{{ c.comp_id }}" class="btn btn-api" target="_blank">JSON</a>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var drawer = new SmilesDrawer.Drawer({width:400,height:300,
+        bondThickness:1.2,bondLength:15,shortBondLength:0.85,
+        fontSizeLarge:11,fontSizeSmall:7,padding:20,
+        themes:{light:{C:'#1a1a1a',O:'#e74c3c',N:'#3498db',S:'#f39c12',
+                       F:'#27ae60',Cl:'#27ae60',Br:'#884422',P:'#e67e22',BACKGROUND:'#ffffff'}}});
+    SmilesDrawer.parse({{ c.smiles|tojson }}, function(tree){
+        drawer.draw(tree,'structure-canvas','light');
+    }, function(){
+        var ctx=document.getElementById('structure-canvas').getContext('2d');
+        ctx.font='13px IBM Plex Sans';ctx.fillStyle='#999';
+        ctx.fillText('Structure could not be rendered',20,150);
+    });
+});
+</script>
 {% endblock %}

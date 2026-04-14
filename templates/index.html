@@ -3,11 +3,11 @@
 {% block content %}
 <div class="hero">
     <h1>THEOBROMA</h1>
-    <p class="subtitle">An open multi-kingdom natural products database spanning 21+ sources across five kingdoms and six continents for virtual screening and drug discovery</p>
+    <p class="subtitle">An open multi-kingdom natural products database spanning 27 sources across six kingdoms and six continents for virtual screening and drug discovery</p>
     <div class="stat-row">
         <div class="stat-item"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-label">Compounds</div></div>
         <div class="stat-item"><div class="stat-num">{{ n_sources }}</div><div class="stat-label">Source databases</div></div>
-        <div class="stat-item"><div class="stat-num">5</div><div class="stat-label">Kingdoms</div></div>
+        <div class="stat-item"><div class="stat-num">6</div><div class="stat-label">Kingdoms</div></div>
         <div class="stat-item"><div class="stat-num">6</div><div class="stat-label">Continents</div></div>
     </div>
     <div class="kingdoms-row">
@@ -20,7 +20,7 @@
     </div>
     {% if regions %}
     <div class="kingdoms-row" style="margin-top:0.5rem;">
-        {% for r in regions if r.reg != 'unresolved' %}
+        {% for r in regions if r.reg != 'unresolved' and r.cnt >= 100 %}
         <a href="/browse?region={{ r.reg }}" class="kingdom-chip">
             <span class="kingdom-dot" style="background:var(--accent)"></span>
             {{ r.reg }} <strong>{{ "{:,}".format(r.cnt) }}</strong>
@@ -30,8 +30,8 @@
     {% endif %}
 </div>
 <div class="search-box">
-    <form action="/search" method="get" class="search-form">
-        <select name="type">
+    <form action="/search" method="get" class="search-form" id="main-search">
+        <select name="type" id="search-type">
             <option value="name">Compound name</option>
             <option value="smiles">SMILES</option>
             <option value="inchikey">InChIKey</option>
@@ -40,8 +40,42 @@
             <option value="region">Geographic region</option>
             <option value="kingdom">Kingdom</option>
         </select>
-        <input type="text" name="q" placeholder="Search compounds..." autocomplete="off">
+        <div class="search-input-wrap">
+            <input type="text" name="q" id="search-q" placeholder="Search compounds..." autocomplete="off">
+            <div id="autocomplete-list" class="autocomplete-list"></div>
+        </div>
         <button type="submit">Search</button>
     </form>
+    <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=fungi&type=kingdom">fungi</a> &middot; <span class="hint-key">/</span> to focus</p>
 </div>
+<script>
+(function(){
+    var input = document.getElementById('search-q');
+    var list = document.getElementById('autocomplete-list');
+    var typesel = document.getElementById('search-type');
+    var timer;
+    input.addEventListener('input', function(){
+        clearTimeout(timer);
+        var q = this.value.trim();
+        var t = typesel.value;
+        if (q.length < 2 || (t !== 'name' && t !== 'organism')) { list.innerHTML=''; return; }
+        timer = setTimeout(function(){
+            var endpoint = t === 'organism' ? '/api/organisms' : '/api/autocomplete';
+            fetch(endpoint+'?q='+encodeURIComponent(q))
+            .then(function(r){return r.json()})
+            .then(function(data){
+                list.innerHTML = '';
+                data.forEach(function(name){
+                    var div = document.createElement('div');
+                    div.className = 'ac-item';
+                    div.textContent = name;
+                    div.addEventListener('click', function(){ input.value=name; list.innerHTML=''; });
+                    list.appendChild(div);
+                });
+            });
+        }, 200);
+    });
+    document.addEventListener('click', function(e){ if(!e.target.closest('.search-input-wrap')) list.innerHTML=''; });
+})();
+</script>
 {% endblock %}

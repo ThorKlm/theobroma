@@ -1,4 +1,4 @@
-{% if pages > 1 %}
+{% if pages > 1 or total > 0 %}
 <div class="pagination">
     {% set base = request.args.copy() %}
     {% if page > 1 %}
@@ -20,5 +20,11 @@
     <a href="?{% for k,v in base.items() %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}">Next &raquo;</a>
     {% endif %}
     <span class="info">{{ "{:,}".format(total) }} results</span>
+    <select class="per-page-select" onchange="var u=new URL(window.location);u.searchParams.set('per_page',this.value);u.searchParams.set('page','1');window.location=u;">
+        {% for pp in [25,50,100,1000] %}
+        <option value="{{ pp }}" {{ 'selected' if per_page == pp }}>{{ pp }}/page</option>
+        {% endfor %}
+    </select>
+    <a href="/export?{% for k,v in request.args.items() %}{{ k }}={{ v }}&{% endfor %}" class="export-btn" title="Download results as CSV">CSV</a>
 </div>
 {% endif %}

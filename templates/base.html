@@ -4,14 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}THEOBROMA{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/smiles-drawer@2.1.6/dist/smiles-drawer.min.js"></script>
 </head>
 <body>
 <header>
     <div class="header-inner">
-        <a href="/" class="logo"><span class="logo-icon">&#127807;</span><span class="logo-text">THEOBROMA</span></a>
+        <a href="/" class="logo"><img src="{{ url_for('static', filename='favicon.svg') }}" alt="" class="logo-icon-img"><span class="logo-text">THEOBROMA</span></a>
         <nav>
             <a href="/">Home</a>
             <a href="/search">Search</a>
@@ -38,5 +41,15 @@
         </div>
     </div>
 </footer>
+<script>
+// Keyboard shortcut: / focuses search
+document.addEventListener('keydown', function(e) {
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        var s = document.querySelector('input[name="q"]');
+        if (s) s.focus();
+    }
+});
+</script>
 </body>
 </html>

@@ -7,16 +7,17 @@
     <form action="/browse" method="get" class="search-form">
         <select name="kingdom">
             <option value="">All kingdoms</option>
-            {% for k in all_kingdoms %}<option value="{{ k }}" {{ 'selected' if kingdom == k }}>{{ k }}</option>{% endfor %}
+            {% for k in all_kingdoms %}<option value="{{ k.kingdom }}" {{ 'selected' if kingdom == k.kingdom }}>{{ k.kingdom }} ({{ "{:,}".format(k.cnt) }})</option>{% endfor %}
         </select>
         <select name="source">
             <option value="">All sources</option>
-            {% for s in all_sources %}<option value="{{ s }}" {{ 'selected' if source == s }}>{{ s }}</option>{% endfor %}
+            {% for s in all_sources_list %}<option value="{{ s.source_db }}" {{ 'selected' if source == s.source_db }}>{{ s.source_db }} ({{ "{:,}".format(s.cnt) }})</option>{% endfor %}
         </select>
         <select name="region">
             <option value="">All regions</option>
             {% for r in all_regions %}<option value="{{ r }}" {{ 'selected' if region == r }}>{{ r }}</option>{% endfor %}
         </select>
+        <label class="checkbox-label"><input type="checkbox" name="named" value="1" {{ 'checked' if named }}> Named only</label>
         <button type="submit">Filter</button>
     </form>
 </div>
@@ -25,13 +26,15 @@
     {% if kingdom %} in <strong>{{ kingdom }}</strong>{% endif %}
     {% if source %} from <strong>{{ source }}</strong>{% endif %}
     {% if region %} in <strong>{{ region }}</strong>{% endif %}
+    {% if named %} (named only){% endif %}
 </p>
 {% if results %}
+<div class="table-scroll">
 <table class="results-table">
     <thead><tr>
+        <th style="width:60px;">Structure</th>
         <th>{{ sort_header("comp_id", "ID", sort, order) }}</th>
         <th>{{ sort_header("name", "Name", sort, order) }}</th>
-        <th>SMILES</th>
         <th>{{ sort_header("kingdom", "Kingdom", sort, order) }}</th>
         <th>{{ sort_header("source_db", "Source", sort, order) }}</th>
         <th>{{ sort_header("region", "Region", sort, order) }}</th>
@@ -42,9 +45,9 @@
     <tbody>
     {% for r in results %}
     <tr>
+        <td><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></td>
         <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
         <td>{{ r.name or '&mdash;'|safe }}</td>
-        <td class="smiles-cell" title="{{ r.smiles }}">{{ r.smiles[:45] }}{{ '...' if r.smiles|length > 45 }}</td>
         <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
         <td>{{ r.source_db or '&mdash;'|safe }}</td>
         <td>{{ r.region|region_label }}</td>
@@ -55,7 +58,18 @@
     {% endfor %}
     </tbody>
 </table>
+</div>
 {% include "_pagination.html" %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var d = new SmilesDrawer.Drawer({width:80,height:60,bondThickness:0.8,bondLength:8,
+        fontSizeLarge:5,fontSizeSmall:3,padding:5,
+        themes:{light:{C:'#1a1a1a',O:'#e74c3c',N:'#3498db',S:'#f39c12',BACKGROUND:'#ffffff'}}});
+    document.querySelectorAll('.smi-thumb').forEach(function(c) {
+        SmilesDrawer.parse(c.dataset.smiles, function(tree){d.draw(tree,c,'light');}, function(){});
+    });
+});
+</script>
 {% else %}
 <p class="no-results">No compounds found.</p>
 {% endif %}

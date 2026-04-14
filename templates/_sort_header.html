@@ -1,13 +1,9 @@
-{# Macro for sortable table headers #}
+{# Sortable table header -- preserves all existing query params #}
 {% macro sort_header(col, label, current_sort, current_order) %}
 {% set next_order = 'desc' if current_sort == col and current_order == 'asc' else 'asc' %}
 {% set arrow = '' %}
 {% if current_sort == col %}
     {% set arrow = ' &#9650;' if current_order == 'asc' else ' &#9660;' %}
 {% endif %}
-{% set base_qs = request.args.copy() %}
-{% set _ = base_qs.__setitem__('sort', col) %}
-{% set _ = base_qs.__setitem__('order', next_order) %}
-{% set _ = base_qs.__setitem__('page', '1') %}
-<a href="?{% for k,v in base_qs.items() %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}" class="sort-header{% if current_sort == col %} sort-active{% endif %}">{{ label }}{{ arrow|safe }}</a>
+<a href="?{% for k,v in request.args.items() %}{% if k not in ('sort','order','page') %}{{ k }}={{ v }}&{% endif %}{% endfor %}sort={{ col }}&order={{ next_order }}&page=1" class="sort-header{% if current_sort == col %} sort-active{% endif %}">{{ label }}{{ arrow|safe }}</a>
 {% endmacro %}
