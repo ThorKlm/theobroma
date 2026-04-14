@@ -62,11 +62,9 @@
 {% include "_pagination.html" %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var d = new SmilesDrawer.Drawer({width:80,height:60,bondThickness:0.8,bondLength:8,
-        fontSizeLarge:5,fontSizeSmall:3,padding:5,
-        themes:{light:{C:'#1a1a1a',O:'#e74c3c',N:'#3498db',S:'#f39c12',BACKGROUND:'#ffffff'}}});
+    var d = new SmilesDrawer.SmiDrawer({bondLength:8, padding:5});
     document.querySelectorAll('.smi-thumb').forEach(function(c) {
-        SmilesDrawer.parse(c.dataset.smiles, function(tree){d.draw(tree,c,'light');}, function(){});
+        try { d.draw(c.dataset.smiles, c, 'light'); } catch(e) {}
     });
 });
 </script>

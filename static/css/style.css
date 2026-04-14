@@ -39,6 +39,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; flex: 1; width: 
 .stat-num { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--accent); }
 .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
 
+a.stat-item { text-decoration: none; color: inherit; transition: transform 0.15s; }
+a.stat-item:hover { transform: translateY(-2px); text-decoration: none; }
+
 /* Search */
 .search-box { max-width: 750px; margin: 2rem auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
 .search-form { display: flex; gap: 0.5rem; align-items: stretch; flex-wrap: wrap; }

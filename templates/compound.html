@@ -72,17 +72,13 @@
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var drawer = new SmilesDrawer.Drawer({width:400,height:300,
-        bondThickness:1.2,bondLength:15,shortBondLength:0.85,
-        fontSizeLarge:11,fontSizeSmall:7,padding:20,
-        themes:{light:{C:'#1a1a1a',O:'#e74c3c',N:'#3498db',S:'#f39c12',
-                       F:'#27ae60',Cl:'#27ae60',Br:'#884422',P:'#e67e22',BACKGROUND:'#ffffff'}}});
-    SmilesDrawer.parse({{ c.smiles|tojson }}, function(tree){
-        drawer.draw(tree,'structure-canvas','light');
-    }, function(){
-        var ctx=document.getElementById('structure-canvas').getContext('2d');
-        ctx.font='13px IBM Plex Sans';ctx.fillStyle='#999';
-        ctx.fillText('Structure could not be rendered',20,150);
+    var drawer = new SmilesDrawer.Drawer({width:400, height:300});
+    SmilesDrawer.parse({{ c.smiles|tojson }}, function(tree) {
+        drawer.draw(tree, 'structure-canvas', 'light');
+    }, function() {
+        var ctx = document.getElementById('structure-canvas').getContext('2d');
+        ctx.font = '13px IBM Plex Sans'; ctx.fillStyle = '#999';
+        ctx.fillText('Structure could not be rendered', 20, 150);
     });
 });
 </script>

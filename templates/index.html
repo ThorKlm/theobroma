@@ -5,10 +5,10 @@
     <h1>THEOBROMA</h1>
     <p class="subtitle">An open multi-kingdom natural products database spanning 27 sources across six kingdoms and six continents for virtual screening and drug discovery</p>
     <div class="stat-row">
-        <div class="stat-item"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-label">Compounds</div></div>
-        <div class="stat-item"><div class="stat-num">{{ n_sources }}</div><div class="stat-label">Source databases</div></div>
-        <div class="stat-item"><div class="stat-num">6</div><div class="stat-label">Kingdoms</div></div>
-        <div class="stat-item"><div class="stat-num">6</div><div class="stat-label">Continents</div></div>
+        <a href="/search" class="stat-item"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-label">Compounds</div></a>
+        <a href="/statistics" class="stat-item"><div class="stat-num">{{ n_sources }}</div><div class="stat-label">Source databases</div></a>
+        <a href="/statistics" class="stat-item"><div class="stat-num">6</div><div class="stat-label">Kingdoms</div></a>
+        <a href="/statistics" class="stat-item"><div class="stat-num">6</div><div class="stat-label">Continents</div></a>
     </div>
     <div class="kingdoms-row">
         {% for k in kingdoms %}
