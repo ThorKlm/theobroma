@@ -56,6 +56,24 @@ def region_label(v):
 def kingdom_label(v):
     return "unresolved" if not v or v in ("nan","") else v
 
+
+@app.after_request
+def log_access(response):
+    if request.path.startswith("/static/"):
+        return response
+    try:
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO access_log (path, method, ip, user_agent) VALUES (%s,%s,%s,%s)",
+                    (request.path, request.method, ip, request.headers.get("User-Agent","")[:200])
+                )
+            conn.commit()
+    except:
+        pass
+    return response
+
 # --- Routes ---
 
 @app.route("/")
@@ -542,6 +560,22 @@ def admet_browser():
     return render_template("admet.html", results=results, filters=filters,
                            filter_defs=filter_defs, total=total, page=page,
                            pages=pages, per_page=per_page)
+
+
+
+@app.route("/api/usage")
+def api_usage():
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT COUNT(*) AS total FROM access_log")
+            total = cur.fetchone()["total"]
+            cur.execute("SELECT COUNT(*) AS today FROM access_log WHERE ts::date = CURRENT_DATE")
+            today = cur.fetchone()["today"]
+            cur.execute("SELECT COUNT(DISTINCT ip) AS unique_ips FROM access_log")
+            unique = cur.fetchone()["unique_ips"]
+            cur.execute("SELECT path, COUNT(*) AS cnt FROM access_log WHERE path NOT LIKE '/static/%%' GROUP BY path ORDER BY cnt DESC LIMIT 10")
+            top_pages = cur.fetchall()
+    return jsonify({"total_requests": total, "today": today, "unique_visitors": unique, "top_pages": top_pages})
 
 
 @app.errorhandler(404)

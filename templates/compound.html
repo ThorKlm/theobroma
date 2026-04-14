@@ -47,6 +47,7 @@
             </td></tr>
             <tr><th>Source organism</th><td>{{ c.source_organism or '&mdash;'|safe }}</td></tr>
             <tr><th>Geographic region</th><td>{{ c.region|region_label }}</td></tr>
+            <tr><th>References</th><td>{% if c.reference_doi %}{% for doi in c.reference_doi.split("; ")[:3] %}<a href="https://doi.org/{{ doi }}" target="_blank" style="font-size:0.78rem;">{{ doi }}</a> {% endfor %}{% if c.reference_doi.split("; ")|length > 3 %}(+{{ c.reference_doi.split("; ")|length - 3 }} more){% endif %}{% else %}&mdash;{% endif %}</td></tr>
             <tr><th>License</th><td>
                 <span class="license-badge license-{{ 'open' if c.license_tier == 'CC BY 4.0' or c.license_tier == 'CC0' else 'nc' }}">{{ c.license_tier or 'CC BY 4.0' }}</span>
             </td></tr>
