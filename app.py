@@ -6,6 +6,12 @@ from flask import (Flask, render_template, request, send_from_directory,
                    jsonify, abort, redirect, url_for, Response)
 from config import Config
 import psycopg2, psycopg2.extras, os, math, re, csv, io
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from scripts.similarity import SimilarityEngine
+
+sim_engine = SimilarityEngine(vectors_dir="data/vectors")
+sim_engine.load()
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -40,11 +46,11 @@ def paginate(query, params, page, per_page, conn):
         results = cur.fetchall()
     return results, total, pages
 
-REGION_SQL = """CASE WHEN region IS NULL OR region='' OR region='global' THEN 'unresolved' ELSE region END"""
+REGION_SQL = """CASE WHEN region IS NULL OR region='' OR region='global' THEN 'global / unresolved' ELSE region END"""
 
 @app.template_filter("region_label")
 def region_label(v):
-    return "unresolved" if not v or v in ("global","nan","") else v
+    return "global / unresolved" if not v or v in ("global","nan","") else v
 
 @app.template_filter("kingdom_label")
 def kingdom_label(v):
@@ -117,7 +123,7 @@ def browse():
     if source:
         clauses.append("source_db=%s"); params += (source,)
     if region:
-        if region == "unresolved":
+        if region in ("unresolved", "global / unresolved"):
             clauses.append("(region IS NULL OR region='' OR region='global')")
         else:
             clauses.append("region=%s"); params += (region,)
@@ -131,8 +137,34 @@ def browse():
             cur.execute("""SELECT kingdom, COUNT(*) AS cnt FROM compounds
                           WHERE kingdom IS NOT NULL AND kingdom!='' GROUP BY kingdom ORDER BY kingdom""")
             all_kingdoms = cur.fetchall()
-            cur.execute("SELECT source_db, COUNT(*) AS cnt FROM compounds GROUP BY source_db ORDER BY source_db")
-            all_sources_list = cur.fetchall()
+            # Count each source by appearances in all_sources (full credit to smaller DBs)
+            cur.execute("""
+                        SELECT TRIM(src) AS source_db, COUNT(*) AS cnt
+                        FROM (SELECT unnest(string_to_array(COALESCE(all_sources, source_db), '|')) AS src
+                              FROM compounds) t
+                        WHERE TRIM(src) != '' AND TRIM(src) != 'None'
+                        GROUP BY TRIM (src)
+                        ORDER BY cnt DESC
+                        """)
+            raw_sources = cur.fetchall()
+
+            # For COCONUT, show only exclusive compounds (not in any other source)
+            cur.execute("""
+                        SELECT COUNT(*) AS cnt
+                        FROM compounds
+                        WHERE (all_sources IS NULL OR all_sources = '' OR all_sources = 'COCONUT'
+                            OR all_sources NOT LIKE '%%|%%')
+                          AND (source_db = 'COCONUT' OR source_db IS NULL)
+                        """)
+            coconut_exclusive = cur.fetchone()["cnt"]
+
+            sources = []
+            for s in raw_sources:
+                if s["source_db"] == "COCONUT":
+                    sources.append({"source_db": "COCONUT (exclusive)", "cnt": coconut_exclusive})
+                else:
+                    sources.append(s)
+            sources.sort(key=lambda x: -x["cnt"])
             cur.execute(f"SELECT DISTINCT {REGION_SQL} AS reg FROM compounds ORDER BY reg")
             all_regions = [r["reg"] for r in cur.fetchall()]
     return render_template("browse.html", results=results, page=page, total=total,
@@ -325,6 +357,64 @@ def export_results():
         w.writerows(results)
     return Response(si.getvalue(), mimetype="text/csv",
                    headers={"Content-Disposition": "attachment; filename=theobroma_export.csv"})
+
+@app.route("/similarity")
+def similarity():
+    query_smiles = request.args.get("smiles", "").strip()
+    top_n = min(200, max(1, int(request.args.get("top_n", 50))))
+    threshold = max(0.0, min(1.0, float(request.args.get("threshold", "0.3"))))
+    results = []
+    error = None
+    if query_smiles:
+        if not sim_engine.loaded:
+            error = "Similarity search not available (vectors not loaded)."
+        else:
+            hits = sim_engine.tanimoto_search(query_smiles, top_n=top_n, threshold=threshold)
+            if not hits:
+                error = "Invalid SMILES or no similar compounds found."
+            else:
+                comp_ids = [h["comp_id"] for h in hits]
+                scores = {h["comp_id"]: h["tanimoto"] for h in hits}
+                ph = ",".join(["%s"] * len(comp_ids))
+                with get_db() as conn:
+                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                        cur.execute(f"SELECT * FROM compounds WHERE comp_id IN ({ph})", tuple(comp_ids))
+                        db_rows = {r["comp_id"]: r for r in cur.fetchall()}
+                for cid in comp_ids:
+                    if cid in db_rows:
+                        row = db_rows[cid]
+                        row["tanimoto"] = scores[cid]
+                        results.append(row)
+    return render_template("similarity.html", query_smiles=query_smiles, results=results,
+                           top_n=top_n, threshold=threshold, error=error,
+                           engine_loaded=sim_engine.loaded)
+
+@app.route("/api/similarity")
+def api_similarity():
+    smiles = request.args.get("smiles", "").strip()
+    top_n = min(200, max(1, int(request.args.get("top_n", 50))))
+    threshold = max(0.0, min(1.0, float(request.args.get("threshold", "0.3"))))
+    if not smiles:
+        return jsonify({"error": "smiles parameter required"}), 400
+    if not sim_engine.loaded:
+        return jsonify({"error": "similarity search not available"}), 503
+    hits = sim_engine.tanimoto_search(smiles, top_n=top_n, threshold=threshold)
+    comp_ids = [h["comp_id"] for h in hits]
+    scores = {h["comp_id"]: h["tanimoto"] for h in hits}
+    if not comp_ids:
+        return jsonify({"count": 0, "results": []})
+    ph = ",".join(["%s"] * len(comp_ids))
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(f"SELECT comp_id,name,smiles,inchikey,kingdom,source_db,source_organism,region,mw FROM compounds WHERE comp_id IN ({ph})", tuple(comp_ids))
+            db_rows = {r["comp_id"]: r for r in cur.fetchall()}
+    results = []
+    for cid in comp_ids:
+        if cid in db_rows:
+            r = db_rows[cid]
+            r["tanimoto"] = scores[cid]
+            results.append(r)
+    return jsonify({"count": len(results), "results": results})
 
 @app.errorhandler(404)
 def not_found(e):
