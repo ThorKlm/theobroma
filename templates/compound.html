@@ -69,6 +69,7 @@
     <a href="https://coconut.naturalproducts.net/compound/search?q={{ c.inchikey }}" class="btn btn-coconut" target="_blank">COCONUT</a>
     {% endif %}
     <a href="/api/compound/{{ c.comp_id }}" class="btn btn-api" target="_blank">JSON</a>
+    <a href="/admet?comp_id={{ c.comp_id }}" class="btn">ADMET</a>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

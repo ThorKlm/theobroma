@@ -187,3 +187,8 @@ footer { background: var(--surface); border-top: 1px solid var(--border); margin
     .footer-right { text-align: left; }
     .results-table { min-width: 700px; }
 }
+
+/* ADMET */
+.admet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+.admet-filter label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; }
+.admet-filter input { border: 1px solid var(--border); border-radius: var(--radius); font-family: 'IBM Plex Mono', monospace; }

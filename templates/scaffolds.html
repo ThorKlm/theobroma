@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Scaffold Browser &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Scaffold Browser</h1>
+<p class="results-info">{{ "{:,}".format(total) }} unique Bemis-Murcko scaffolds</p>
+<div class="table-scroll">
+<table class="results-table">
+    <thead><tr>
+        <th style="width:80px;">Structure</th>
+        <th>Scaffold SMILES</th>
+        <th>Compounds</th>
+    </tr></thead>
+    <tbody>
+    {% for s in scaffolds %}
+    <tr>
+        <td><canvas class="smi-thumb" data-smiles="{{ s.scaffold }}" width="80" height="60"></canvas></td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:0.78rem;word-break:break-all;">
+            <a href="/scaffolds?scaffold={{ s.scaffold|urlencode }}">{{ s.scaffold[:80] }}{% if s.scaffold|length > 80 %}...{% endif %}</a>
+        </td>
+        <td><strong>{{ "{:,}".format(s.cnt) }}</strong></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% include "_pagination.html" %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var d = new SmilesDrawer.Drawer({width:80, height:60});
+    document.querySelectorAll('.smi-thumb').forEach(function(c) {
+        SmilesDrawer.parse(c.dataset.smiles, function(tree){ d.draw(tree, c, 'light'); }, function(){});
+    });
+});
+</script>
+{% endblock %}

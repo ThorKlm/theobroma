@@ -121,7 +121,7 @@ def browse():
     if kingdom:
         clauses.append("kingdom=%s"); params += (kingdom,)
     if source:
-        clauses.append("source_db=%s"); params += (source,)
+        clauses.append("(source_db=%s OR all_sources LIKE %s)"); params += (source, f"%{source}%")
     if region:
         if region in ("unresolved", "global / unresolved"):
             clauses.append("(region IS NULL OR region='' OR region='global')")
@@ -339,7 +339,7 @@ def export_results():
     if kingdom:
         clauses.append("kingdom=%s"); params += (kingdom,)
     if source:
-        clauses.append("source_db=%s"); params += (source,)
+        clauses.append("(source_db=%s OR all_sources LIKE %s)"); params += (source, f"%{source}%")
     if region and region != "unresolved":
         clauses.append("region=%s"); params += (region,)
     elif region == "unresolved":
@@ -387,7 +387,11 @@ def similarity():
                         row = db_rows[cid]
                         row["tanimoto"] = scores[cid]
                         results.append(row)
-    return render_template("similarity.html", query_smiles=query_smiles, results=results,
+    # Geographic analog: filter by region
+    region_filter = request.args.get("region", "")
+    if region_filter and results:
+        results = [r for r in results if r.get("region") == region_filter]
+    return render_template("similarity.html", query_smiles=query_smiles, results=results, region_filter=region_filter,
                            top_n=top_n, threshold=threshold, error=error,
                            engine_loaded=sim_engine.loaded)
 
@@ -417,6 +421,128 @@ def api_similarity():
             r["tanimoto"] = scores[cid]
             results.append(r)
     return jsonify({"count": len(results), "results": results})
+
+
+@app.route("/substructure")
+def substructure():
+    query = request.args.get("smarts", "").strip()
+    max_results = min(500, max(1, int(request.args.get("max_results", 100))))
+    results = []
+    error = None
+    if query:
+        if not sim_engine.loaded:
+            error = "Substructure search not available."
+        else:
+            from rdkit import Chem
+            hits = sim_engine.substructure_search(query, max_results=max_results)
+            if not hits:
+                error = "Invalid SMARTS/SMILES or no matches found."
+            else:
+                comp_ids = [h["comp_id"] for h in hits]
+                ph = ",".join(["%s"] * len(comp_ids))
+                with get_db() as conn:
+                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                        cur.execute(f"SELECT * FROM compounds WHERE comp_id IN ({ph})", tuple(comp_ids))
+                        db_rows = {r["comp_id"]: r for r in cur.fetchall()}
+                # Verify substructure match with RDKit
+                query_mol = Chem.MolFromSmarts(query)
+                if query_mol is None:
+                    query_mol = Chem.MolFromSmiles(query)
+                for cid in comp_ids:
+                    if cid in db_rows:
+                        row = db_rows[cid]
+                        mol = Chem.MolFromSmiles(row["smiles"])
+                        if mol and mol.HasSubstructMatch(query_mol):
+                            results.append(row)
+                            if len(results) >= max_results:
+                                break
+    return render_template("substructure.html", query=query, results=results,
+                           max_results=max_results, error=error,
+                           engine_loaded=sim_engine.loaded)
+
+
+@app.route("/scaffolds")
+def scaffold_browser():
+    page = max(1, int(request.args.get("page", 1)))
+    scaffold = request.args.get("scaffold", "").strip()
+    per_page = get_per_page()
+    if scaffold:
+        query = """SELECT c.* FROM compounds c JOIN scaffolds s ON c.comp_id=s.comp_id
+                   WHERE s.scaffold=%s ORDER BY c.comp_id"""
+        with get_db() as conn:
+            results, total, pages = paginate(query, (scaffold,), page, per_page, conn)
+        return render_template("scaffold_detail.html", scaffold=scaffold, results=results,
+                               page=page, total=total, pages=pages, per_page=per_page)
+    else:
+        query = """SELECT scaffold, COUNT(*) AS cnt FROM scaffolds
+                   WHERE scaffold IS NOT NULL AND scaffold != ''
+                   GROUP BY scaffold ORDER BY cnt DESC"""
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("SELECT COUNT(DISTINCT scaffold) FROM scaffolds WHERE scaffold != ''")
+                total_scaffolds = cur.fetchone()["count"]
+                cur.execute(query + " LIMIT %s OFFSET %s", (per_page, (page-1)*per_page))
+                scaffolds = cur.fetchall()
+                pages = max(1, -(-total_scaffolds // per_page))
+        return render_template("scaffolds.html", scaffolds=scaffolds, total=total_scaffolds,
+                               page=page, pages=pages, per_page=per_page)
+
+
+@app.route("/admet")
+def admet_browser():
+    comp_id = request.args.get("comp_id", "").strip()
+    if comp_id:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("SELECT * FROM admet WHERE comp_id=%s", (comp_id,))
+                admet_data = cur.fetchone()
+                cur.execute("SELECT * FROM compounds WHERE comp_id=%s", (comp_id,))
+                compound = cur.fetchone()
+        return render_template("admet_detail.html", compound=compound, admet=admet_data)
+    # Filter mode
+    filters = {}
+    clauses = []
+    params = []
+    filter_defs = [
+        ("hERG_Karim-et-al", "hERG risk", 0, 1),
+        ("AMES_Li-et-al", "AMES mutagenicity", 0, 1),
+        ("BBB_Martins-et-al", "BBB penetration", 0, 1),
+        ("HIA_Hou-et-al", "Human intestinal absorption", 0, 1),
+        ("Caco2_Wang-et-al", "Caco-2 permeability", -8, -4),
+        ("Solubility_AqSolDB", "Aqueous solubility", -10, 2),
+    ]
+    for col, label, default_min, default_max in filter_defs:
+        lo = request.args.get(f"{col}_min", "")
+        hi = request.args.get(f"{col}_max", "")
+        if lo:
+            clauses.append(f'a."{col}" >= %s')
+            params.append(float(lo))
+            filters[f"{col}_min"] = lo
+        if hi:
+            clauses.append(f'a."{col}" <= %s')
+            params.append(float(hi))
+            filters[f"{col}_max"] = hi
+    page = max(1, int(request.args.get("page", 1)))
+    per_page = get_per_page()
+    results = []
+    total = 0
+    pages = 0
+    if clauses:
+        where = "WHERE " + " AND ".join(clauses)
+        count_sql = f"SELECT COUNT(*) FROM admet a {where}"
+        query_sql = f"""SELECT c.*, a.* FROM compounds c JOIN admet a ON c.comp_id=a.comp_id
+                        {where} ORDER BY c.comp_id LIMIT %s OFFSET %s"""
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(count_sql, tuple(params))
+                total = cur.fetchone()["count"]
+                pages = max(1, -(-total // per_page))
+                cur.execute(query_sql, tuple(params) + (per_page, (page-1)*per_page))
+                results = cur.fetchall()
+    return render_template("admet.html", results=results, filters=filters,
+                           filter_defs=filter_defs, total=total, page=page,
+                           pages=pages, per_page=per_page)
+
 
 @app.errorhandler(404)
 def not_found(e):
