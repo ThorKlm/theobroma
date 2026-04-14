@@ -165,12 +165,14 @@ def browse():
                 else:
                     sources.append(s)
             sources.sort(key=lambda x: -x["cnt"])
+            cur.execute("SELECT source_db, COUNT(*) AS cnt FROM compounds GROUP BY source_db ORDER BY source_db")
+            all_sources = cur.fetchall()
             cur.execute(f"SELECT DISTINCT {REGION_SQL} AS reg FROM compounds ORDER BY reg")
             all_regions = [r["reg"] for r in cur.fetchall()]
     return render_template("browse.html", results=results, page=page, total=total,
                            pages=pages, kingdom=kingdom, source=source, region=region,
                            all_kingdoms=all_kingdoms,
-                           all_sources_list=all_sources_list,
+                           all_sources_list=all_sources,
                            all_regions=all_regions, sort=sort, order=order,
                            named=named, per_page=per_page)
 
