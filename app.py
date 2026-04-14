@@ -140,9 +140,9 @@ def browse():
             # Count each source by appearances in all_sources (full credit to smaller DBs)
             cur.execute("""
                         SELECT TRIM(src) AS source_db, COUNT(*) AS cnt
-                        FROM (SELECT unnest(string_to_array(COALESCE(all_sources, source_db), '|')) AS src
+                        FROM (SELECT unnest(string_to_array(COALESCE(NULLIF(all_sources, ''), source_db), '|')) AS src
                               FROM compounds) t
-                        WHERE TRIM(src) != '' AND TRIM(src) != 'None'
+                        WHERE TRIM(src) != '' AND LENGTH(TRIM(src)) > 0
                         GROUP BY TRIM (src)
                         ORDER BY cnt DESC
                         """)
