@@ -62,9 +62,9 @@
 {% include "_pagination.html" %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var d = new SmilesDrawer.SmiDrawer({bondLength:8, padding:5});
+    var d = new SmilesDrawer.Drawer({width:80, height:60});
     document.querySelectorAll('.smi-thumb').forEach(function(c) {
-        try { d.draw(c.dataset.smiles, c, 'light'); } catch(e) {}
+        SmilesDrawer.parse(c.dataset.smiles, function(tree){ d.draw(tree, c, 'light'); }, function(){});
     });
 });
 </script>
