@@ -19,7 +19,7 @@ a:hover { text-decoration: underline; }
 header { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
 .header-inner { max-width: 1200px; margin: 0 auto; padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
 .logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; }
-.logo-icon-img { height: 2.1em; width: auto; }
+.logo-icon-img { width: 28px; height: 28px; }
 .logo-text { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--text); letter-spacing: 0.05em; }
 nav { display: flex; gap: 1.25rem; align-items: center; }
 nav a { color: var(--text-muted); font-size: 0.87rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
@@ -31,7 +31,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; flex: 1; width: 
 
 /* Hero */
 .hero { text-align: center; padding: 3rem 0 2.5rem; }
-.hero h1 { font-family: 'DM Serif Display', serif; font-size: 2.8rem; font-weight: 400; margin-bottom: 0.75rem; letter-spacing: 0.02em; }
+.hero h1 { font-family: 'DM Serif Display', serif; font-size: 2.8rem; font-weight: 400; margin-bottom: 0.75rem; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.hero-logo { height: 4.2rem; width: auto; }
 .hero .subtitle { color: var(--text-muted); font-size: 1.05rem; font-weight: 300; max-width: 700px; margin: 0 auto 2rem; }
 .stat-row { display: flex; justify-content: center; gap: 2.5rem; margin: 2rem 0; flex-wrap: wrap; }
 .stat-item { text-align: center; }
