@@ -9,15 +9,27 @@
     <div class="stat-item"><div class="stat-num">{{ "{:,}".format(multi_source) }}</div><div class="stat-label">Multi-source compounds</div></div>
 </div>
 {% if prop_stats %}
-<div class="card" style="margin-bottom:1.5rem;">
-    <h3 class="card-title">Mean physicochemical properties</h3>
-    <table class="prop-table" style="max-width:500px;">
-        <tr><th>Molecular weight</th><td>{{ "%.1f"|format(prop_stats.avg_mw) if prop_stats.avg_mw else '&mdash;'|safe }}</td></tr>
-        <tr><th>LogP</th><td>{{ "%.2f"|format(prop_stats.avg_logp) if prop_stats.avg_logp else '&mdash;'|safe }}</td></tr>
-        <tr><th>TPSA</th><td>{{ "%.1f"|format(prop_stats.avg_tpsa) if prop_stats.avg_tpsa else '&mdash;'|safe }}</td></tr>
-        <tr><th>HBA</th><td>{{ "%.1f"|format(prop_stats.avg_hba) if prop_stats.avg_hba else '&mdash;'|safe }}</td></tr>
-        <tr><th>HBD</th><td>{{ "%.1f"|format(prop_stats.avg_hbd) if prop_stats.avg_hbd else '&mdash;'|safe }}</td></tr>
-    </table>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+    <div class="card">
+        <h3 class="card-title">Mean physicochemical properties</h3>
+        <table class="prop-table">
+            <tr><th>Molecular weight</th><td>{{ "%.1f"|format(prop_stats.avg_mw) if prop_stats.avg_mw else '&mdash;'|safe }}</td></tr>
+            <tr><th>LogP</th><td>{{ "%.2f"|format(prop_stats.avg_logp) if prop_stats.avg_logp else '&mdash;'|safe }}</td></tr>
+            <tr><th>TPSA</th><td>{{ "%.1f"|format(prop_stats.avg_tpsa) if prop_stats.avg_tpsa else '&mdash;'|safe }}</td></tr>
+            <tr><th>HBA</th><td>{{ "%.1f"|format(prop_stats.avg_hba) if prop_stats.avg_hba else '&mdash;'|safe }}</td></tr>
+            <tr><th>HBD</th><td>{{ "%.1f"|format(prop_stats.avg_hbd) if prop_stats.avg_hbd else '&mdash;'|safe }}</td></tr>
+        </table>
+    </div>
+    {% if admet_stats %}
+    <div class="card">
+        <h3 class="card-title">Mean ADMET predictions <span style="font-size:0.72rem;color:var(--text-muted);">(ADMET-AI)</span></h3>
+        <table class="prop-table">
+            {% for label, vals in admet_stats.items() %}
+            <tr><th>{{ label }}</th><td>{{ "%.3f"|format(vals.avg) }} <span style="font-size:0.7rem;color:var(--text-muted);">({{ "%.2f"|format(vals.min) }} - {{ "%.2f"|format(vals.max) }})</span></td></tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 <div class="stats-grid">

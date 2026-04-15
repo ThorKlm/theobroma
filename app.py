@@ -316,9 +316,37 @@ def statistics():
             licenses = cur.fetchall()
             cur.execute("SELECT COUNT(*) AS cnt FROM compounds WHERE all_sources LIKE '%%|%%'")
             multi_source = cur.fetchone()["cnt"]
+    # ADMET summary stats
+    admet_stats = {}
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            key_admet = [
+                ("hERG_Karim-et-al", "hERG risk"),
+                ("AMES_Li-et-al", "AMES mutagenicity"),
+                ("BBB_Martins-et-al", "BBB penetration"),
+                ("HIA_Hou-et-al", "Intestinal absorption"),
+                ("Caco2_Wang-et-al", "Caco-2 perm."),
+                ("Solubility_AqSolDB", "Solubility"),
+                ("Lipophilicity_AstraZeneca", "Lipophilicity"),
+                ("CYP2D6_Inhibition_Veith-et-al", "CYP2D6 inhib."),
+                ("CYP3A4_Inhibition_Veith-et-al", "CYP3A4 inhib."),
+                ("CYP2C9_Inhibition_Veith-et-al", "CYP2C9 inhib."),
+                ("ClinTox_CT_TOX", "Clinical tox."),
+                ("DILI", "DILI risk"),
+            ]
+            for col, label in key_admet:
+                try:
+                    cur.execute(f'SELECT AVG("{col}"), MIN("{col}"), MAX("{col}") FROM admet WHERE "{col}" IS NOT NULL')
+                    row = cur.fetchone()
+                    if row and row["avg"] is not None:
+                        admet_stats[label] = {"avg": round(float(row["avg"]), 3), "min": round(float(row["min"]), 3), "max": round(float(row["max"]), 3)}
+                except:
+                    conn.rollback()
+    except:
+        pass
     return render_template("statistics.html", total=total, kingdoms=kingdoms,
                            sources=sources, regions=regions, prop_stats=prop_stats,
-                           licenses=licenses, multi_source=multi_source)
+                           licenses=licenses, multi_source=multi_source, admet_stats=admet_stats)
 
 @app.route("/download")
 def download_page():
