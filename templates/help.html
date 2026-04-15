@@ -6,14 +6,26 @@
     <h2>About THEOBROMA</h2>
     <p>THEOBROMA is an open, curated natural products database aggregating compounds from 27 source databases spanning six biological kingdoms (plant, fungi, bacteria, marine, animal, food) and six continents. It supports structure-based virtual screening, cheminformatics research, and drug discovery from natural product chemical space.</p>
     <h2>Search</h2>
-    <p><strong>Compound name</strong> &mdash; partial matching, case-insensitive. Autocomplete suggestions appear after 2 characters.</p>
+    <p><strong>Compound name</strong> &mdash; partial matching, case-insensitive. Autocomplete suggestions appear after 2 characters. Also searches PubChem synonyms (e.g., "alpha-lipoic acid" finds "Thioctic acid"). Hyphens and Greek letters are normalized automatically.</p>
     <p><strong>SMILES</strong> &mdash; exact canonical SMILES match.</p>
     <p><strong>InChIKey</strong> &mdash; exact 27-character match. If found, redirects directly to the compound page.</p>
     <p><strong>Source organism</strong> &mdash; search by producing organism with autocomplete.</p>
-    <p><strong>Source database</strong> &mdash; filter by originating database.</p>
-    <p><strong>Geographic region</strong> &mdash; search by region of origin.</p>
-    <p><strong>Kingdom</strong> &mdash; filter by biological kingdom.</p>
+    <p><strong>Source database</strong> &mdash; filter by originating database. Clicking the dropdown shows all 27 available sources.</p>
+    <p><strong>Geographic region</strong> &mdash; search by region of origin. Clicking the dropdown shows all 13 resolved regions.</p>
+    <p><strong>Kingdom</strong> &mdash; filter by biological kingdom (plant, fungi, bacteria, marine, animal, multi).</p>
+    <p><strong>Chemical property</strong> &mdash; filter by chemical class (NP Classifier/ClassyFire) or by numerical property ranges including molecular weight, LogP, TPSA, HBA, HBD, rings, rotatable bonds, and ADMET predictions (solubility, lipophilicity, DILI risk, hepatocyte clearance).</p>
+    <h3 style="font-size:1rem;margin-top:1.5rem;">Multi-filter search</h3>
+    <p>Click <strong>"+ Add filter"</strong> to combine multiple criteria with AND logic. For example, search for all triterpenoids from Africa, or all fungal compounds with molecular weight 200-500 Da and low DILI risk.</p>
+    <p>Results are <strong>relevance-sorted</strong> &mdash; exact name matches appear first, followed by prefix matches, then substring matches. Within each tier, shorter (simpler) names rank higher.</p>
     <p>All result tables have <strong>sortable columns</strong> &mdash; click any column header to sort ascending/descending. Use the <strong>"Named only"</strong> checkbox in Browse to filter out unnamed compounds. Press <strong>/</strong> to focus the search box.</p>
+    <h3 style="font-size:1rem;margin-top:1.5rem;">Similarity search</h3>
+    <p>Enter a SMILES string, compound name, or THEO_ ID to find structurally similar compounds. Three metrics are available: Morgan/ECFP4 Tanimoto, MACCS keys Tanimoto, and ChemBERTa cosine similarity. Results can be filtered by region, kingdom, and chemical class.</p>
+    <h3 style="font-size:1rem;margin-top:1.5rem;">Substructure search</h3>
+    <p>Enter a SMILES or SMARTS pattern to find all compounds containing that substructure. Uses Morgan fingerprint pre-screening followed by RDKit substructure matching.</p>
+    <h3 style="font-size:1rem;margin-top:1.5rem;">Scaffold browser</h3>
+    <p>Browse compounds grouped by their Bemis-Murcko molecular framework. Click any scaffold to see all compounds sharing that core structure.</p>
+    <h3 style="font-size:1rem;margin-top:1.5rem;">Advanced search</h3>
+    <p>Combine multiple text filters with AND logic and set numerical ranges for physicochemical properties. Property distributions are shown as interactive histograms with selectable ranges.</p>
     <h2>Provenance</h2>
     <p>Each compound tracks its full provenance across all source databases. The <code>all_sources</code> field lists every database where the compound was found (pipe-separated). The primary <code>source_db</code> preferentially shows regional/specialized databases over aggregators like COCONUT.</p>
     <p>Compounds with <strong>"unresolved"</strong> region or kingdom lack geographic or taxonomic metadata in their source databases.</p>

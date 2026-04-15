@@ -209,3 +209,22 @@ footer { background: var(--surface); border-top: 1px solid var(--border); margin
 .range-input { display: flex; align-items: center; gap: 0.3rem; }
 .range-input input[type="number"] { width: 80px; font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; padding: 0.4rem; border: 1px solid var(--border); border-radius: var(--radius); }
 .prop-subselect { font-family: inherit; font-size: 0.82rem; padding: 0.4rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); max-width: 280px; }
+
+/* Hero golden glow behind title */
+.hero-glow {
+    position: absolute;
+    top: -0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 594px;
+    height: 158px;
+    background: url('/static/title_background.png') center center no-repeat;
+    background-size: contain;
+    opacity: 0.38;
+    pointer-events: none;
+    z-index: 0;
+}
+.hero h1 { position: relative; z-index: 1; }
+.hero .subtitle { position: relative; z-index: 1; }
+.hero .stat-row { position: relative; z-index: 1; }
+.hero .kingdoms-row { position: relative; z-index: 1; }
