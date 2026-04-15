@@ -1,23 +1,355 @@
 {% extends "base.html" %}
 {% from "_sort_header.html" import sort_header %}
-{% block title %}Search &mdash; THEOBROMA{% endblock %}
+{% block title %}Search &mdash; THEOBROMA<script>
+var filterCount = 0;
+var optionsCache = null;
+var propRanges = {
+    mw: {min:0.04, max:5748.41, mean:399.5},
+    logp: {min:-33.97, max:47.20, mean:2.6},
+    tpsa: {min:0.0, max:1539.4, mean:103.8},
+    hba: {min:0, max:75, mean:5.7},
+    hbd: {min:0, max:40, mean:2.9},
+    n_rings: {min:0, max:32, mean:3.5},
+    rotatable_bonds: {min:0, max:117, mean:4.8}
+};
+
+function loadOptions() {
+    if (optionsCache) return Promise.resolve(optionsCache);
+    return fetch('/api/filter_options').then(function(r){return r.json()}).then(function(d){
+        optionsCache = d; return d;
+    });
+}
+
+var restoring = false;
+
+function onTypeChange(sel, idx) {
+    var t = sel.value;
+    var row = sel.closest('.search-row');
+    var textWrap = row.querySelector('.search-input-wrap') || document.getElementById('text-input-' + idx);
+    var rangeWrap = row.querySelector('.range-input') || document.getElementById('range-input-' + idx);
+    var propSel = row.querySelector('.prop-subselect') || document.getElementById('prop-type-' + idx);
+    var old = row.querySelector('.search-submenu');
+    if (old) old.remove();
+
+    if (t === 'property') {
+        if (propSel) propSel.style.display = '';
+        // Trigger prop change for initial value
+        onPropChange(propSel, idx);
+        return;
+    }
+
+    if (propSel) propSel.style.display = 'none';
+    if (textWrap) textWrap.style.display = '';
+    if (rangeWrap) rangeWrap.style.display = 'none';
+
+    var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
+    if (!input) return;
+
+    if (['kingdom','region','source'].indexOf(t) >= 0 && !restoring) {
+        loadOptions().then(function(opts) {
+            var items = opts[t];
+            if (!items || items.length === 0) return;
+            var sub = document.createElement('div');
+            sub.className = 'search-submenu';
+            items.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'submenu-item';
+                div.textContent = item;
+                div.addEventListener('click', function() {
+                    input.value = item;
+                    sub.style.display = 'none';
+                });
+                sub.appendChild(div);
+            });
+            row.style.position = 'relative';
+            row.appendChild(sub);
+        });
+        input.placeholder = 'Select or type...';
+    } else {
+        input.placeholder = 'Search compounds...';
+    }
+}
+
+function onPropChange(sel, idx) {
+    var pt = sel.value;
+    var row = sel.closest('.search-row');
+    var textWrap = row.querySelector('.search-input-wrap') || document.getElementById('text-input-' + idx);
+    var rangeWrap = row.querySelector('.range-input') || document.getElementById('range-input-' + idx);
+    var old = row.querySelector('.search-submenu');
+    if (old) old.remove();
+
+    if (pt === 'class') {
+        // Text input with class submenu
+        if (textWrap) textWrap.style.display = '';
+        if (rangeWrap) rangeWrap.style.display = 'none';
+        var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
+        // Update hidden type field
+        var typesel = row.querySelector('select[name^="type"], select[name^="extra_type"]');
+        if (typesel) typesel.value = 'property';
+        // Set actual search to class
+        if (input) {
+            input.name = input.name || 'q';
+            input.placeholder = 'Select or type class...';
+        }
+        // Show class options
+        if (!restoring) loadOptions().then(function(opts) {
+            var items = opts['class'];
+            if (!items || items.length === 0) return;
+            var sub = document.createElement('div');
+            sub.className = 'search-submenu';
+            items.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'submenu-item';
+                div.textContent = item;
+                div.addEventListener('click', function() {
+                    if (input) input.value = item;
+                    sub.style.display = 'none';
+                });
+                sub.appendChild(div);
+            });
+            row.style.position = 'relative';
+            row.appendChild(sub);
+        });
+    } else {
+        // Range inputs
+        if (textWrap) textWrap.style.display = 'none';
+        if (!rangeWrap) {
+            rangeWrap = document.createElement('div');
+            rangeWrap.className = 'range-input';
+            rangeWrap.id = 'range-input-' + idx;
+            row.appendChild(rangeWrap);
+        }
+        rangeWrap.style.display = 'flex';
+        var r = propRanges[pt] || {min:0, max:100, mean:50};
+        rangeWrap.innerHTML =
+            '<input type="number" name="' + pt + '_min" placeholder="' + r.min + '" step="any" value="">' +
+            '<span style="font-size:0.8rem;color:var(--text-muted);margin:0 0.3rem;">to</span>' +
+            '<input type="number" name="' + pt + '_max" placeholder="' + r.max + '" step="any" value="">' +
+            '<span style="font-size:0.72rem;color:var(--text-muted);margin-left:0.5rem;">(mean: ' + r.mean + ')</span>';
+    }
+}
+
+function addFilter() {
+    filterCount++;
+    var container = document.getElementById('extra-filters');
+    var row = document.createElement('div');
+    row.className = 'search-row extra-filter';
+    row.id = 'search-row-' + filterCount;
+    row.innerHTML = '<span class="and-label">AND</span>' +
+        '<select name="extra_type_' + filterCount + '" onchange="onTypeChange(this,' + filterCount + ')">' +
+        '<option value="">-- select --</option>' +
+        '<option value="name">Compound name</option>' +
+        '<option value="organism">Source organism</option>' +
+        '<option value="source">Source database</option>' +
+        '<option value="region">Geographic region</option>' +
+        '<option value="kingdom">Kingdom</option>' +
+        '<option value="property">Chemical property</option>' +
+        '</select>' +
+        '<select name="extra_prop_' + filterCount + '" class="prop-subselect" style="display:none;" onchange="onPropChange(this,' + filterCount + ')">' +
+        '<option value="class">Chemical class</option>' +
+        '<option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>' +
+        '<option value="logp">LogP (-33.97 - 47.20, mean: 2.6)</option>' +
+        '<option value="tpsa">TPSA (0.0 - 1539.4, mean: 103.8)</option>' +
+        '<option value="hba">HBA (0 - 75, mean: 5.7)</option>' +
+        '<option value="hbd">HBD (0 - 40, mean: 2.9)</option>' +
+        '<option value="n_rings">Rings (0 - 32, mean: 3.5)</option>' +
+        '<option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>' +
+        '</select>' +
+        '<div class="search-input-wrap"><input type="text" name="extra_q_' + filterCount + '" placeholder="search term..."></div>' +
+        '<div class="range-input" id="range-input-' + filterCount + '" style="display:none;"></div>' +
+        '<a href="#" onclick="this.parentNode.remove();return false;" style="font-size:0.8rem;color:#c0392b;margin-left:0.3rem;">x</a>';
+    container.appendChild(row);
+}
+
+// Autocomplete for name/organism
+(function(){
+    var input = document.getElementById('search-q');
+    var list = document.getElementById('autocomplete-list');
+    var typesel = document.getElementById('search-type');
+    var timer;
+    if (!input) return;
+    input.addEventListener('input', function(){
+        clearTimeout(timer);
+        var q = this.value.trim(), t = typesel.value;
+        if (q.length < 2 || (t !== 'name' && t !== 'organism')) { list.innerHTML=''; return; }
+        timer = setTimeout(function(){
+            fetch((t==='organism'?'/api/organisms':'/api/autocomplete')+'?q='+encodeURIComponent(q))
+            .then(function(r){return r.json()}).then(function(data){
+                list.innerHTML='';
+                data.forEach(function(name){
+                    var div=document.createElement('div'); div.className='ac-item'; div.textContent=name;
+                    div.addEventListener('click',function(){input.value=name;list.innerHTML='';});
+                    list.appendChild(div);
+                });
+            });
+        }, 200);
+    });
+})();
+
+// Init: if type is property on page load
+(function(){
+    var sel = document.getElementById('search-type');
+    if (sel && sel.value === 'property') {
+        onTypeChange(sel, 0);
+    }
+})();
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.search-row') && !e.target.closest('.search-input-wrap')) {
+        document.querySelectorAll('.search-submenu').forEach(function(m){m.style.display='none';});
+        document.querySelectorAll('.autocomplete-list').forEach(function(m){m.innerHTML='';});
+    }
+});
+</script>
+
+<script>
+// Restore search state from URL params
+(function(){
+    restoring = true;
+    var params = new URLSearchParams(window.location.search);
+    
+    // Restore main type
+    var typesel = document.getElementById('search-type');
+    var mainType = params.get('type') || 'name';
+    if (typesel) {
+        for (var i = 0; i < typesel.options.length; i++) {
+            if (typesel.options[i].value === mainType) {
+                typesel.selectedIndex = i;
+                break;
+            }
+        }
+        // If type was property, trigger the UI change
+        if (mainType === 'property') {
+            onTypeChange(typesel, 0);
+            var propSel = document.getElementById('prop-type-0');
+            var propType = params.get('prop_type') || 'class';
+            if (propSel) {
+                for (var i = 0; i < propSel.options.length; i++) {
+                    if (propSel.options[i].value === propType) {
+                        propSel.selectedIndex = i;
+                        break;
+                    }
+                }
+                onPropChange(propSel, 0);
+            }
+            // Restore range values
+            var props = ['mw','logp','tpsa','hba','hbd','n_rings','rotatable_bonds'];
+            props.forEach(function(p) {
+                var mn = params.get(p + '_min');
+                var mx = params.get(p + '_max');
+                var rangeDiv = document.getElementById('range-input-0');
+                if (rangeDiv) {
+                    var inputs = rangeDiv.querySelectorAll('input[type="number"]');
+                    inputs.forEach(function(inp) {
+                        if (inp.name === p + '_min' && mn) inp.value = mn;
+                        if (inp.name === p + '_max' && mx) inp.value = mx;
+                    });
+                }
+            });
+        }
+    }
+
+    // Restore extra filters
+    for (var i = 1; i <= 5; i++) {
+        var et = params.get('extra_type_' + i);
+        var eq = params.get('extra_q_' + i);
+        var ep = params.get('extra_prop_' + i);
+        if (!et) continue;
+        
+        // Check for range params from extra filters
+        var hasRange = false;
+        var props = ['mw','logp','tpsa','hba','hbd','n_rings','rotatable_bonds'];
+        
+        if (et || eq) {
+            addFilter();
+            var row = document.getElementById('search-row-' + filterCount);
+            if (!row) continue;
+            
+            var sel = row.querySelector('select[name^="extra_type"]');
+            if (sel) {
+                for (var j = 0; j < sel.options.length; j++) {
+                    if (sel.options[j].value === et) {
+                        sel.selectedIndex = j;
+                        break;
+                    }
+                }
+                onTypeChange(sel, filterCount);
+                
+                if (et === 'property' && ep) {
+                    var propSel = row.querySelector('.prop-subselect');
+                    if (propSel) {
+                        for (var j = 0; j < propSel.options.length; j++) {
+                            if (propSel.options[j].value === ep) {
+                                propSel.selectedIndex = j;
+                                break;
+                            }
+                        }
+                        onPropChange(propSel, filterCount);
+                    }
+                }
+            }
+            
+            var input = row.querySelector('input[type="text"]');
+            if (input && eq) input.value = eq;
+        }
+    }
+
+    restoring = false;
+    // Restore all range params (they might come from extra filters)
+    var props = ['mw','logp','tpsa','hba','hbd','n_rings','rotatable_bonds'];
+    props.forEach(function(p) {
+        var mn = params.get(p + '_min');
+        var mx = params.get(p + '_max');
+        if (mn || mx) {
+            document.querySelectorAll('input[name="' + p + '_min"]').forEach(function(inp) {
+                if (mn) inp.value = mn;
+            });
+            document.querySelectorAll('input[name="' + p + '_max"]').forEach(function(inp) {
+                if (mx) inp.value = mx;
+            });
+        }
+    });
+})();
+</script>
+{% endblock %}
 {% block content %}
 <h1 class="section-title">Search</h1>
 <div class="search-box">
-    <form action="/search" method="get" class="search-form">
-        <select name="type" id="search-type">
-            {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Kingdom")] %}
-            <option value="{{ val }}" {{ 'selected' if search_type == val }}>{{ label }}</option>
-            {% endfor %}
-        </select>
-        <div class="search-input-wrap">
-            <input type="text" name="q" id="search-q" value="{{ query }}" placeholder="Search compounds..." autocomplete="off">
-            <div id="autocomplete-list" class="autocomplete-list"></div>
+    <form action="/search" method="get" class="search-form" id="search-form">
+        <div class="search-row" id="search-row-0">
+            <select name="type" id="search-type" onchange="onTypeChange(this, 0)">
+                {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Kingdom"),("property","Chemical property")] %}
+                <option value="{{ val }}" {{ 'selected' if search_type == val }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="prop_type" id="prop-type-0" class="prop-subselect" style="display:none;" onchange="onPropChange(this, 0)">
+                <option value="class">Chemical class</option>
+                <option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>
+                <option value="logp">LogP (-33.97 - 47.20, mean: 2.6)</option>
+                <option value="tpsa">TPSA (0.0 - 1539.4, mean: 103.8)</option>
+                <option value="hba">HBA (0 - 75, mean: 5.7)</option>
+                <option value="hbd">HBD (0 - 40, mean: 2.9)</option>
+                <option value="n_rings">Rings (0 - 32, mean: 3.5)</option>
+                <option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>
+            </select>
+            <div class="search-input-wrap" id="text-input-0">
+                <input type="text" name="q" id="search-q" value="{{ query }}" placeholder="Search compounds..." autocomplete="off">
+                <div id="autocomplete-list" class="autocomplete-list"></div>
+            </div>
+            <div class="range-input" id="range-input-0" style="display:none;">
+                <input type="number" name="mw_min" id="range-min-0" placeholder="min" step="any">
+                <span style="font-size:0.8rem;color:var(--text-muted);margin:0 0.3rem;">to</span>
+                <input type="number" name="mw_max" id="range-max-0" placeholder="max" step="any">
+            </div>
         </div>
-        <button type="submit">Search</button>
+        <div id="extra-filters"></div>
+        <div class="search-actions">
+            <a href="#" id="add-filter-btn" onclick="addFilter();return false;" class="add-filter-link">+ Add filter</a>
+            <button type="submit">Search</button>
+        </div>
     </form>
     {% if not query %}
-    <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=OC(=O)c1ccccc1&type=smiles">OC(=O)c1ccccc1</a></p>
+    <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=Triterpenoids&type=class">Triterpenoids</a> &middot; <a href="/search?q=OC(=O)c1ccccc1&type=smiles">OC(=O)c1ccccc1</a></p>
     {% endif %}
 </div>
 {% if query %}
@@ -64,12 +396,226 @@ document.addEventListener('DOMContentLoaded', function() {
 {% elif query %}
 <p class="no-results">No results found.</p>
 {% endif %}
+
+
 <script>
+(function(){
+    var typesel = document.getElementById('search-type');
+    var input = document.getElementById('search-q');
+    var optionsCache = null;
+    var submenu = document.createElement('div');
+    submenu.className = 'search-submenu';
+    submenu.style.display = 'none';
+    typesel.parentNode.style.position = 'relative';
+    typesel.parentNode.appendChild(submenu);
+
+    function loadOptions() {
+        if (optionsCache) return Promise.resolve(optionsCache);
+        return fetch('/api/filter_options').then(function(r){return r.json()}).then(function(d){
+            optionsCache = d; return d;
+        });
+    }
+
+    function showSubmenu(type) {
+        loadOptions().then(function(opts) {
+            var items = opts[type];
+            if (!items || items.length === 0) { submenu.style.display = 'none'; return; }
+            submenu.innerHTML = '';
+            items.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'submenu-item';
+                div.textContent = item;
+                div.addEventListener('click', function() {
+                    input.value = item;
+                    submenu.style.display = 'none';
+                });
+                submenu.appendChild(div);
+            });
+            submenu.style.display = 'block';
+        });
+    }
+
+    typesel.addEventListener('change', function() {
+        var t = this.value;
+        if (['kingdom','region','source','class'].indexOf(t) >= 0) {
+            showSubmenu(t);
+        } else {
+            submenu.style.display = 'none';
+        }
+    });
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-form')) submenu.style.display = 'none';
+    });
+})();
+</script>
+<script>
+var filterCount = 0;
+var optionsCache = null;
+var propRanges = {
+    mw: {min:0.04, max:5748.41, mean:399.5},
+    logp: {min:-33.97, max:47.20, mean:2.6},
+    tpsa: {min:0.0, max:1539.4, mean:103.8},
+    hba: {min:0, max:75, mean:5.7},
+    hbd: {min:0, max:40, mean:2.9},
+    n_rings: {min:0, max:32, mean:3.5},
+    rotatable_bonds: {min:0, max:117, mean:4.8}
+};
+
+function loadOptions() {
+    if (optionsCache) return Promise.resolve(optionsCache);
+    return fetch('/api/filter_options').then(function(r){return r.json()}).then(function(d){
+        optionsCache = d; return d;
+    });
+}
+
+var restoring = false;
+
+function onTypeChange(sel, idx) {
+    var t = sel.value;
+    var row = sel.closest('.search-row');
+    var textWrap = row.querySelector('.search-input-wrap') || document.getElementById('text-input-' + idx);
+    var rangeWrap = row.querySelector('.range-input') || document.getElementById('range-input-' + idx);
+    var propSel = row.querySelector('.prop-subselect') || document.getElementById('prop-type-' + idx);
+    var old = row.querySelector('.search-submenu');
+    if (old) old.remove();
+
+    if (t === 'property') {
+        if (propSel) propSel.style.display = '';
+        // Trigger prop change for initial value
+        onPropChange(propSel, idx);
+        return;
+    }
+
+    if (propSel) propSel.style.display = 'none';
+    if (textWrap) textWrap.style.display = '';
+    if (rangeWrap) rangeWrap.style.display = 'none';
+
+    var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
+    if (!input) return;
+
+    if (['kingdom','region','source'].indexOf(t) >= 0 && !restoring) {
+        loadOptions().then(function(opts) {
+            var items = opts[t];
+            if (!items || items.length === 0) return;
+            var sub = document.createElement('div');
+            sub.className = 'search-submenu';
+            items.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'submenu-item';
+                div.textContent = item;
+                div.addEventListener('click', function() {
+                    input.value = item;
+                    sub.style.display = 'none';
+                });
+                sub.appendChild(div);
+            });
+            row.style.position = 'relative';
+            row.appendChild(sub);
+        });
+        input.placeholder = 'Select or type...';
+    } else {
+        input.placeholder = 'Search compounds...';
+    }
+}
+
+function onPropChange(sel, idx) {
+    var pt = sel.value;
+    var row = sel.closest('.search-row');
+    var textWrap = row.querySelector('.search-input-wrap') || document.getElementById('text-input-' + idx);
+    var rangeWrap = row.querySelector('.range-input') || document.getElementById('range-input-' + idx);
+    var old = row.querySelector('.search-submenu');
+    if (old) old.remove();
+
+    if (pt === 'class') {
+        // Text input with class submenu
+        if (textWrap) textWrap.style.display = '';
+        if (rangeWrap) rangeWrap.style.display = 'none';
+        var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
+        // Update hidden type field
+        var typesel = row.querySelector('select[name^="type"], select[name^="extra_type"]');
+        if (typesel) typesel.value = 'property';
+        // Set actual search to class
+        if (input) {
+            input.name = input.name || 'q';
+            input.placeholder = 'Select or type class...';
+        }
+        // Show class options
+        if (!restoring) loadOptions().then(function(opts) {
+            var items = opts['class'];
+            if (!items || items.length === 0) return;
+            var sub = document.createElement('div');
+            sub.className = 'search-submenu';
+            items.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'submenu-item';
+                div.textContent = item;
+                div.addEventListener('click', function() {
+                    if (input) input.value = item;
+                    sub.style.display = 'none';
+                });
+                sub.appendChild(div);
+            });
+            row.style.position = 'relative';
+            row.appendChild(sub);
+        });
+    } else {
+        // Range inputs
+        if (textWrap) textWrap.style.display = 'none';
+        if (!rangeWrap) {
+            rangeWrap = document.createElement('div');
+            rangeWrap.className = 'range-input';
+            rangeWrap.id = 'range-input-' + idx;
+            row.appendChild(rangeWrap);
+        }
+        rangeWrap.style.display = 'flex';
+        var r = propRanges[pt] || {min:0, max:100, mean:50};
+        rangeWrap.innerHTML =
+            '<input type="number" name="' + pt + '_min" placeholder="' + r.min + '" step="any" value="">' +
+            '<span style="font-size:0.8rem;color:var(--text-muted);margin:0 0.3rem;">to</span>' +
+            '<input type="number" name="' + pt + '_max" placeholder="' + r.max + '" step="any" value="">' +
+            '<span style="font-size:0.72rem;color:var(--text-muted);margin-left:0.5rem;">(mean: ' + r.mean + ')</span>';
+    }
+}
+
+function addFilter() {
+    filterCount++;
+    var container = document.getElementById('extra-filters');
+    var row = document.createElement('div');
+    row.className = 'search-row extra-filter';
+    row.id = 'search-row-' + filterCount;
+    row.innerHTML = '<span class="and-label">AND</span>' +
+        '<select name="extra_type_' + filterCount + '" onchange="onTypeChange(this,' + filterCount + ')">' +
+        '<option value="">-- select --</option>' +
+        '<option value="name">Compound name</option>' +
+        '<option value="organism">Source organism</option>' +
+        '<option value="source">Source database</option>' +
+        '<option value="region">Geographic region</option>' +
+        '<option value="kingdom">Kingdom</option>' +
+        '<option value="property">Chemical property</option>' +
+        '</select>' +
+        '<select name="extra_prop_' + filterCount + '" class="prop-subselect" style="display:none;" onchange="onPropChange(this,' + filterCount + ')">' +
+        '<option value="class">Chemical class</option>' +
+        '<option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>' +
+        '<option value="logp">LogP (-33.97 - 47.20, mean: 2.6)</option>' +
+        '<option value="tpsa">TPSA (0.0 - 1539.4, mean: 103.8)</option>' +
+        '<option value="hba">HBA (0 - 75, mean: 5.7)</option>' +
+        '<option value="hbd">HBD (0 - 40, mean: 2.9)</option>' +
+        '<option value="n_rings">Rings (0 - 32, mean: 3.5)</option>' +
+        '<option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>' +
+        '</select>' +
+        '<div class="search-input-wrap"><input type="text" name="extra_q_' + filterCount + '" placeholder="search term..."></div>' +
+        '<div class="range-input" id="range-input-' + filterCount + '" style="display:none;"></div>' +
+        '<a href="#" onclick="this.parentNode.remove();return false;" style="font-size:0.8rem;color:#c0392b;margin-left:0.3rem;">x</a>';
+    container.appendChild(row);
+}
+
+// Autocomplete for name/organism
 (function(){
     var input = document.getElementById('search-q');
     var list = document.getElementById('autocomplete-list');
     var typesel = document.getElementById('search-type');
     var timer;
+    if (!input) return;
     input.addEventListener('input', function(){
         clearTimeout(timer);
         var q = this.value.trim(), t = typesel.value;
@@ -86,7 +632,131 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }, 200);
     });
-    document.addEventListener('click',function(e){if(!e.target.closest('.search-input-wrap'))list.innerHTML='';});
+})();
+
+// Init: if type is property on page load
+(function(){
+    var sel = document.getElementById('search-type');
+    if (sel && sel.value === 'property') {
+        onTypeChange(sel, 0);
+    }
+})();
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.search-row') && !e.target.closest('.search-input-wrap')) {
+        document.querySelectorAll('.search-submenu').forEach(function(m){m.style.display='none';});
+        document.querySelectorAll('.autocomplete-list').forEach(function(m){m.innerHTML='';});
+    }
+});
+</script>
+
+<script>
+// Restore search state from URL params
+(function(){
+    restoring = true;
+    var params = new URLSearchParams(window.location.search);
+    
+    // Restore main type
+    var typesel = document.getElementById('search-type');
+    var mainType = params.get('type') || 'name';
+    if (typesel) {
+        for (var i = 0; i < typesel.options.length; i++) {
+            if (typesel.options[i].value === mainType) {
+                typesel.selectedIndex = i;
+                break;
+            }
+        }
+        // If type was property, trigger the UI change
+        if (mainType === 'property') {
+            onTypeChange(typesel, 0);
+            var propSel = document.getElementById('prop-type-0');
+            var propType = params.get('prop_type') || 'class';
+            if (propSel) {
+                for (var i = 0; i < propSel.options.length; i++) {
+                    if (propSel.options[i].value === propType) {
+                        propSel.selectedIndex = i;
+                        break;
+                    }
+                }
+                onPropChange(propSel, 0);
+            }
+            // Restore range values
+            var props = ['mw','logp','tpsa','hba','hbd','n_rings','rotatable_bonds'];
+            props.forEach(function(p) {
+                var mn = params.get(p + '_min');
+                var mx = params.get(p + '_max');
+                var rangeDiv = document.getElementById('range-input-0');
+                if (rangeDiv) {
+                    var inputs = rangeDiv.querySelectorAll('input[type="number"]');
+                    inputs.forEach(function(inp) {
+                        if (inp.name === p + '_min' && mn) inp.value = mn;
+                        if (inp.name === p + '_max' && mx) inp.value = mx;
+                    });
+                }
+            });
+        }
+    }
+
+    // Restore extra filters
+    for (var i = 1; i <= 5; i++) {
+        var et = params.get('extra_type_' + i);
+        var eq = params.get('extra_q_' + i);
+        var ep = params.get('extra_prop_' + i);
+        if (!et) continue;
+        
+        // Check for range params from extra filters
+        var hasRange = false;
+        var props = ['mw','logp','tpsa','hba','hbd','n_rings','rotatable_bonds'];
+        
+        if (et || eq) {
+            addFilter();
+            var row = document.getElementById('search-row-' + filterCount);
+            if (!row) continue;
+            
+            var sel = row.querySelector('select[name^="extra_type"]');
+            if (sel) {
+                for (var j = 0; j < sel.options.length; j++) {
+                    if (sel.options[j].value === et) {
+                        sel.selectedIndex = j;
+                        break;
+                    }
+                }
+                onTypeChange(sel, filterCount);
+                
+                if (et === 'property' && ep) {
+                    var propSel = row.querySelector('.prop-subselect');
+                    if (propSel) {
+                        for (var j = 0; j < propSel.options.length; j++) {
+                            if (propSel.options[j].value === ep) {
+                                propSel.selectedIndex = j;
+                                break;
+                            }
+                        }
+                        onPropChange(propSel, filterCount);
+                    }
+                }
+            }
+            
+            var input = row.querySelector('input[type="text"]');
+            if (input && eq) input.value = eq;
+        }
+    }
+
+    restoring = false;
+    // Restore all range params (they might come from extra filters)
+    var props = ['mw','logp','tpsa','hba','hbd','n_rings','rotatable_bonds'];
+    props.forEach(function(p) {
+        var mn = params.get(p + '_min');
+        var mx = params.get(p + '_max');
+        if (mn || mx) {
+            document.querySelectorAll('input[name="' + p + '_min"]').forEach(function(inp) {
+                if (mn) inp.value = mn;
+            });
+            document.querySelectorAll('input[name="' + p + '_max"]').forEach(function(inp) {
+                if (mx) inp.value = mx;
+            });
+        }
+    });
 })();
 </script>
 {% endblock %}

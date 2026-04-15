@@ -43,6 +43,33 @@ class SimilarityEngine:
         for bit in fp.GetOnBits(): arr[bit] = 1
         return sparse.csr_matrix(arr.reshape(1, -1))
 
+    def maccs_search(self, query_smiles, top_n=50, threshold=0.3):
+        """MACCS keys Tanimoto similarity search."""
+        if not self.loaded or not self.maccs_loaded:
+            return self.tanimoto_search(query_smiles, top_n, threshold)
+        from rdkit import Chem
+        from rdkit.Chem import MACCSkeys
+        mol = Chem.MolFromSmiles(query_smiles)
+        if mol is None: return []
+        fp = MACCSkeys.GenMACCSKeys(mol)
+        arr = np.zeros(167, dtype=np.uint8)
+        for bit in fp.GetOnBits(): 
+            if bit < 167: arr[bit] = 1
+        qfp = sparse.csr_matrix(arr.reshape(1, -1))
+        valid_maccs = self.maccs[self.valid_idx]
+        intersection = valid_maccs.dot(qfp.T).toarray().flatten()
+        query_bits = qfp.sum()
+        target_bits = np.array(valid_maccs.sum(axis=1)).flatten()
+        union = query_bits + target_bits - intersection
+        union[union == 0] = 1
+        tanimoto = intersection / union
+        top_idx = np.argsort(tanimoto)[-top_n:][::-1]
+        top_idx = top_idx[tanimoto[top_idx] >= threshold] if threshold > 0 else top_idx
+        if len(top_idx) == 0:
+            top_idx = np.argsort(tanimoto)[-top_n:][::-1]
+        return [{"comp_id": str(self.comp_ids[self.valid_idx[i]]),
+                 "tanimoto": round(float(tanimoto[i]), 4)} for i in top_idx]
+
     def tanimoto_search(self, query_smiles, top_n=50, threshold=0.3):
         if not self.loaded: return []
         qfp = self.smiles_to_morgan(query_smiles)

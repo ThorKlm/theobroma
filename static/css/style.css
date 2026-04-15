@@ -192,3 +192,20 @@ footer { background: var(--surface); border-top: 1px solid var(--border); margin
 .admet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
 .admet-filter label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; }
 .admet-filter input { border: 1px solid var(--border); border-radius: var(--radius); font-family: 'IBM Plex Mono', monospace; }
+
+/* Search submenu */
+.search-submenu { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); box-shadow: var(--shadow-lg); z-index: 200; max-height: 250px; overflow-y: auto; }
+.submenu-item { padding: 0.4rem 0.75rem; font-size: 0.82rem; cursor: pointer; border-bottom: 1px solid var(--bg-alt); }
+.submenu-item:hover { background: var(--accent-bg); color: var(--accent); }
+
+/* Multi-filter search */
+.search-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; width: 100%; }
+.extra-filter { margin-top: 0.5rem; }
+.and-label { font-size: 0.78rem; font-weight: 600; color: var(--accent); min-width: 30px; }
+.search-actions { display: flex; gap: 0.75rem; align-items: center; margin-top: 0.75rem; width: 100%; }
+.add-filter-link { font-size: 0.82rem; color: var(--accent); }
+
+/* Property range inputs */
+.range-input { display: flex; align-items: center; gap: 0.3rem; }
+.range-input input[type="number"] { width: 80px; font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; padding: 0.4rem; border: 1px solid var(--border); border-radius: var(--radius); }
+.prop-subselect { font-family: inherit; font-size: 0.82rem; padding: 0.4rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); max-width: 280px; }

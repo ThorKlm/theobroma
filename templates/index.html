@@ -1,5 +1,62 @@
 {% extends "base.html" %}
-{% block title %}THEOBROMA &mdash; Natural Products Database{% endblock %}
+{% block title %}THEOBROMA &mdash; Natural Products Database
+<script>
+(function(){
+    var typesel = document.getElementById('search-type');
+    var input = document.getElementById('search-q');
+    var optionsCache = null;
+
+    // Create submenu element
+    var submenu = document.createElement('div');
+    submenu.className = 'search-submenu';
+    submenu.style.display = 'none';
+    typesel.parentNode.style.position = 'relative';
+    typesel.parentNode.appendChild(submenu);
+
+    function loadOptions() {
+        if (optionsCache) return Promise.resolve(optionsCache);
+        return fetch('/api/filter_options').then(function(r){return r.json()}).then(function(d){
+            optionsCache = d;
+            return d;
+        });
+    }
+
+    function showSubmenu(type) {
+        loadOptions().then(function(opts) {
+            var items = opts[type];
+            if (!items || items.length === 0) { submenu.style.display = 'none'; return; }
+            submenu.innerHTML = '';
+            items.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'submenu-item';
+                div.textContent = item;
+                div.addEventListener('click', function() {
+                    input.value = item;
+                    submenu.style.display = 'none';
+                });
+                submenu.appendChild(div);
+            });
+            submenu.style.display = 'block';
+        });
+    }
+
+    typesel.addEventListener('change', function() {
+        var t = this.value;
+        if (['kingdom','region','source','class'].indexOf(t) >= 0) {
+            showSubmenu(t);
+            input.placeholder = 'Select or type ' + t + '...';
+        } else {
+            submenu.style.display = 'none';
+            input.placeholder = 'Search compounds...';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-form')) submenu.style.display = 'none';
+    });
+})();
+</script>
+{% endblock %}
 {% block content %}
 <div class="hero">
     <h1>THEOBROMA</h1>
@@ -39,6 +96,7 @@
             <option value="source">Source database</option>
             <option value="region">Geographic region</option>
             <option value="kingdom">Kingdom</option>
+            <option value="class">Chemical class</option>
         </select>
         <div class="search-input-wrap">
             <input type="text" name="q" id="search-q" placeholder="Search compounds..." autocomplete="off">
@@ -46,7 +104,7 @@
         </div>
         <button type="submit">Search</button>
     </form>
-    <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=fungi&type=kingdom">fungi</a> &middot; <span class="hint-key">/</span> to focus</p>
+    <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=Triterpenoids&type=class">Triterpenoids</a> &middot; <a href="/search?q=fungi&type=kingdom">fungi</a> &middot; <span class="hint-key">/</span> to focus</p>
 </div>
 <script>
 (function(){
