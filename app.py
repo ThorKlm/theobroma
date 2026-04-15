@@ -283,12 +283,20 @@ def compound_detail(comp_id):
     if not c: abort(404)
     src_list = [s.strip() for s in (c.get("all_sources") or "").split("|") if s.strip()]
     synonyms = []
+    admet_data = None
     if c.get("inchikey"):
         with get_db() as conn2:
             with conn2.cursor() as cur2:
                 cur2.execute("SELECT synonym FROM compound_synonyms WHERE inchikey=%s LIMIT 20", (c["inchikey"],))
                 synonyms = [r[0] for r in cur2.fetchall()]
-    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms)
+    with get_db() as conn3:
+        with conn3.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur3:
+            try:
+                cur3.execute("SELECT * FROM admet WHERE comp_id=%s", (c["comp_id"],))
+                admet_data = cur3.fetchone()
+            except:
+                conn3.rollback()
+    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data)
 
 @app.route("/statistics")
 def statistics():

@@ -66,6 +66,23 @@
             <tr><th>NP Classifier class</th><td>{{ c.np_class or '&mdash;'|safe }}</td></tr>
         </table>
     </div>
+    {% if admet %}
+    <div class="card" style="grid-column: 1 / -1;">
+        <h3 class="card-title">ADMET Predictions <span style="font-size:0.72rem;color:var(--text-muted);">(ADMET-AI)</span></h3>
+        <div id="admet-preview" style="max-height:200px;overflow:hidden;">
+        <table class="prop-table" style="font-size:0.78rem;">
+            {% for key, val in admet.items() %}
+            {% if key != 'comp_id' and val is not none %}
+            <tr><th style="width:50%;">{{ key }}</th><td>{{ "%.4f"|format(val) }}</td></tr>
+            {% endif %}
+            {% endfor %}
+        </table>
+        </div>
+        {% if admet|length > 12 %}
+        <a href="#" onclick="var d=document.getElementById('admet-preview');d.style.maxHeight=d.style.maxHeight?'':'200px';this.textContent=d.style.maxHeight?'Show all ADMET':'Collapse';return false;" style="font-size:0.8rem;color:var(--accent);display:block;margin-top:0.5rem;">Show all ADMET</a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 <div style="margin-top:1rem;">
     <h3 class="card-title">External links</h3>
