@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% from "_sort_header.html" import sort_header %}
+{% block title %}Advanced Search &mdash; THEOBROMA
+<script>
+(function(){
+    var optionsCache = null;
+    function loadOptions() {
+        if (optionsCache) return Promise.resolve(optionsCache);
+        return fetch('/api/filter_options').then(function(r){return r.json()}).then(function(d){
+            optionsCache = d; return d;
+        });
+    }
+
+    document.querySelectorAll('.filter-row select').forEach(function(sel) {
+        var row = sel.closest('.filter-row');
+        var input = row.querySelector('input[type="text"]');
+        var submenu = document.createElement('div');
+        submenu.className = 'search-submenu';
+        submenu.style.display = 'none';
+        row.style.position = 'relative';
+        row.appendChild(submenu);
+
+        sel.addEventListener('change', function() {
+            var t = this.value;
+            if (['kingdom','region','source','class'].indexOf(t) >= 0) {
+                loadOptions().then(function(opts) {
+                    var items = opts[t];
+                    if (!items || items.length === 0) { submenu.style.display = 'none'; return; }
+                    submenu.innerHTML = '';
+                    items.forEach(function(item) {
+                        var div = document.createElement('div');
+                        div.className = 'submenu-item';
+                        div.textContent = item;
+                        div.addEventListener('click', function() {
+                            input.value = item;
+                            submenu.style.display = 'none';
+                        });
+                        submenu.appendChild(div);
+                    });
+                    submenu.style.display = 'block';
+                });
+            } else {
+                submenu.style.display = 'none';
+            }
+        });
+    });
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.filter-row')) {
+            document.querySelectorAll('.search-submenu').forEach(function(m){m.style.display='none';});
+        }
+    });
+})();
+</script>
+{% endblock %}
+{% block content %}
+<h1 class="section-title">Advanced Search</h1>
+<div class="card" style="margin-bottom:1.5rem;">
+    <form action="/advanced" method="get" id="adv-form">
+        <h3 class="card-title">Text Filters (AND logic)</h3>
+        <div id="filter-rows">
+        {% for i in range(5) %}
+            <div class="filter-row" id="frow-{{ i }}" {% if i > 0 and not filters.get('field_' ~ i|string) %}style="display:none;"{% endif %}>
+                {% if i > 0 %}<span style="font-size:0.78rem;color:var(--accent);font-weight:600;margin-right:0.5rem;">AND</span>{% endif %}
+                <select name="field_{{ i }}">
+                    <option value="">-- select --</option>
+                    {% for val, label in [("name","Compound name"),("organism","Source organism"),("kingdom","Kingdom"),("region","Geographic region"),("source","Source database"),("class","Chemical class")] %}
+                    <option value="{{ val }}" {{ 'selected' if filters.get('field_' ~ i|string) == val }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" name="value_{{ i }}" value="{{ filters.get('value_' ~ i|string, '') }}" placeholder="search term..." style="flex:1;">
+            </div>
+        {% endfor %}
+        </div>
+        <a href="#" onclick="var rows=document.querySelectorAll('.filter-row');for(var r of rows){if(r.style.display==='none'){r.style.display='flex';break;}}return false;" style="font-size:0.82rem;color:var(--accent);margin-top:0.5rem;display:inline-block;">+ Add filter</a>
+
+        <h3 class="card-title" style="margin-top:1.5rem;">Property Ranges</h3>
+        <div class="prop-filters">
+        {% for prop, label in [("mw","Molecular Weight"),("logp","LogP"),("tpsa","TPSA"),("hba","HBA"),("hbd","HBD"),("n_rings","Rings"),("rotatable_bonds","Rotatable Bonds")] %}
+            <div class="prop-filter-item">
+                <label>{{ label }}</label>
+                {% if histograms.get(prop) %}
+                <div class="hist-container" id="hist-{{ prop }}" data-prop="{{ prop }}"
+                     data-min="{{ histograms[prop].min }}" data-max="{{ histograms[prop].max }}"
+                     data-bins='{{ histograms[prop].bins | tojson }}'>
+                    <canvas id="canvas-{{ prop }}" width="200" height="40"></canvas>
+                </div>
+                {% endif %}
+                <div class="range-inputs">
+                    <input type="number" name="{{ prop }}_min" id="{{ prop }}_min"
+                           value="{{ filters.get(prop ~ '_min', '') }}"
+                           placeholder="{{ histograms.get(prop, {}).get('min', 'min') }}" step="any">
+                    <span>to</span>
+                    <input type="number" name="{{ prop }}_max" id="{{ prop }}_max"
+                           value="{{ filters.get(prop ~ '_max', '') }}"
+                           placeholder="{{ histograms.get(prop, {}).get('max', 'max') }}" step="any">
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+        <button type="submit" class="btn" style="margin-top:1rem;">Search</button>
+        <a href="/advanced" style="margin-left:1rem;font-size:0.85rem;">Clear all</a>
+    </form>
+</div>
+
+{% if total > 0 %}
+<p class="results-info">{{ "{:,}".format(total) }} compounds matching all criteria</p>
+<div class="table-scroll">
+<table class="results-table">
+    <thead><tr>
+        <th style="width:60px;">Structure</th>
+        <th>{{ sort_header("comp_id", "ID", sort, order) }}</th>
+        <th>{{ sort_header("name", "Name", sort, order) }}</th>
+        <th>{{ sort_header("kingdom", "Kingdom", sort, order) }}</th>
+        <th>{{ sort_header("source_db", "Source", sort, order) }}</th>
+        <th>{{ sort_header("region", "Region", sort, order) }}</th>
+        <th>{{ sort_header("mw", "MW", sort, order) }}</th>
+        <th>{{ sort_header("logp", "LogP", sort, order) }}</th>
+    </tr></thead>
+    <tbody>
+    {% for r in results %}
+    <tr>
+        <td><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></td>
+        <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
+        <td>{{ r.name or '&mdash;'|safe }}</td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
+        <td>{{ r.source_db }}</td>
+        <td>{{ r.region|region_label }}</td>
+        <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
+        <td>{{ "%.2f"|format(r.logp) if r.logp else '&mdash;'|safe }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% include "_pagination.html" %}
+{% elif filters %}
+<p class="no-results">No compounds match all criteria.</p>
+{% else %}
+<p class="search-hint" style="text-align:center;">Combine multiple filters with AND logic. Add property ranges to narrow results.<br>
+Example: <a href="/advanced?field_0=class&value_0=Triterpenoids&field_1=region&value_1=Africa">Triterpenoids from Africa</a> &middot; <a href="/advanced?field_0=kingdom&value_0=fungi&mw_min=200&mw_max=500">Fungal compounds 200-500 Da</a></p>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Draw histograms
+    document.querySelectorAll('.hist-container').forEach(function(el) {
+        var prop = el.dataset.prop;
+        var pmin = parseFloat(el.dataset.min);
+        var pmax = parseFloat(el.dataset.max);
+        var bins = JSON.parse(el.dataset.bins);
+        var canvas = document.getElementById('canvas-' + prop);
+        var ctx = canvas.getContext('2d');
+        var w = canvas.width, h = canvas.height;
+        var maxY = Math.max.apply(null, bins.map(function(b){ return b.y; }));
+        var loInput = document.getElementById(prop + '_min');
+        var hiInput = document.getElementById(prop + '_max');
+
+        function draw() {
+            ctx.clearRect(0, 0, w, h);
+            var lo = parseFloat(loInput.value) || pmin;
+            var hi = parseFloat(hiInput.value) || pmax;
+            var bw = w / bins.length;
+            bins.forEach(function(b, i) {
+                var bh = (b.y / maxY) * (h - 4);
+                var bx = b.x;
+                var inRange = bx >= lo && bx <= hi;
+                ctx.fillStyle = inRange ? '#2d6a4f' : '#d4cfc7';
+                ctx.fillRect(i * bw, h - bh, bw - 1, bh);
+            });
+        }
+        draw();
+        loInput.addEventListener('input', draw);
+        hiInput.addEventListener('input', draw);
+    }); 
+
+    // SmilesDrawer thumbnails
+    var d = new SmilesDrawer.Drawer({width:80, height:60});
+    document.querySelectorAll('.smi-thumb').forEach(function(c) {
+        SmilesDrawer.parse(c.dataset.smiles, function(tree){ d.draw(tree, c, 'light'); }, function(){});
+    });
+});
+</script>
+
+<style>
+.filter-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+.filter-row select { font-family: inherit; font-size: 0.85rem; padding: 0.4rem; border: 1px solid var(--border); border-radius: var(--radius); }
+.filter-row input { font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; padding: 0.4rem; border: 1px solid var(--border); border-radius: var(--radius); }
+.prop-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 0.75rem 0; }
+.prop-filter-item label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; }
+.prop-filter-item canvas { width: 100%; height: 40px; border-radius: 3px; }
+.range-inputs { display: flex; gap: 0.3rem; align-items: center; margin-top: 0.3rem; }
+.range-inputs input { width: 70px; font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; padding: 0.3rem; border: 1px solid var(--border); border-radius: var(--radius); }
+.range-inputs span { font-size: 0.78rem; color: var(--text-muted); }
+</style>
+{% endblock %}

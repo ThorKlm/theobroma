@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}ADMET Filter &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">ADMET Filter</h1>
+<div class="card" style="margin-bottom:1.5rem;">
+    <form action="/admet" method="get">
+        <div class="admet-grid">
+        {% for col, label, dmin, dmax in filter_defs %}
+        <div class="admet-filter">
+            <label>{{ label }}</label>
+            <div style="display:flex;gap:0.3rem;align-items:center;">
+                <input type="number" name="{{ col }}_min" value="{{ filters.get(col+'_min','') }}" placeholder="min" step="0.01" style="width:70px;font-size:0.8rem;padding:0.3rem;">
+                <span style="font-size:0.8rem;">to</span>
+                <input type="number" name="{{ col }}_max" value="{{ filters.get(col+'_max','') }}" placeholder="max" step="0.01" style="width:70px;font-size:0.8rem;padding:0.3rem;">
+            </div>
+        </div>
+        {% endfor %}
+        </div>
+        <button type="submit" class="btn" style="margin-top:1rem;">Filter</button>
+        <a href="/admet" style="margin-left:1rem;font-size:0.85rem;">Clear</a>
+    </form>
+</div>
+{% if results %}
+<p class="results-info">{{ "{:,}".format(total) }} compounds matching ADMET criteria</p>
+<div class="table-scroll">
+<table class="results-table">
+    <thead><tr>
+        <th>ID</th><th>Name</th><th>Kingdom</th><th>MW</th>
+        {% for col, label, _, _ in filter_defs %}
+        <th style="font-size:0.65rem;">{{ label[:12] }}</th>
+        {% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for r in results %}
+    <tr>
+        <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
+        <td>{{ r.name or '&mdash;'|safe }}</td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
+        <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
+        {% for col, _, _, _ in filter_defs %}
+        <td>{{ "%.2f"|format(r[col]) if r[col] is not none else '&mdash;'|safe }}</td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% include "_pagination.html" %}
+{% elif filters %}
+<p class="no-results">No compounds match these ADMET criteria.</p>
+{% else %}
+<p class="search-hint" style="text-align:center;">Set min/max ranges for ADMET endpoints to filter compounds.</p>
+{% endif %}
+{% endblock %}

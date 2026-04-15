@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}ADMET &mdash; {{ compound.name or compound.comp_id }} &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<div class="back-link"><a href="/compound/{{ compound.comp_id }}">&larr; Back to compound</a></div>
+<h1 class="section-title">ADMET Predictions: {{ compound.name or compound.comp_id }}</h1>
+{% if admet %}
+<div class="card">
+    <table class="prop-table">
+    {% for key, val in admet.items() %}
+        {% if key != 'comp_id' and val is not none %}
+        <tr><th>{{ key }}</th><td>{{ "%.4f"|format(val) }}</td></tr>
+        {% endif %}
+    {% endfor %}
+    </table>
+</div>
+{% else %}
+<p class="no-results">No ADMET predictions available for this compound.</p>
+{% endif %}
+{% endblock %}

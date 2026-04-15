@@ -3,49 +3,63 @@
 {% block content %}
 <h1 class="section-title">Similarity Search</h1>
 <div class="search-box">
-    <form action="/similarity" method="get" class="search-form">
-        <input type="text" name="smiles" value="{{ query_smiles }}" placeholder="Enter SMILES (e.g., OC(=O)c1ccccc1)" style="flex:2;" autocomplete="off">
-        <select name="top_n">
-            {% for n in [10,25,50,100,200] %}
-            <option value="{{ n }}" {{ 'selected' if top_n == n }}>Top {{ n }}</option>
-            {% endfor %}
-        </select>
-        <select name="threshold">
-            {% for t in [0.1,0.2,0.3,0.5,0.7] %}
-            <option value="{{ t }}" {{ 'selected' if threshold == t }}>Tc >= {{ t }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Search</button>
+    <form action="/similarity" method="get" class="search-form" style="flex-wrap:wrap;">
+        <div class="search-row" style="width:100%;">
+            <input type="text" name="smiles" value="{{ query_input or query_smiles }}" placeholder="SMILES, compound name, or THEO_ID" style="flex:2;" autocomplete="off">
+            <select name="metric">
+                <option value="morgan" {{ 'selected' if metric == 'morgan' }}>Morgan/ECFP4</option>
+                <option value="maccs" {{ 'selected' if metric == 'maccs' }}>MACCS keys</option>
+                <option value="chemberta" {{ 'selected' if metric == 'chemberta' }}>ChemBERTa</option>
+            </select>
+            <select name="top_n">
+                {% for n in [10,25,50,100,200] %}
+                <option value="{{ n }}" {{ 'selected' if top_n == n }}>Top {{ n }}</option>
+                {% endfor %}
+            </select>
+            <select name="threshold">
+                {% for t in [0.1,0.2,0.3,0.5,0.7] %}
+                <option value="{{ t }}" {{ 'selected' if threshold == t }}>Tc >= {{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="search-row" style="width:100%;margin-top:0.5rem;">
+            <select name="region">
+                <option value="">All regions</option>
+                {% for r in ["East Asia","South Asia","Southeast Asia","Australia","Africa","Europe","Latin America","North America","Russia/CIS","Middle East","Oceania"] %}
+                <option value="{{ r }}" {{ 'selected' if region_filter == r }}>{{ r }}</option>
+                {% endfor %}
+            </select>
+            <select name="kingdom">
+                <option value="">All kingdoms</option>
+                {% for k in ["plant","fungi","bacteria","marine","animal"] %}
+                <option value="{{ k }}" {{ 'selected' if kingdom_filter == k }}>{{ k }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" name="class_filter" value="{{ class_filter }}" placeholder="Chemical class filter..." style="flex:1;">
+            <button type="submit">Search</button>
+        </div>
     </form>
     {% if not engine_loaded %}
     <p class="search-hint" style="color:#c0392b;">Similarity search is currently unavailable (vectors not loaded).</p>
     {% else %}
-    <p class="search-hint">Enter a SMILES string to find structurally similar compounds by Morgan/ECFP4 Tanimoto coefficient.</p>
+    <p class="search-hint">Enter a SMILES, compound name (e.g., curcumin), or ID (e.g., THEO_0000001). Select metric and filters.</p>
     {% endif %}
 </div>
 {% if query_smiles %}
 <div class="card" style="margin:1.5rem 0;">
-    <h3 class="card-title">Query structure</h3>
+    <h3 class="card-title">Query structure{% if query_input and query_input != query_smiles %} ({{ query_input }}){% endif %}</h3>
     <canvas id="query-canvas" width="300" height="200"></canvas>
 </div>
 {% endif %}
-{% if error %}
-<p class="no-results">{{ error }}</p>
-{% endif %}
+{% if error %}<p class="no-results">{{ error }}</p>{% endif %}
 {% if results %}
-<p class="results-info">{{ results|length }} similar compounds found</p>
+<p class="results-info">{{ results|length }} similar compounds ({{ metric }}{% if region_filter %}, {{ region_filter }}{% endif %}{% if kingdom_filter %}, {{ kingdom_filter }}{% endif %}{% if class_filter %}, {{ class_filter }}{% endif %})</p>
 <div class="table-scroll">
 <table class="results-table">
     <thead><tr>
         <th style="width:60px;">Structure</th>
-        <th>Tanimoto</th>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Kingdom</th>
-        <th>Source</th>
-        <th>Organism</th>
-        <th>MW</th>
-        <th>Region</th>
+        <th>Similarity</th>
+        <th>ID</th><th>Name</th><th>Kingdom</th><th>Source</th><th>Organism</th><th>MW</th><th>Region</th>
     </tr></thead>
     <tbody>
     {% for r in results %}
@@ -71,6 +85,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.smi-thumb').forEach(function(c) {
         SmilesDrawer.parse(c.dataset.smiles, function(tree){ d.draw(tree, c, 'light'); }, function(){});
     });
+    var qc = document.getElementById('query-canvas');
+    if (qc) {
+        var qd = new SmilesDrawer.Drawer({width:300, height:200});
+        SmilesDrawer.parse({{ query_smiles|tojson }}, function(tree){ qd.draw(tree, qc, 'light'); }, function(){});
+    }
 });
 </script>
 {% endblock %}

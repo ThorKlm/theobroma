@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Substructure Search &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Substructure Search</h1>
+<div class="search-box">
+    <form action="/substructure" method="get" class="search-form">
+        <input type="text" name="smarts" value="{{ query }}" placeholder="Enter SMILES or SMARTS (e.g., c1ccc2[nH]c3ccccc3c2c1)" style="flex:2;" autocomplete="off">
+        <select name="max_results">
+            {% for n in [25,50,100,200,500] %}
+            <option value="{{ n }}" {{ 'selected' if max_results == n }}>Max {{ n }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Search</button>
+    </form>
+    <p class="search-hint">Enter a SMILES or SMARTS pattern. Examples: <a href="/substructure?smarts=c1ccc2[nH]c3ccccc3c2c1">indole</a> &middot; <a href="/substructure?smarts=C1=CC=C(O)C=C1">phenol</a> &middot; <a href="/substructure?smarts=[#6]1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#8]">cyclohexanone</a></p>
+</div>
+{% if query %}
+<div class="card" style="margin:1.5rem 0;">
+    <h3 class="card-title">Query structure</h3>
+    <canvas id="query-canvas" width="300" height="200"></canvas>
+</div>
+{% endif %}
+{% if error %}<p class="no-results">{{ error }}</p>{% endif %}
+{% if results %}
+<p class="results-info">{{ results|length }} substructure matches</p>
+<div class="table-scroll">
+<table class="results-table">
+    <thead><tr>
+        <th style="width:60px;">Structure</th>
+        <th>ID</th><th>Name</th><th>Kingdom</th><th>Source</th><th>MW</th>
+    </tr></thead>
+    <tbody>
+    {% for r in results %}
+    <tr>
+        <td><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></td>
+        <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
+        <td>{{ r.name or '&mdash;'|safe }}</td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
+        <td>{{ r.source_db }}</td>
+        <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var d = new SmilesDrawer.Drawer({width:80, height:60});
+    document.querySelectorAll('.smi-thumb').forEach(function(c) {
+        SmilesDrawer.parse(c.dataset.smiles, function(tree){ d.draw(tree, c, 'light'); }, function(){});
+    });
+    var qc = document.getElementById('query-canvas');
+    if (qc) {
+        var qd = new SmilesDrawer.Drawer({width:300, height:200});
+        SmilesDrawer.parse({{ query|tojson }}, function(tree){ qd.draw(tree, qc, 'light'); }, function(){});
+    }
+});
+</script>
+{% endblock %}
