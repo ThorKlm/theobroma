@@ -183,8 +183,9 @@ def search():
             else:
                 extra_clauses.append(esql)
                 extra_params.append(f"%{eq}%")
-    # Handle property range filters
-    for prop in ["mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds"]:
+    # Handle property range filters (physchem + ADMET)
+    for prop in ["mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds",
+                  "Solubility_AqSolDB", "Lipophilicity_AstraZeneca", "DILI", "Clearance_Hepatocyte_AZ"]:
         pmin = request.args.get(f"{prop}_min", "")
         pmax = request.args.get(f"{prop}_max", "")
         if pmin:
@@ -193,9 +194,14 @@ def search():
         if pmax:
             extra_clauses.append(f"{prop} <= %s")
             extra_params.append(float(pmax))
+    admet_props = {"Solubility_AqSolDB","Lipophilicity_AstraZeneca","DILI","Clearance_Hepatocyte_AZ"}
+    needs_admet = any(p in c for c in extra_clauses for p in admet_props)
     if extra_clauses:
         extra_where = " AND ".join(extra_clauses)
-        query = f"SELECT * FROM ({query}) AS base WHERE {extra_where}"
+        if needs_admet:
+            query = f"SELECT base.* FROM ({query}) AS base JOIN admet ON base.comp_id=admet.comp_id WHERE {extra_where}"
+        else:
+            query = f"SELECT * FROM ({query}) AS base WHERE {extra_where}"
         params = params + tuple(extra_params)
     with get_db() as conn:
         results, total, pages = paginate(query, params, page, per_page, conn)
