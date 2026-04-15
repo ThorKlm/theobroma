@@ -890,6 +890,28 @@ def api_filter_options():
     return jsonify({"kingdom": kingdoms, "region": regions, "source": sources, "class": classes})
 
 
+
+@app.route("/api/depict")
+def api_depict():
+    """Render 2D structure as SVG via RDKit."""
+    smiles = request.args.get("smiles", "")
+    w = int(request.args.get("w", 300))
+    h = int(request.args.get("h", 200))
+    if not smiles:
+        return "", 404
+    from rdkit import Chem
+    from rdkit.Chem import Draw
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return "", 404
+    from rdkit.Chem.Draw import rdMolDraw2D
+    drawer = rdMolDraw2D.MolDraw2DSVG(w, h)
+    drawer.DrawMolecule(mol)
+    drawer.FinishDrawing()
+    svg = drawer.GetDrawingText()
+    return svg, 200, {"Content-Type": "image/svg+xml"}
+
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404
