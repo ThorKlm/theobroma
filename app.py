@@ -184,21 +184,27 @@ def search():
                 extra_clauses.append(esql)
                 extra_params.append(f"%{eq}%")
     # Handle property range filters (physchem + ADMET)
+    admet_cols = {"Solubility_AqSolDB","Lipophilicity_AstraZeneca","DILI","Clearance_Hepatocyte_AZ"}
+    needs_admet_join = False
     for prop in ["mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds",
                   "Solubility_AqSolDB", "Lipophilicity_AstraZeneca", "DILI", "Clearance_Hepatocyte_AZ"]:
         pmin = request.args.get(f"{prop}_min", "")
         pmax = request.args.get(f"{prop}_max", "")
-        if pmin:
-            extra_clauses.append(f"{prop} >= %s")
-            extra_params.append(float(pmin))
-        if pmax:
-            extra_clauses.append(f"{prop} <= %s")
-            extra_params.append(float(pmax))
-    admet_props = {"Solubility_AqSolDB","Lipophilicity_AstraZeneca","DILI","Clearance_Hepatocyte_AZ"}
-    needs_admet = any(p in c for c in extra_clauses for p in admet_props)
+        if pmin or pmax:
+            if prop in admet_cols:
+                needs_admet_join = True
+                col = f'admet."{prop}"'
+            else:
+                col = prop
+            if pmin:
+                extra_clauses.append(f"{col} >= %s")
+                extra_params.append(float(pmin))
+            if pmax:
+                extra_clauses.append(f"{col} <= %s")
+                extra_params.append(float(pmax))
     if extra_clauses:
         extra_where = " AND ".join(extra_clauses)
-        if needs_admet:
+        if needs_admet_join:
             query = f"SELECT base.* FROM ({query}) AS base JOIN admet ON base.comp_id=admet.comp_id WHERE {extra_where}"
         else:
             query = f"SELECT * FROM ({query}) AS base WHERE {extra_where}"

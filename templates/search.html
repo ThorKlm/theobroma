@@ -10,7 +10,11 @@ var propRanges = {
     hba: {min:0, max:75, mean:5.7},
     hbd: {min:0, max:40, mean:2.9},
     n_rings: {min:0, max:32, mean:3.5},
-    rotatable_bonds: {min:0, max:117, mean:4.8}
+    rotatable_bonds: {min:0, max:117, mean:4.8},
+    Solubility_AqSolDB: {min:-13.1, max:8.7, mean:-3.9},
+    Lipophilicity_AstraZeneca: {min:-22.2, max:9.7, mean:2.1},
+    DILI: {min:0.0, max:1.0, mean:0.5},
+    Clearance_Hepatocyte_AZ: {min:-341, max:514, mean:71.4}
 };
 
 function loadOptions() {
@@ -154,6 +158,12 @@ function addFilter() {
         '<option value="hbd">HBD (0 - 40, mean: 2.9)</option>' +
         '<option value="n_rings">Rings (0 - 32, mean: 3.5)</option>' +
         '<option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>' +
+        '<optgroup label="ADMET predictions">' +
+        '<option value="Solubility_AqSolDB">Solubility (-13.1 - 8.7)</option>' +
+        '<option value="Lipophilicity_AstraZeneca">Lipophilicity (-22.2 - 9.7)</option>' +
+        '<option value="DILI">DILI risk (0.0 - 1.0)</option>' +
+        '<option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance (-341 - 514)</option>' +
+        '</optgroup>' +
         '</select>' +
         '<div class="search-input-wrap"><input type="text" name="extra_q_' + filterCount + '" placeholder="search term..."></div>' +
         '<div class="range-input" id="range-input-' + filterCount + '" style="display:none;"></div>' +
@@ -331,6 +341,12 @@ document.addEventListener('click', function(e) {
                 <option value="hbd">HBD (0 - 40, mean: 2.9)</option>
                 <option value="n_rings">Rings (0 - 32, mean: 3.5)</option>
                 <option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>
+                <optgroup label="ADMET predictions">
+                <option value="Solubility_AqSolDB">Solubility (-13.1 - 8.7, mean: -3.9)</option>
+                <option value="Lipophilicity_AstraZeneca">Lipophilicity (-22.2 - 9.7, mean: 2.1)</option>
+                <option value="DILI">DILI risk (0.0 - 1.0, mean: 0.5)</option>
+                <option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance (-341 - 514, mean: 71.4)</option>
+                </optgroup>
             </select>
             <div class="search-input-wrap" id="text-input-0">
                 <input type="text" name="q" id="search-q" value="{{ query }}" placeholder="Search compounds..." autocomplete="off">
@@ -458,7 +474,11 @@ var propRanges = {
     hba: {min:0, max:75, mean:5.7},
     hbd: {min:0, max:40, mean:2.9},
     n_rings: {min:0, max:32, mean:3.5},
-    rotatable_bonds: {min:0, max:117, mean:4.8}
+    rotatable_bonds: {min:0, max:117, mean:4.8},
+    Solubility_AqSolDB: {min:-13.1, max:8.7, mean:-3.9},
+    Lipophilicity_AstraZeneca: {min:-22.2, max:9.7, mean:2.1},
+    DILI: {min:0.0, max:1.0, mean:0.5},
+    Clearance_Hepatocyte_AZ: {min:-341, max:514, mean:71.4}
 };
 
 function loadOptions() {
@@ -602,6 +622,12 @@ function addFilter() {
         '<option value="hbd">HBD (0 - 40, mean: 2.9)</option>' +
         '<option value="n_rings">Rings (0 - 32, mean: 3.5)</option>' +
         '<option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>' +
+        '<optgroup label="ADMET predictions">' +
+        '<option value="Solubility_AqSolDB">Solubility (-13.1 - 8.7)</option>' +
+        '<option value="Lipophilicity_AstraZeneca">Lipophilicity (-22.2 - 9.7)</option>' +
+        '<option value="DILI">DILI risk (0.0 - 1.0)</option>' +
+        '<option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance (-341 - 514)</option>' +
+        '</optgroup>' +
         '</select>' +
         '<div class="search-input-wrap"><input type="text" name="extra_q_' + filterCount + '" placeholder="search term..."></div>' +
         '<div class="range-input" id="range-input-' + filterCount + '" style="display:none;"></div>' +
