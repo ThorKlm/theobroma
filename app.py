@@ -923,9 +923,9 @@ def api_depict():
     from rdkit.Chem.Draw import rdMolDraw2D
     drawer = rdMolDraw2D.MolDraw2DSVG(w, h)
     opts = drawer.drawOptions()
-    opts.bondLineWidth = 0.6 if w < 150 else 1.0
-    opts.minFontSize = 6 if w < 150 else 9
-    opts.maxFontSize = 9 if w < 150 else 13
+    opts.bondLineWidth = 0.35 if w < 150 else 0.8
+    opts.minFontSize = 5 if w < 150 else 8
+    opts.maxFontSize = 8 if w < 150 else 12
     opts.padding = 0.05
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()

@@ -119,7 +119,7 @@
     <tbody>
     {% for r in results %}
     <tr>
-        <td><img class="smi-thumb" src="/api/depict?smiles={{ r.smiles|urlencode }}&w=80&h=60" width="80" height="60" loading="lazy" alt="structure"/></td>
+        <td><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></td>
         <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
         <td>{{ r.name or '&mdash;'|safe }}</td>
         <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
