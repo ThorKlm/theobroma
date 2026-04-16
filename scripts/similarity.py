@@ -7,6 +7,7 @@ class SimilarityEngine:
     def __init__(self, vectors_dir="data/vectors"):
         self.loaded = False
         self.faiss_loaded = False
+        self.maccs_loaded = False
         self.vectors_dir = vectors_dir
 
     def load(self):
@@ -20,6 +21,12 @@ class SimilarityEngine:
         self.valid_idx = np.load(os.path.join(d, "valid_indices.npy"))
         self.loaded = True
         print(f"[SimilarityEngine] {len(self.valid_idx):,} valid compounds (Morgan)")
+        # Load MACCS
+        maccs_path = os.path.join(d, "maccs_fps.npz")
+        if os.path.exists(maccs_path):
+            self.maccs = sparse.load_npz(maccs_path)
+            self.maccs_loaded = True
+            print(f"[SimilarityEngine] MACCS keys loaded ({self.maccs.shape[0]:,} x {self.maccs.shape[1]})")
         # Try loading FAISS
         faiss_path = os.path.join(d, "faiss_hnsw.index")
         if os.path.exists(faiss_path):
@@ -106,10 +113,10 @@ class SimilarityEngine:
             D, I = self.faiss_index.search(emb, top_n)
             results = []
             for i, (dist, idx) in enumerate(zip(D[0], I[0])):
-                if idx < 0: continue
+                if idx < 0 or idx >= len(self.comp_ids): continue
                 results.append({
-                    "comp_id": str(self.comp_ids[self.valid_idx[idx]]),
-                    "tanimoto": round(float((1 + dist) / 2), 4)  # convert cosine distance to similarity
+                    "comp_id": str(self.comp_ids[idx]),
+                    "tanimoto": round(float(dist), 4)
                 })
             return results
         except Exception as e:

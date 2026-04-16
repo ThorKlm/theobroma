@@ -155,7 +155,7 @@ def search():
         "organism":(f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",)),
         "region":  (f"SELECT * FROM compounds WHERE region ILIKE %s {oc}", (f"%{q}%",)),
         "kingdom": (f"SELECT * FROM compounds WHERE kingdom ILIKE %s {oc}", (f"%{q}%",)),
-        "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s {oc}", (f"%{q}%", f"%{q}%")),
+        "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%")),
         "mw":      (f"SELECT * FROM compounds WHERE 1=1 {oc}", ()),
     }
     query, params = tq.get(st, tq["name"])
@@ -423,10 +423,10 @@ def api_search():
         tc = {"smiles":"smiles=%s","inchikey":"inchikey=%s",
               "kingdom":"kingdom ILIKE %s","organism":"source_organism ILIKE %s",
               "region":"region ILIKE %s","source":"source_db ILIKE %s",
-              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s"}
+              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s"}
         cl = tc.get(st, "LOWER(name) LIKE %s")
         if st == "class":
-            pm = (f"%{q}%", f"%{q}%")
+            pm = (f"%{q}%", f"%{q}%", f"%{q}%")
         else:
             pm = f"%{q.lower()}%" if st == "organism" else (f"%{q}%" if st in ("kingdom","region","source") else q)
         with get_db() as conn:
