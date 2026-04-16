@@ -33,7 +33,31 @@
 document.addEventListener('DOMContentLoaded', function() {
     var d = new SmilesDrawer.Drawer({width:80, height:60});
     document.querySelectorAll('.smi-thumb').forEach(function(c) {
-        SmilesDrawer.parse(c.dataset.smiles, function(tree){ d.draw(tree, c, 'light'); }, function(){});
+        (function(canvas){
+            var smi = canvas.dataset.smiles;
+            function fb() {
+                fetch('/api/depict?smiles=' + encodeURIComponent(smi) + '&w=' + canvas.width + '&h=' + canvas.height)
+                    .then(function(r){ return r.text(); })
+                    .then(function(svg){
+                        var div = document.createElement('div');
+                        div.innerHTML = svg;
+                        div.style.width = canvas.width + 'px';
+                        div.style.height = canvas.height + 'px';
+                        if (canvas.parentNode) canvas.parentNode.replaceChild(div, canvas);
+                    });
+            }
+            SmilesDrawer.parse(smi, function(tree){
+                d.draw(tree, canvas, 'light');
+                setTimeout(function(){
+                    var px = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+                    var has = false;
+                    for (var i = 3; i < px.length; i += 40) {
+                        if (px[i] > 0) { has = true; break; }
+                    }
+                    if (!has) fb();
+                }, 300);
+            }, function(){ fb(); });
+        })(c);
     });
     var sc = document.getElementById('scaffold-canvas');
     var sd = new SmilesDrawer.Drawer({width:300, height:200});

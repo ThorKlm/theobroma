@@ -211,6 +211,22 @@ def search():
         params = params + tuple(extra_params)
     with get_db() as conn:
         results, total, pages = paginate(query, params, page, per_page, conn)
+    if st == "name" and results:
+        seen = {}
+        deduped = []
+        for r in results:
+            ik14 = (r.get("inchikey") or "")[:14]
+            name_key = (r.get("name") or "").lower().strip()
+            dedup_key = (ik14, name_key) if ik14 else (name_key,)
+            if dedup_key in seen:
+                continue
+            seen[dedup_key] = True
+            nm = r.get("name") or ""
+            if nm and nm[0].islower():
+                r["name"] = nm[0].upper() + nm[1:]
+            deduped.append(r)
+        results = deduped
+        total = len(results) if len(results) < total else total
     return render_template("search.html", results=results, query=q, search_type=st,
                            page=page, total=total, pages=pages, sort=sort, order=order, per_page=per_page)
 
@@ -906,9 +922,17 @@ def api_depict():
         return "", 404
     from rdkit.Chem.Draw import rdMolDraw2D
     drawer = rdMolDraw2D.MolDraw2DSVG(w, h)
+    opts = drawer.drawOptions()
+    opts.bondLineWidth = 0.6 if w < 150 else 1.0
+    opts.minFontSize = 6 if w < 150 else 9
+    opts.maxFontSize = 9 if w < 150 else 13
+    opts.padding = 0.05
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
     svg = drawer.GetDrawingText()
+    import re
+    svg = re.sub(r"<rect[^>]*fill:#FFFFFF[^<]*</rect>", "", svg, flags=re.DOTALL)
+    svg = re.sub(r"<rect[^>]*fill:#FFFFFF[^/]*/>", "", svg)
     return svg, 200, {"Content-Type": "image/svg+xml"}
 
 

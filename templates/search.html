@@ -404,8 +404,30 @@ document.addEventListener('click', function(e) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var d = new SmilesDrawer.Drawer({width:80, height:60});
+    function thumbFallback(canvas, smi) {
+        fetch('/api/depict?smiles=' + encodeURIComponent(smi) + '&w=80&h=60')
+            .then(function(r){ return r.text(); })
+            .then(function(svg){
+                var div = document.createElement('div');
+                div.innerHTML = svg;
+                div.style.width = '80px';
+                div.style.height = '60px';
+                if (canvas.parentNode) canvas.parentNode.replaceChild(div, canvas);
+            });
+    }
     document.querySelectorAll('.smi-thumb').forEach(function(c) {
-        SmilesDrawer.parse(c.dataset.smiles, function(tree){ d.draw(tree, c, 'light'); }, function(){});
+        var smi = c.dataset.smiles;
+        SmilesDrawer.parse(smi, function(tree){
+            d.draw(tree, c, 'light');
+            setTimeout(function(){
+                var pixels = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+                var hasContent = false;
+                for (var i = 3; i < pixels.length; i += 40) {
+                    if (pixels[i] > 0) { hasContent = true; break; }
+                }
+                if (!hasContent) thumbFallback(c, smi);
+            }, 300);
+        }, function(){ thumbFallback(c, smi); });
     });
 });
 </script>
