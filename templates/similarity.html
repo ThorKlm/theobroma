@@ -36,6 +36,11 @@
                 {% endfor %}
             </select>
             <input type="text" name="class_filter" value="{{ class_filter }}" placeholder="Chemical class filter..." style="flex:1;">
+            <select name="license" style="font-size:0.82rem;padding:0.4rem;border:1px solid var(--border);border-radius:var(--radius);">
+                <option value="all">All licenses</option>
+                <option value="commercial"{{ ' selected' if request.args.get('license') == 'commercial' }}>Commercial use</option>
+                <option value="academic"{{ ' selected' if request.args.get('license') == 'academic' }}>Non-commercial</option>
+            </select>
             <button type="submit">Search</button>
         </div>
     </form>

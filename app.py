@@ -280,6 +280,11 @@ def browse():
             clauses.append("(region IS NULL OR region='' OR region='global')")
         else:
             clauses.append("region=%s"); params += (region,)
+    license_filter = request.args.get("license", "all")
+    if license_filter == "commercial":
+        clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
+    elif license_filter == "academic":
+        clauses.append("license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')")
     if named:
         clauses.append("name IS NOT NULL AND name != ''")
     if chem_class:
@@ -575,6 +580,11 @@ def export_results():
         clauses.append("region=%s"); params += (region,)
     elif region == "unresolved":
         clauses.append("(region IS NULL OR region='' OR region='global')")
+    license_filter = request.args.get("license", "all")
+    if license_filter == "commercial":
+        clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
+    elif license_filter == "academic":
+        clauses.append("license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')")
     if named:
         clauses.append("name IS NOT NULL AND name != ''")
     where = "WHERE "+" AND ".join(clauses) if clauses else ""
@@ -643,6 +653,12 @@ def similarity():
     region_filter = request.args.get("region", "")
     if region_filter and results:
         results = [r for r in results if r.get("region") == region_filter]
+    # Apply license filter
+    license_filter = request.args.get("license", "all")
+    if license_filter == "commercial" and results:
+        results = [r for r in results if r.get("license_tier") in ("CC BY 4.0", "CC0")]
+    elif license_filter == "academic" and results:
+        results = [r for r in results if r.get("license_tier") in ("CC BY 4.0", "CC0", "CC BY-NC 4.0")]
     # Apply post-filters
     region_filter = request.args.get("region", "")
     kingdom_filter = request.args.get("kingdom", "")
@@ -892,6 +908,12 @@ def advanced_search():
             else:
                 clauses.append(sql)
                 params.append(f"%{value}%" if field != "kingdom" else f"%{value}%")
+    # License filter
+    license_filter = request.args.get("license", "all")
+    if license_filter == "commercial":
+        clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
+    elif license_filter == "academic":
+        clauses.append("license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')")
     # Property range filters
     for prop in ["mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds"]:
         lo = request.args.get(f"{prop}_min", "")

@@ -97,8 +97,15 @@
             </div>
         {% endfor %}
         </div>
-        <button type="submit" class="btn" style="margin-top:1rem;">Search</button>
-        <a href="/advanced" style="margin-left:1rem;font-size:0.85rem;">Clear all</a>
+        <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;">
+            <select name="license" style="font-size:0.82rem;padding:0.4rem;border:1px solid var(--border);border-radius:var(--radius);">
+                <option value="all"{{ ' selected' if request.args.get('license','all') == 'all' }}>All licenses</option>
+                <option value="commercial"{{ ' selected' if request.args.get('license') == 'commercial' }}>Commercial use allowed</option>
+                <option value="academic"{{ ' selected' if request.args.get('license') == 'academic' }}>Non-commercial research</option>
+            </select>
+            <button type="submit" class="btn">Search</button>
+            <a href="/advanced" style="font-size:0.85rem;">Clear all</a>
+        </div>
     </form>
 </div>
 
