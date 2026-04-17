@@ -147,18 +147,16 @@ def search():
                 if row:
                     return redirect(url_for("compound_detail", comp_id=row["comp_id"]))
     tq = {
-        "name":    (f"""SELECT * FROM (
-               SELECT DISTINCT ON (c.comp_id) c.*,
-               CASE WHEN LOWER(c.name) = %s THEN 0
-                    WHEN LOWER(c.name) LIKE %s THEN 1
-                    WHEN LOWER(c.name) LIKE %s THEN 2
-                    ELSE 3 END AS relevance
-               FROM compounds c
-               LEFT JOIN compound_synonyms s ON c.inchikey = s.inchikey
-               WHERE LOWER(c.name) LIKE %s OR LOWER(s.synonym) LIKE %s
-               OR REPLACE(REPLACE(LOWER(c.name),'-',''),' ','') LIKE %s
-               OR REPLACE(REPLACE(LOWER(s.synonym),'-',''),' ','') LIKE %s
-             ) sub ORDER BY relevance, LENGTH(name), name""", (q.lower(), f"{q.lower()}%", f"% {q.lower()}%", f"%{q.lower()}%", f"%{q.lower()}%", f"%{normalize_query(q)}%", f"%{normalize_query(q)}%")),
+        "name":    (f"""SELECT c.* FROM (
+               SELECT DISTINCT ON (sn.comp_id) sn.comp_id,
+               CASE WHEN sn.name_norm = %s THEN 0
+                    WHEN sn.name_norm LIKE %s THEN 1
+                    ELSE 2 END AS relevance
+               FROM search_names sn
+               WHERE sn.name_norm LIKE %s
+             ) matched
+             JOIN compounds c ON c.comp_id = matched.comp_id
+             ORDER BY matched.relevance, LENGTH(c.name), c.name""", (normalize_query(q), normalize_query(q)+'%', '%'+normalize_query(q)+'%')),
         "smiles":  (f"""SELECT * FROM compounds WHERE inchikey = (
             SELECT inchikey FROM compounds WHERE smiles=%s LIMIT 1
           ) {oc}""", (q,)),
@@ -449,18 +447,19 @@ def api_search():
     cols = "comp_id,name,smiles,inchikey,kingdom,source_db,all_sources,source_organism,region,mw,logp,license_tier"
     if st == "name":
         nq = normalize_query(q)
-        base = f"""SELECT * FROM (
-              SELECT DISTINCT ON (c.comp_id) c.comp_id,c.name,c.smiles,c.inchikey,c.kingdom,c.source_db,c.all_sources,c.source_organism,c.region,c.mw,c.logp,c.license_tier,
-              CASE WHEN LOWER(c.name) = %s THEN 0
-                   WHEN LOWER(c.name) LIKE %s THEN 1
-                   WHEN LOWER(c.name) LIKE %s THEN 2
-                   ELSE 3 END AS relevance
-              FROM compounds c LEFT JOIN compound_synonyms s ON c.inchikey=s.inchikey
-              WHERE LOWER(c.name) LIKE %s OR LOWER(s.synonym) LIKE %s
-              OR REPLACE(REPLACE(LOWER(c.name),'-',''),' ','') LIKE %s
-              OR REPLACE(REPLACE(LOWER(s.synonym),'-',''),' ','') LIKE %s
-            ) sub ORDER BY relevance, LENGTH(name), name"""
-        pm_tuple = (q.lower(), f"{q.lower()}%", f"% {q.lower()}%", f"%{q.lower()}%", f"%{q.lower()}%", f"%{nq}%", f"%{nq}%")
+        nq = normalize_query(q)
+        cols = "c.comp_id,c.name,c.smiles,c.inchikey,c.kingdom,c.source_db,c.all_sources,c.source_organism,c.region,c.mw,c.logp,c.license_tier"
+        base = f"""SELECT {cols} FROM (
+              SELECT DISTINCT ON (sn.comp_id) sn.comp_id,
+              CASE WHEN sn.name_norm = %s THEN 0
+                   WHEN sn.name_norm LIKE %s THEN 1
+                   ELSE 2 END AS relevance
+              FROM search_names sn
+              WHERE sn.name_norm LIKE %s
+            ) matched
+            JOIN compounds c ON c.comp_id = matched.comp_id
+            ORDER BY matched.relevance, LENGTH(c.name), c.name"""
+        pm_tuple = (nq, nq+'%', '%'+nq+'%')
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(f"SELECT COUNT(*) FROM ({base}) sq", pm_tuple)
