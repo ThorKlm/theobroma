@@ -64,7 +64,7 @@
     <tbody>
     {% for r in results %}
     <tr>
-        <td><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></td>
+        <td><a href="/compound/{{ r.comp_id }}"><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></a></td>
         <td><strong style="color:var(--accent);">{{ "%.3f"|format(r.tanimoto) }}</strong></td>
         <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
         <td>{{ r.name or '&mdash;'|safe }}</td>

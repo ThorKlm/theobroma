@@ -111,6 +111,16 @@ def index():
 @app.route("/search")
 def search():
     q = request.args.get("q","").strip()
+    st_preview = request.args.get("type","name")
+    if st_preview == "smiles" and q:
+        try:
+            from rdkit import Chem
+            mol = Chem.MolFromSmiles(q)
+            if mol:
+                ik = Chem.MolToInchiKey(mol)
+                return redirect(url_for("search", q=ik, type="inchikey"))
+        except:
+            pass
     st = request.args.get("type","name")
     page = max(1, int(request.args.get("page",1)))
     per_page = get_per_page()
@@ -149,7 +159,9 @@ def search():
                OR REPLACE(REPLACE(LOWER(c.name),'-',''),' ','') LIKE %s
                OR REPLACE(REPLACE(LOWER(s.synonym),'-',''),' ','') LIKE %s
              ) sub ORDER BY relevance, LENGTH(name), name""", (q.lower(), f"{q.lower()}%", f"% {q.lower()}%", f"%{q.lower()}%", f"%{q.lower()}%", f"%{normalize_query(q)}%", f"%{normalize_query(q)}%")),
-        "smiles":  (f"SELECT * FROM compounds WHERE smiles=%s {oc}", (q,)),
+        "smiles":  (f"""SELECT * FROM compounds WHERE inchikey = (
+            SELECT inchikey FROM compounds WHERE smiles=%s LIMIT 1
+          ) {oc}""", (q,)),
         "inchikey":(f"SELECT * FROM compounds WHERE inchikey=%s {oc}", (q,)),
         "source":  (f"SELECT * FROM compounds WHERE source_db ILIKE %s {oc}", (f"%{q}%",)),
         "organism":(f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",)),
@@ -227,6 +239,26 @@ def search():
             deduped.append(r)
         results = deduped
         total = len(results) if len(results) < total else total
+    # Fallback: if name is empty or looks like Mol_xxxx/placeholder, use first synonym
+    empty_name_iks = [r.get("inchikey") for r in results
+                       if not r.get("name") or str(r.get("name")).startswith("Mol_")
+                       or str(r.get("name")).startswith("NPO") or str(r.get("name")).startswith("SA_")
+                       or str(r.get("name")) == "nan"]
+    empty_name_iks = [ik for ik in empty_name_iks if ik]
+    if empty_name_iks:
+        with get_db() as conn2:
+            with conn2.cursor() as cur2:
+                ph = ",".join(["%s"]*len(empty_name_iks))
+                cur2.execute(f"SELECT DISTINCT ON (inchikey) inchikey, synonym FROM compound_synonyms WHERE inchikey IN ({ph}) ORDER BY inchikey, LENGTH(synonym)", tuple(empty_name_iks))
+                syn_map = dict(cur2.fetchall())
+        for r in results:
+            ik = r.get("inchikey")
+            nm = str(r.get("name") or "")
+            is_placeholder = (not nm or nm.startswith("Mol_") or nm.startswith("NPO")
+                              or nm.startswith("SA_") or nm == "nan")
+            if is_placeholder and ik in syn_map:
+                s = syn_map[ik]
+                r["name"] = s[0].upper() + s[1:] if s else nm
     return render_template("search.html", results=results, query=q, search_type=st,
                            page=page, total=total, pages=pages, sort=sort, order=order, per_page=per_page)
 
@@ -479,9 +511,15 @@ def api_autocomplete():
     if len(q) < 2: return jsonify([])
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT DISTINCT name FROM compounds WHERE LOWER(name) LIKE %s AND name IS NOT NULL AND name != '' ORDER BY name LIMIT 12",
+            cur.execute("SELECT DISTINCT LOWER(name) AS lname, MIN(name) AS sample FROM compounds WHERE LOWER(name) LIKE %s AND name IS NOT NULL AND name != '' GROUP BY LOWER(name) ORDER BY lname LIMIT 12",
                         (f"{q.lower()}%",))
-            results = [r[0] for r in cur.fetchall()]
+            rows = cur.fetchall()
+    # Normalize first letter to uppercase for display
+    results = []
+    for _, sample in rows:
+        if sample and sample[0].islower():
+            sample = sample[0].upper() + sample[1:]
+        results.append(sample)
     return jsonify(results)
 
 @app.route("/api/organisms")
@@ -923,7 +961,7 @@ def api_depict():
     from rdkit.Chem.Draw import rdMolDraw2D
     drawer = rdMolDraw2D.MolDraw2DSVG(w, h)
     opts = drawer.drawOptions()
-    opts.bondLineWidth = 0.35 if w < 150 else 0.8
+    opts.bondLineWidth = 0.09 if w < 150 else 0.2
     opts.minFontSize = 5 if w < 150 else 8
     opts.maxFontSize = 8 if w < 150 else 12
     opts.padding = 0.05
@@ -935,6 +973,65 @@ def api_depict():
     svg = re.sub(r"<rect[^>]*fill:#FFFFFF[^/]*/>", "", svg)
     return svg, 200, {"Content-Type": "image/svg+xml"}
 
+
+
+@app.route("/api/bulk")
+def api_bulk():
+    """Bulk export of compound subsets with selectable columns.
+    Streams as CSV for downloads of any size.
+    Params: cols (comma-separated), tier (open/nc/all), limit (default unlimited)
+    Example: /api/bulk?cols=comp_id,smiles
+    """
+    cols_param = request.args.get("cols", "comp_id,smiles")
+    tier = request.args.get("tier", "all")
+    limit = request.args.get("limit", "")
+
+    allowed_cols = {
+        "comp_id", "name", "smiles", "inchi", "inchikey",
+        "source_db", "kingdom", "region", "source_organism",
+        "mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds",
+        "license_tier", "all_sources", "np_class", "classyfire_superclass",
+        "inferred_class", "reference_doi"
+    }
+    cols = [c.strip() for c in cols_param.split(",") if c.strip() in allowed_cols]
+    if not cols:
+        return "No valid columns requested.", 400
+
+    tier_map = {
+        "open": ["CC BY 4.0", "CC0"],
+        "nc":   ["CC BY 4.0", "CC0", "CC BY-NC 4.0"],
+        "all":  None,
+    }
+    allowed_tier = tier_map.get(tier)
+
+    col_sql = ",".join(cols)
+    where = ""
+    params = ()
+    if allowed_tier:
+        ph = ",".join(["%s"] * len(allowed_tier))
+        where = f"WHERE license_tier IN ({ph})"
+        params = tuple(allowed_tier)
+    limit_sql = f"LIMIT {int(limit)}" if limit.isdigit() else ""
+
+    def stream():
+        import csv, io
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(cols)
+        yield buf.getvalue()
+        buf.seek(0); buf.truncate()
+        with get_db() as conn:
+            with conn.cursor(name="bulk_cursor") as cur:  # server-side cursor
+                cur.itersize = 10000
+                cur.execute(f"SELECT {col_sql} FROM compounds {where} {limit_sql}", params)
+                for row in cur:
+                    w.writerow(["" if v is None else str(v) for v in row])
+                    if buf.tell() > 65536:
+                        yield buf.getvalue()
+                        buf.seek(0); buf.truncate()
+                yield buf.getvalue()
+    return Response(stream(), mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename=theobroma_bulk_{tier}.csv"})
 
 @app.errorhandler(404)
 def not_found(e):
