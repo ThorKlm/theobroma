@@ -1023,7 +1023,7 @@ def api_bulk():
         "source_db", "kingdom", "region", "source_organism",
         "mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds",
         "license_tier", "all_sources", "np_class", "classyfire_superclass",
-        "inferred_class", "reference_doi, trad_medicine"
+        "inferred_class", "reference_doi, trad_medicine, trust_score"
     }
     cols = [c.strip() for c in cols_param.split(",") if c.strip() in allowed_cols]
     if not cols:
@@ -1082,6 +1082,22 @@ def api_index():
     <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-bundle.js"></script>
     <script>SwaggerUIBundle({url:"/api/docs",dom_id:"#swagger-ui"})</script>
     </body></html>"""
+
+
+@app.route("/api/stereoisomers/<comp_id>")
+def api_stereoisomers(comp_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT inchikey FROM compounds WHERE comp_id=%s", (comp_id,))
+    row = cur.fetchone()
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    ik_prefix = row[0][:14]
+    cur.execute("""SELECT comp_id, name, smiles, inchikey, source_db, np_class, trust_score
+                   FROM compounds WHERE SUBSTRING(inchikey,1,14)=%s ORDER BY comp_id""", (ik_prefix,))
+    cols = [d[0] for d in cur.description]
+    results = [dict(zip(cols, r)) for r in cur.fetchall()]
+    return jsonify({"inchikey_prefix": ik_prefix, "count": len(results), "stereoisomers": results})
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
