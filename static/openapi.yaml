@@ -1,0 +1,150 @@
+openapi: "3.0.3"
+info:
+  title: THEOBROMA Natural Products API
+  version: "1.0"
+  description: >
+    REST API for the THEOBROMA natural products database.
+    1,081,103 compounds from 27 source databases.
+  license:
+    name: CC BY 4.0
+    url: https://creativecommons.org/licenses/by/4.0/
+servers:
+  - url: https://theobroma.l3s.uni-hannover.de
+paths:
+  /api/search:
+    get:
+      summary: Search compounds by name, SMILES, organism, class, region, kingdom, source
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: {type: string}
+          description: Search query
+        - name: type
+          in: query
+          schema: {type: string, enum: [name, smiles, organism, class, region, kingdom, source, inchikey]}
+          description: Search type (default name)
+        - name: license
+          in: query
+          schema: {type: string, enum: [all, commercial, academic]}
+          description: License filter
+        - name: limit
+          in: query
+          schema: {type: integer, default: 25}
+        - name: offset
+          in: query
+          schema: {type: integer, default: 0}
+        - name: fmt
+          in: query
+          schema: {type: string, enum: [json, csv]}
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: {type: integer}
+                  results: {type: array, items: {$ref: "#/components/schemas/Compound"}}
+  /api/compound/{comp_id}:
+    get:
+      summary: Get compound details by ID
+      parameters:
+        - name: comp_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Compound detail
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CompoundDetail"}
+  /api/similarity:
+    get:
+      summary: Find similar compounds by SMILES
+      parameters:
+        - name: smiles
+          in: query
+          required: true
+          schema: {type: string}
+        - name: metric
+          in: query
+          schema: {type: string, enum: [morgan, maccs, chemberta], default: morgan}
+        - name: top_n
+          in: query
+          schema: {type: integer, default: 25}
+        - name: threshold
+          in: query
+          schema: {type: number, default: 0.3}
+        - name: license
+          in: query
+          schema: {type: string, enum: [all, commercial, academic]}
+      responses:
+        "200":
+          description: Similar compounds with similarity scores
+  /api/autocomplete:
+    get:
+      summary: Autocomplete compound names
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, default: 10}
+      responses:
+        "200":
+          description: Matching compound names
+  /api/stats:
+    get:
+      summary: Database statistics
+      responses:
+        "200":
+          description: Counts by kingdom, source, region, license tier
+  /api/filter_options:
+    get:
+      summary: Available filter values for dropdowns
+      responses:
+        "200":
+          description: Lists of regions, kingdoms, sources, classes
+  /api/bulk:
+    get:
+      summary: Bulk export (streaming CSV)
+      parameters:
+        - name: license
+          in: query
+          schema: {type: string, enum: [open, nc, all]}
+      responses:
+        "200":
+          description: Streaming CSV of compounds
+components:
+  schemas:
+    Compound:
+      type: object
+      properties:
+        comp_id: {type: string}
+        name: {type: string}
+        smiles: {type: string}
+        inchikey: {type: string}
+        kingdom: {type: string}
+        source_db: {type: string}
+        region: {type: string}
+        mw: {type: number}
+        logp: {type: number}
+        license_tier: {type: string}
+    CompoundDetail:
+      allOf:
+        - $ref: "#/components/schemas/Compound"
+        - type: object
+          properties:
+            inchi: {type: string}
+            tpsa: {type: number}
+            hba: {type: integer}
+            hbd: {type: integer}
+            np_class: {type: string}
+            source_organism: {type: string}
+            reference_doi: {type: string}
+            synonyms: {type: array, items: {type: string}}

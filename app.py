@@ -465,6 +465,11 @@ def api_search():
             JOIN compounds c ON c.comp_id = matched.comp_id
             ORDER BY matched.relevance, LENGTH(c.name), c.name"""
         pm_tuple = (nq, nq+'%', '%'+nq+'%')
+        license_filter = request.args.get("license", "all")
+        if license_filter == "commercial":
+            base += " AND c.license_tier IN ('CC BY 4.0', 'CC0')"
+        elif license_filter == "academic":
+            base += " AND c.license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')"
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(f"SELECT COUNT(*) FROM ({base}) sq", pm_tuple)
@@ -484,9 +489,15 @@ def api_search():
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 params = pm if isinstance(pm, tuple) else (pm,)
-                cur.execute(f"SELECT COUNT(*) FROM compounds WHERE {cl}", params)
+                license_filter = request.args.get("license", "all")
+                lic_clause = ""
+                if license_filter == "commercial":
+                    lic_clause = " AND license_tier IN ('CC BY 4.0', 'CC0')"
+                elif license_filter == "academic":
+                    lic_clause = " AND license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')"
+                cur.execute(f"SELECT COUNT(*) FROM compounds WHERE {cl}{lic_clause}", params)
                 total = cur.fetchone()["count"]
-                cur.execute(f"SELECT {cols} FROM compounds WHERE {cl} LIMIT %s OFFSET %s", params + (limit, offset))
+                cur.execute(f"SELECT {cols} FROM compounds WHERE {cl}{lic_clause} LIMIT %s OFFSET %s", params + (limit, offset))
                 results = cur.fetchall()
     if fmt == "csv":
         si = io.StringIO()
@@ -1012,7 +1023,7 @@ def api_bulk():
         "source_db", "kingdom", "region", "source_organism",
         "mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds",
         "license_tier", "all_sources", "np_class", "classyfire_superclass",
-        "inferred_class", "reference_doi"
+        "inferred_class", "reference_doi, trad_medicine"
     }
     cols = [c.strip() for c in cols_param.split(",") if c.strip() in allowed_cols]
     if not cols:
@@ -1057,6 +1068,20 @@ def api_bulk():
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404
+
+
+@app.route("/api/docs")
+def api_docs():
+    return send_from_directory("static", "openapi.yaml", mimetype="text/yaml")
+
+@app.route("/api")
+def api_index():
+    return """<!DOCTYPE html><html><head><title>THEOBROMA API</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui.css">
+    </head><body><div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-bundle.js"></script>
+    <script>SwaggerUIBundle({url:"/api/docs",dom_id:"#swagger-ui"})</script>
+    </body></html>"""
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
