@@ -166,6 +166,7 @@ def search():
         "region":  (f"SELECT * FROM compounds WHERE region ILIKE %s {oc}", (f"%{q}%",)),
         "kingdom": (f"SELECT * FROM compounds WHERE kingdom ILIKE %s {oc}", (f"%{q}%",)),
         "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%")),
+        "pathway": (f"SELECT * FROM compounds WHERE np_pathway ILIKE %s {oc}", (f"%{q}%",)),
         "mw":      (f"SELECT * FROM compounds WHERE 1=1 {oc}", ()),
     }
     query, params = tq.get(st, tq["name"])
@@ -184,6 +185,7 @@ def search():
             "region": "region ILIKE %s",
             "source": "source_db ILIKE %s",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
+            "pathway": "np_pathway ILIKE %s",
         }
         esql = emap.get(et)
         if esql:
@@ -480,9 +482,11 @@ def api_search():
         tc = {"smiles":"smiles=%s","inchikey":"inchikey=%s",
               "kingdom":"kingdom ILIKE %s","organism":"source_organism ILIKE %s",
               "region":"region ILIKE %s","source":"source_db ILIKE %s",
-              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s"}
+              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s", "pathway":"np_pathway ILIKE %s"}
         cl = tc.get(st, "LOWER(name) LIKE %s")
-        if st == "class":
+        if st == "pathway":
+            pm = (f"%{q}%",)
+        elif st == "class":
             pm = (f"%{q}%", f"%{q}%", f"%{q}%")
         else:
             pm = f"%{q.lower()}%" if st == "organism" else (f"%{q}%" if st in ("kingdom","region","source") else q)
@@ -910,10 +914,13 @@ def advanced_search():
             "region": "region ILIKE %s",
             "source": "source_db ILIKE %s",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
+            "pathway": "np_pathway ILIKE %s",
         }
         sql = field_map.get(field)
         if sql:
-            if field == "class":
+            if field == "pathway":
+                extra_params.append(f"%{val}%")
+            elif field == "class":
                 clauses.append(sql)
                 params.extend([f"%{value}%", f"%{value}%"])
             else:
