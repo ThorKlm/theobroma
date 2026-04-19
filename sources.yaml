@@ -1,423 +1,393 @@
-# THEOBROMA v1.0 Reproducibility Manifest
-# Generated: 2026-04-17
-# This file documents all data sources, processing parameters, and
-# enrichment steps needed to reproduce the THEOBROMA database.
-
 meta:
   database: THEOBROMA
-  version: "1.0"
+  version: '1.0'
   compounds: 1081103
-  freeze_date: "2026-04-17"
-  maintainer: "Thorben Klamt <thorben.klamt@stud.uni-hannover.de>"
-  repository: "https://github.com/ThorKlm/theobroma"
-  dataset: "https://huggingface.co/datasets/ThorKl/theobroma"
-  website: "https://theobroma.l3s.uni-hannover.de"
-
+  freeze_date: '2026-04-17'
+  maintainer: Thorben Klamt <thorben.klamt@stud.uni-hannover.de>
+  repository: https://github.com/ThorKlm/theobroma
+  dataset: https://huggingface.co/datasets/ThorKl/theobroma
+  website: https://theobroma.l3s.uni-hannover.de
 deduplication:
-  method: "Full 27-character InChIKey"
-  note: "Stereoisomers kept as separate entries (304k stereo families)"
-  canonicalization: "RDKit MolToSmiles(MolFromSmiles(smi))"
-
+  method: Full 27-character InChIKey
+  note: Stereoisomers kept as separate entries (304k stereo families)
+  canonicalization: RDKit MolToSmiles(MolFromSmiles(smi))
 sources:
-  - name: "COCONUT 2.0"
-    url: "https://coconut.naturalproducts.net"
-    download_url: "https://zenodo.org/records/13373880"
-    download_date: "2024-09-15"
-    version: "September 2024"
-    format: "CSV (coconut-09-2024.csv.zip) + SQL dump (coconut-09-2024.sql.zip)"
-    raw_compounds: 1061258
-    in_theobroma: 848048
-    converter: "merge_with_coconut.py"
-    license_article: "CC BY 4.0"
-    license_data: "CC BY 4.0 (Zenodo) / CC0 (download page)"
-    citation: "10.1093/nar/gkae1063"
-
-  - name: "FooDB"
-    url: "https://foodb.ca"
-    download_url: "https://foodb.ca/downloads"
-    download_date: "2024-10-01"
-    version: "1.0"
-    format: "JSON (compounds.json, Content.json, Food.json)"
-    raw_compounds: 70000
-    in_theobroma: 58059
-    converter: "convert_foodb.py"
-    license_data: "CC BY-NC 4.0"
-    citation: "https://foodb.ca"
-    notes: "Species/kingdom attributed via Content.json -> Food.json join"
-
-  - name: "HERB 2.0"
-    url: "http://herb.ac.cn"
-    download_url: "http://herb.ac.cn/download"
-    download_date: "2024-10-05"
-    version: "2.0"
-    format: "CSV"
-    raw_compounds: 17500
-    in_theobroma: 17301
-    converter: "convert.py (via COCONUT)"
-    license_data: "CC BY-NC 4.0"
-    citation: "10.1093/nar/gkae1063"
-
-  - name: "TM-MC 2.0"
-    url: "https://tm-mc.kr"
-    download_url: "https://tm-mc.kr"
-    download_date: "2024-10-05"
-    version: "2.0"
-    format: "CSV"
-    raw_compounds: 12500
-    in_theobroma: 12044
-    converter: "convert.py (via COCONUT)"
-    license_data: "CC BY-NC 4.0"
-    citation: "10.1186/s12906-023-04331-y"
-
-  - name: "IMPPAT 2.0"
-    url: "https://cb.imsc.res.in/imppat"
-    download_url: "Provided by authors (server SSL error)"
-    download_date: "2026-04-07"
-    version: "2.0"
-    format: "CSV"
-    raw_compounds: 17967
-    in_theobroma: 10892
-    converter: "convert.py imppat"
-    license_article: "CC BY-NC-ND 4.0 (ACS Omega)"
-    license_data: "CC BY-NC 4.0 (PMC version)"
-    citation: "10.1021/acsomega.2c07667"
-    notes: "Article vs data license distinction verified via PMC"
-
-  - name: "CSIRO Australian Natural Products"
-    url: "https://data.csiro.au/collection/csiro:58665"
-    download_url: "https://data.csiro.au/collection/csiro:58665"
-    download_date: "2024-10-10"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 7000
-    in_theobroma: 6697
-    converter: "convert.py csiro"
-    license_data: "CC BY-NC 4.0"
-    citation: "10.25919/58665"
-    notes: "Australian phytochemistry dataset, not Aboriginal traditional medicine"
-
-  - name: "ANPDB"
-    url: "https://african-compounds.org/anpdb"
-    download_url: "https://african-compounds.org/anpdb"
-    download_date: "2024-10-08"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 6500
-    in_theobroma: 6486
-    converter: "convert.py anpdb"
-    license_data: "CC BY-NC 4.0"
-    citation: "10.1038/s41598-023-33617-1"
-
-  - name: "NPASS 3.0"
-    url: "https://bidd.group/NPASS"
-    download_url: "https://bidd.group/NPASS/downloadFiles/"
-    download_date: "2024-10-05"
-    version: "3.0 (2023)"
-    format: "CSV"
-    raw_compounds: 96000
-    in_theobroma: 19454
-    converter: "convert.py npass"
-    license_data: "CC BY-NC 4.0"
-    citation: "10.1093/nar/gkac1069"
-    notes: "Organism codes resolved via npass_speciesInfo.txt + CMAUP Plants.txt"
-
-  - name: "NPAtlas"
-    url: "https://www.npatlas.org"
-    download_url: "https://www.npatlas.org/api/v1/compounds"
-    download_date: "2024-10-05"
-    version: "2024_09"
-    format: "JSON API"
-    raw_compounds: 35000
-    in_theobroma: 5513
-    converter: "convert_microbial.py npatlas"
-    license_data: "CC BY 4.0"
-    citation: "10.1021/acscentsci.9b00806"
-
-  - name: "phytochemdb"
-    url: "https://phytochemdb.com"
-    download_url: "https://phytochemdb.com"
-    download_date: "2024-10-08"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 5200
-    in_theobroma: 4562
-    converter: "convert.py phytochemdb"
-    license_data: "CC BY-NC 4.0"
-    citation: "https://phytochemdb.com"
-
-  - name: "MicotoXilico"
-    url: "https://micotoxilico.com"
-    download_url: "https://micotoxilico.com"
-    download_date: "2024-10-10"
-    version: "2023"
-    format: "CSV (semicolon-delimited)"
-    raw_compounds: 4100
-    in_theobroma: 3920
-    converter: "convert.py micotoxilico"
-    license_data: "Unspecified"
-    citation: "https://micotoxilico.com"
-    notes: "4,092 corrupted names fixed (semicolon delimiter issue)"
-
-  - name: "StreptomeDB"
-    url: "https://streptomedb.pharmaceutical-bioinformatics.de"
-    download_url: "https://streptomedb.pharmaceutical-bioinformatics.de"
-    download_date: "2024-10-05"
-    version: "3.0"
-    format: "SDF"
-    raw_compounds: 3500
-    in_theobroma: 3311
-    converter: "convert_microbial.py streptomedb"
-    license_data: "CC BY 4.0"
-    citation: "10.1093/nar/gkaa226"
-
-  - name: "MIBiG"
-    url: "https://mibig.secondarymetabolites.org"
-    download_url: "https://mibig.secondarymetabolites.org"
-    download_date: "2024-10-05"
-    version: "3.1"
-    format: "JSON"
-    raw_compounds: 3200
-    in_theobroma: 3046
-    converter: "convert_microbial.py mibig"
-    license_data: "CC BY 4.0"
-    citation: "10.1093/nar/gkac1049"
-
-  - name: "EMNPD"
-    url: "https://emnpd.idrblab.net"
-    download_url: "https://emnpd.idrblab.net"
-    download_date: "2024-10-08"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 3100
-    in_theobroma: 3035
-    converter: "convert.py emnpd"
-    license_data: "CC BY 4.0"
-    citation: "10.1093/nar/gkac1053"
-
-  - name: "MeFSAT"
-    url: "https://cb.imsc.res.in/mefsat"
-    download_url: "https://cb.imsc.res.in/mefsat"
-    download_date: "2024-10-08"
-    version: "2022"
-    format: "CSV"
-    raw_compounds: 1200
-    in_theobroma: 1161
-    converter: "convert.py mefsat"
-    license_data: "CC BY 4.0"
-    citation: "10.1093/nar/gkab1099"
-
-  - name: "CyanoMetDB"
-    url: "https://nrc-digital-repository.canada.ca"
-    download_url: "https://zenodo.org/records/13854577"
-    download_date: "2026-04-17"
-    version: "3.0 (September 2024)"
-    format: "CSV"
-    raw_compounds: 3084
-    in_theobroma: 1448
-    converter: "integrate_cyanometdb_v3.py"
-    license_data: "CC BY 4.0"
-    citation: "10.1016/j.watres.2021.117017"
-    notes: "Upgraded from v2 (2023) to v3 (2024). 162 novel + 921 organism + 375 class enrichments"
-
-  - name: "MycoCentral"
-    url: "https://mycocentral.org"
-    download_url: "https://mycocentral.org"
-    download_date: "2024-10-10"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 600
-    in_theobroma: 651
-    converter: "convert.py mycocentral"
-    license_data: "CC BY 4.0"
-    citation: "https://mycocentral.org"
-
-  - name: "NaturAr"
-    url: "https://github.com/digichem-unr/NaturAr"
-    download_url: "https://github.com/digichem-unr/NaturAr"
-    download_date: "2024-10-08"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 560
-    in_theobroma: 553
-    converter: "convert.py naturar"
-    license_data: "CC BY 4.0"
-    citation: "10.1021/acs.jnatprod.3c00265"
-
-  - name: "LMDB_Lichen"
-    url: "FDP API"
-    download_url: "FDP API endpoint"
-    download_date: "2024-10-10"
-    version: "2023"
-    format: "API/JSON"
-    raw_compounds: 550
-    in_theobroma: 550
-    converter: "convert.py fdp"
-    license_data: "Unspecified"
-    citation: "N/A"
-
-  - name: "AMDB"
-    url: "https://amdb.online"
-    download_url: "https://amdb.online"
-    download_date: "2024-10-08"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 520
-    in_theobroma: 556
-    converter: "convert.py amdb"
-    license_data: "CC BY 4.0"
-    citation: "https://amdb.online"
-
-  - name: "Phyto4Health"
-    url: "https://phyto4health.org"
-    download_url: "https://phyto4health.org"
-    download_date: "2024-10-08"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 410
-    in_theobroma: 406
-    converter: "convert.py phyto4health"
-    license_data: "CC BY-NC 4.0"
-    citation: "https://phyto4health.org"
-
-  - name: "AfroDb"
-    url: "https://african-compounds.org/afrodb"
-    download_url: "https://african-compounds.org/afrodb"
-    download_date: "2024-10-08"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 320
-    in_theobroma: 313
-    converter: "convert.py afrodb"
-    license_data: "CC BY 4.0"
-    citation: "10.1371/journal.pone.0078085"
-
-  - name: "SANCDB"
-    url: "https://sancdb.rubi.ru.ac.za"
-    download_url: "https://sancdb.rubi.ru.ac.za"
-    download_date: "2024-10-08"
-    version: "2023"
-    format: "CSV"
-    raw_compounds: 280
-    in_theobroma: 275
-    converter: "convert.py sancdb"
-    license_data: "CC BY 4.0"
-    citation: "10.1186/s13321-015-0080-8"
-
-  - name: "CMDB_Cereals"
-    url: "FDP API"
-    download_url: "FDP API endpoint"
-    download_date: "2024-10-10"
-    version: "2023"
-    format: "API/JSON"
-    raw_compounds: 260
-    in_theobroma: 253
-    converter: "convert.py fdp"
-    license_data: "Unspecified"
-    citation: "N/A"
-
-  - name: "TMDB_Trichoderma"
-    url: "FDP API"
-    download_url: "FDP API endpoint"
-    download_date: "2024-10-10"
-    version: "2023"
-    format: "API/JSON"
-    raw_compounds: 120
-    in_theobroma: 115
-    converter: "convert.py fdp"
-    license_data: "Unspecified"
-    citation: "N/A"
-
-  - name: "SMDB_Spice"
-    url: "FDP API"
-    download_url: "FDP API endpoint"
-    download_date: "2024-10-10"
-    version: "2023"
-    format: "API/JSON"
-    raw_compounds: 75
-    in_theobroma: 70
-    converter: "convert.py fdp"
-    license_data: "Unspecified"
-    citation: "N/A"
-
+- name: COCONUT 2.0
+  url: https://coconut.naturalproducts.net
+  download_url: https://zenodo.org/records/13373880
+  download_date: '2024-09-15'
+  version: September 2024
+  format: CSV (coconut-09-2024.csv.zip) + SQL dump (coconut-09-2024.sql.zip)
+  raw_compounds: 1061258
+  in_theobroma: 920039
+  converter: merge_with_coconut.py
+  license_article: CC BY 4.0
+  license_data: CC BY 4.0 (Zenodo) / CC0 (download page)
+  citation: 10.1093/nar/gkae1063
+- name: FooDB
+  url: https://foodb.ca
+  download_url: https://foodb.ca/downloads
+  download_date: '2024-10-01'
+  version: '1.0'
+  format: JSON (compounds.json, Content.json, Food.json)
+  raw_compounds: 70000
+  in_theobroma: 58067
+  converter: convert_foodb.py
+  license_data: CC BY-NC 4.0
+  citation: https://foodb.ca
+  notes: Species/kingdom attributed via Content.json -> Food.json join
+- name: HERB 2.0
+  url: http://herb.ac.cn
+  download_url: http://herb.ac.cn/download
+  download_date: '2024-10-05'
+  version: '2.0'
+  format: CSV
+  raw_compounds: 17500
+  in_theobroma: 17301
+  converter: convert.py (via COCONUT)
+  license_data: CC BY-NC 4.0
+  citation: 10.1093/nar/gkae1063
+- name: TM-MC 2.0
+  url: https://tm-mc.kr
+  download_url: https://tm-mc.kr
+  download_date: '2024-10-05'
+  version: '2.0'
+  format: CSV
+  raw_compounds: 12500
+  in_theobroma: 12045
+  converter: convert.py (via COCONUT)
+  license_data: CC BY-NC 4.0
+  citation: 10.1186/s12906-023-04331-y
+- name: IMPPAT 2.0
+  url: https://cb.imsc.res.in/imppat
+  download_url: Provided by authors (server SSL error)
+  download_date: '2026-04-07'
+  version: '2.0'
+  format: CSV
+  raw_compounds: 17967
+  in_theobroma: 10892
+  converter: convert.py imppat
+  license_article: CC BY-NC-ND 4.0 (ACS Omega)
+  license_data: CC BY-NC 4.0 (PMC version)
+  citation: 10.1021/acsomega.2c07667
+  notes: Article vs data license distinction verified via PMC
+- name: CSIRO Australian Natural Products
+  url: https://data.csiro.au/collection/csiro:58665
+  download_url: https://data.csiro.au/collection/csiro:58665
+  download_date: '2024-10-10'
+  version: '2023'
+  format: CSV
+  raw_compounds: 7000
+  in_theobroma: 6697
+  converter: convert.py csiro
+  license_data: CC BY-NC 4.0
+  citation: 10.25919/58665
+  notes: Australian phytochemistry dataset, not Aboriginal traditional medicine
+- name: ANPDB
+  url: https://african-compounds.org/anpdb
+  download_url: https://african-compounds.org/anpdb
+  download_date: '2024-10-08'
+  version: '2023'
+  format: CSV
+  raw_compounds: 6500
+  in_theobroma: 6486
+  converter: convert.py anpdb
+  license_data: CC BY-NC 4.0
+  citation: 10.1038/s41598-023-33617-1
+- name: NPASS 3.0
+  url: https://bidd.group/NPASS
+  download_url: https://bidd.group/NPASS/downloadFiles/
+  download_date: '2024-10-05'
+  version: 3.0 (2023)
+  format: CSV
+  raw_compounds: 96000
+  in_theobroma: 19455
+  converter: convert.py npass
+  license_data: CC BY-NC 4.0
+  citation: 10.1093/nar/gkac1069
+  notes: Organism codes resolved via npass_speciesInfo.txt + CMAUP Plants.txt
+- name: NPAtlas
+  url: https://www.npatlas.org
+  download_url: https://www.npatlas.org/api/v1/compounds
+  download_date: '2024-10-05'
+  version: '2024_09'
+  format: JSON API
+  raw_compounds: 35000
+  in_theobroma: 5513
+  converter: convert_microbial.py npatlas
+  license_data: CC BY 4.0
+  citation: 10.1021/acscentsci.9b00806
+- name: phytochemdb
+  url: https://phytochemdb.com
+  download_url: https://phytochemdb.com
+  download_date: '2024-10-08'
+  version: '2023'
+  format: CSV
+  raw_compounds: 5200
+  in_theobroma: 4562
+  converter: convert.py phytochemdb
+  license_data: CC BY-NC 4.0
+  citation: https://phytochemdb.com
+- name: MicotoXilico
+  url: https://micotoxilico.com
+  download_url: https://micotoxilico.com
+  download_date: '2024-10-10'
+  version: '2023'
+  format: CSV (semicolon-delimited)
+  raw_compounds: 4100
+  in_theobroma: 3920
+  converter: convert.py micotoxilico
+  license_data: Unspecified
+  citation: https://micotoxilico.com
+  notes: 4,092 corrupted names fixed (semicolon delimiter issue)
+- name: StreptomeDB
+  url: https://streptomedb.pharmaceutical-bioinformatics.de
+  download_url: https://streptomedb.pharmaceutical-bioinformatics.de
+  download_date: '2024-10-05'
+  version: '3.0'
+  format: SDF
+  raw_compounds: 3500
+  in_theobroma: 3311
+  converter: convert_microbial.py streptomedb
+  license_data: CC BY 4.0
+  citation: 10.1093/nar/gkaa226
+- name: MIBiG
+  url: https://mibig.secondarymetabolites.org
+  download_url: https://mibig.secondarymetabolites.org
+  download_date: '2024-10-05'
+  version: '3.1'
+  format: JSON
+  raw_compounds: 3200
+  in_theobroma: 3046
+  converter: convert_microbial.py mibig
+  license_data: CC BY 4.0
+  citation: 10.1093/nar/gkac1049
+- name: EMNPD
+  url: https://emnpd.idrblab.net
+  download_url: https://emnpd.idrblab.net
+  download_date: '2024-10-08'
+  version: '2023'
+  format: CSV
+  raw_compounds: 3100
+  in_theobroma: 3035
+  converter: convert.py emnpd
+  license_data: CC BY 4.0
+  citation: 10.1093/nar/gkac1053
+- name: MeFSAT
+  url: https://cb.imsc.res.in/mefsat
+  download_url: https://cb.imsc.res.in/mefsat
+  download_date: '2024-10-08'
+  version: '2022'
+  format: CSV
+  raw_compounds: 1200
+  in_theobroma: 1161
+  converter: convert.py mefsat
+  license_data: CC BY 4.0
+  citation: 10.1093/nar/gkab1099
+- name: CyanoMetDB
+  url: https://nrc-digital-repository.canada.ca
+  download_url: https://zenodo.org/records/13854577
+  download_date: '2026-04-17'
+  version: 3.0 (September 2024)
+  format: CSV
+  raw_compounds: 3084
+  in_theobroma: 1534
+  converter: integrate_cyanometdb_v3.py
+  license_data: CC BY 4.0
+  citation: 10.1016/j.watres.2021.117017
+  notes: Upgraded from v2 (2023) to v3 (2024). 162 novel + 921 organism + 375 class
+    enrichments
+- name: MycoCentral
+  url: https://mycocentral.org
+  download_url: https://mycocentral.org
+  download_date: '2024-10-10'
+  version: '2023'
+  format: CSV
+  raw_compounds: 600
+  in_theobroma: 651
+  converter: convert.py mycocentral
+  license_data: CC BY 4.0
+  citation: https://mycocentral.org
+- name: NaturAr
+  url: https://github.com/digichem-unr/NaturAr
+  download_url: https://github.com/digichem-unr/NaturAr
+  download_date: '2024-10-08'
+  version: '2023'
+  format: CSV
+  raw_compounds: 560
+  in_theobroma: 553
+  converter: convert.py naturar
+  license_data: CC BY 4.0
+  citation: 10.1021/acs.jnatprod.3c00265
+- name: LMDB_Lichen
+  url: FDP API
+  download_url: FDP API endpoint
+  download_date: '2024-10-10'
+  version: '2023'
+  format: API/JSON
+  raw_compounds: 550
+  in_theobroma: 550
+  converter: convert.py fdp
+  license_data: Unspecified
+  citation: N/A
+- name: AMDB
+  url: https://amdb.online
+  download_url: https://amdb.online
+  download_date: '2024-10-08'
+  version: '2023'
+  format: CSV
+  raw_compounds: 520
+  in_theobroma: 561
+  converter: convert.py amdb
+  license_data: CC BY 4.0
+  citation: https://amdb.online
+- name: Phyto4Health
+  url: https://phyto4health.org
+  download_url: https://phyto4health.org
+  download_date: '2024-10-08'
+  version: '2023'
+  format: CSV
+  raw_compounds: 410
+  in_theobroma: 406
+  converter: convert.py phyto4health
+  license_data: CC BY-NC 4.0
+  citation: https://phyto4health.org
+- name: AfroDb
+  url: https://african-compounds.org/afrodb
+  download_url: https://african-compounds.org/afrodb
+  download_date: '2024-10-08'
+  version: '2023'
+  format: CSV
+  raw_compounds: 320
+  in_theobroma: 313
+  converter: convert.py afrodb
+  license_data: CC BY 4.0
+  citation: 10.1371/journal.pone.0078085
+- name: SANCDB
+  url: https://sancdb.rubi.ru.ac.za
+  download_url: https://sancdb.rubi.ru.ac.za
+  download_date: '2024-10-08'
+  version: '2023'
+  format: CSV
+  raw_compounds: 280
+  in_theobroma: 275
+  converter: convert.py sancdb
+  license_data: CC BY 4.0
+  citation: 10.1186/s13321-015-0080-8
+- name: CMDB_Cereals
+  url: FDP API
+  download_url: FDP API endpoint
+  download_date: '2024-10-10'
+  version: '2023'
+  format: API/JSON
+  raw_compounds: 260
+  in_theobroma: 253
+  converter: convert.py fdp
+  license_data: Unspecified
+  citation: N/A
+- name: TMDB_Trichoderma
+  url: FDP API
+  download_url: FDP API endpoint
+  download_date: '2024-10-10'
+  version: '2023'
+  format: API/JSON
+  raw_compounds: 120
+  in_theobroma: 115
+  converter: convert.py fdp
+  license_data: Unspecified
+  citation: N/A
+- name: SMDB_Spice
+  url: FDP API
+  download_url: FDP API endpoint
+  download_date: '2024-10-10'
+  version: '2023'
+  format: API/JSON
+  raw_compounds: 75
+  in_theobroma: 70
+  converter: convert.py fdp
+  license_data: Unspecified
+  citation: N/A
+- name: CMAUPv2
+  url: https://cmaup.ciitec.ipn.mx
+  download_date: '2024-10-05'
+  version: '2.0'
+  format: CSV
+  raw_compounds: 300
+  in_theobroma: 292
+  converter: convert.py cmaupv2
+  license_data: CC BY 4.0
+  citation: 10.1093/nar/gkad1012
+  notes: Primarily metadata enrichment, some unique compounds
 removed_sources:
-  - name: "CMNPD"
-    reason: "CC BY-NC-SA 4.0 share-alike clause forces entire derivative work to adopt same license"
-    exclusive_compounds_removed: 3847
-    multi_source_stripped: 27003
-
+- name: CMNPD
+  reason: CC BY-NC-SA 4.0 share-alike clause forces entire derivative work to adopt
+    same license
+  exclusive_compounds_removed: 3847
+  multi_source_stripped: 27003
 enrichment:
-  - name: "LOTUS"
-    source: "https://zenodo.org/records/7534071"
-    file: "260413_frozen_metadata.csv.gz"
-    method: "InChIKey matching"
-    added: "64k organisms, 146k names, 176k DOIs, 155k NP classes, 174k ClassyFire"
-
-  - name: "COCONUT 2.0 SQL dump"
-    source: "https://zenodo.org/records/13373880"
-    file: "coconut-09-2024.sql.zip (1.9 GB)"
-    method: "Streaming COPY block extraction to TSV"
-    script: "extract_coconut_meta.py"
-    added: "13.5k organisms, 129k names, 114k DOIs, 27k regions"
-
-  - name: "PubChem synonyms"
-    source: "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
-    method: "Individual InChIKey GET queries (~18h, 1.57 it/s)"
-    added: "348,487 synonyms for 83,808 compounds"
-
-  - name: "GBIF species occurrences"
-    source: "https://api.gbif.org/v1"
-    method: "Species match + occurrence country lookup"
-    added: "17,689 geographic regions"
-
-  - name: "NPClassifier batch"
-    source: "https://zenodo.org/records/5068687"
-    models: "NP_classifier_class_V1.hdf5, NP_classifier_superclass_V1.hdf5, NP_classifier_pathway_V1.hdf5"
-    method: "Dual-input fingerprints (2048-d formula + 4096-d binary)"
-    added: "196,201 class annotations, 1,042,831 pathway annotations"
-
-  - name: "XGBoost inferred classification"
-    method: "Per-class XGBoost on Morgan 2048-d + MACCS 167-d + ChemBERTa 256-d PCA"
-    hpo: "Optuna, 2 seeds (0,1), 50 trials each, 30 representative classes"
-    best_params:
-      max_depth: 9
-      learning_rate: 0.21
-      subsample: 1.0
-      colsample_bytree: 0.3
-      min_child_weight: 2
-      lambda: 6.8
-      alpha: 6.7
-      weight_mode: "sqrt"
-      n_rounds: 100
-    evaluation:
-      micro_f1: 0.7806
-      macro_f1: 0.7457
-    added: "495,143 inferred class annotations"
-
-  - name: "ADMET-AI"
-    source: "https://github.com/swansonk14/admet_ai"
-    method: "Chemprop D-MPNN ensemble"
-    endpoints: 104
-    added: "ADMET predictions for all compounds"
-
-  - name: "ChemBERTa embeddings"
-    model: "seyonec/ChemBERTa-zinc-base-v1"
-    method: "CLS token extraction, 768-d"
-    index: "FAISS HNSW (M=32, efConstruction=200, efSearch=128)"
-
-  - name: "SEA-style target predictions"
-    source: "ChEMBL v34 known actives"
-    method: "Max Morgan Tanimoto against known ligand sets"
-    targets: 25
-    threshold: "Tc >= 0.5"
-
+- name: LOTUS
+  source: https://zenodo.org/records/7534071
+  file: 260413_frozen_metadata.csv.gz
+  method: InChIKey matching
+  added: 64k organisms, 146k names, 176k DOIs, 155k NP classes, 174k ClassyFire
+- name: COCONUT 2.0 SQL dump
+  source: https://zenodo.org/records/13373880
+  file: coconut-09-2024.sql.zip (1.9 GB)
+  method: Streaming COPY block extraction to TSV
+  script: extract_coconut_meta.py
+  added: 13.5k organisms, 129k names, 114k DOIs, 27k regions
+- name: PubChem synonyms
+  source: https://pubchem.ncbi.nlm.nih.gov/rest/pug
+  method: Individual InChIKey GET queries (~18h, 1.57 it/s)
+  added: 348,487 synonyms for 83,808 compounds
+- name: GBIF species occurrences
+  source: https://api.gbif.org/v1
+  method: Species match + occurrence country lookup
+  added: 17,689 geographic regions
+- name: NPClassifier batch
+  source: https://zenodo.org/records/5068687
+  models: NP_classifier_class_V1.hdf5, NP_classifier_superclass_V1.hdf5, NP_classifier_pathway_V1.hdf5
+  method: Dual-input fingerprints (2048-d formula + 4096-d binary)
+  added: 196,201 class annotations, 1,042,831 pathway annotations
+- name: XGBoost inferred classification
+  method: Per-class XGBoost on Morgan 2048-d + MACCS 167-d + ChemBERTa 256-d PCA
+  hpo: Optuna, 2 seeds (0,1), 50 trials each, 30 representative classes
+  best_params:
+    max_depth: 9
+    learning_rate: 0.21
+    subsample: 1.0
+    colsample_bytree: 0.3
+    min_child_weight: 2
+    lambda: 6.8
+    alpha: 6.7
+    weight_mode: sqrt
+    n_rounds: 100
+  evaluation:
+    micro_f1: 0.7806
+    macro_f1: 0.7457
+  added: 495,143 inferred class annotations
+- name: ADMET-AI
+  source: https://github.com/swansonk14/admet_ai
+  method: Chemprop D-MPNN ensemble
+  endpoints: 104
+  added: ADMET predictions for all compounds
+- name: ChemBERTa embeddings
+  model: seyonec/ChemBERTa-zinc-base-v1
+  method: CLS token extraction, 768-d
+  index: FAISS HNSW (M=32, efConstruction=200, efSearch=128)
+- name: SEA-style target predictions
+  source: ChEMBL v34 known actives
+  method: Max Morgan Tanimoto against known ligand sets
+  targets: 25
+  threshold: Tc >= 0.5
 pipeline:
-  python: "3.13"
-  rdkit: "2024.03"
-  pandas: "2.2"
-  scipy: "1.13"
-  xgboost: "2.1"
-  transformers: "4.40"
-  faiss: "1.8"
-  optuna: "3.6"
-  admet_ai: "1.3"
-  postgresql: "17"
+  python: '3.13'
+  rdkit: '2024.03'
+  pandas: '2.2'
+  scipy: '1.13'
+  xgboost: '2.1'
+  transformers: '4.40'
+  faiss: '1.8'
+  optuna: '3.6'
+  admet_ai: '1.3'
+  postgresql: '17'
