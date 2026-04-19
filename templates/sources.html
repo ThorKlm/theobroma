@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Sources - THEOBROMA{% endblock %}
+{% block content %}
+<h1>Source Databases</h1>
+<p>THEOBROMA aggregates {{ sources|length }} source databases. Each compound retains its source license.
+Please cite the relevant source databases for any compounds you use.</p>
+<table class="results-table" style="font-size:0.82rem;">
+<tr><th>Database</th><th>Compounds</th><th>License</th><th>Citation</th></tr>
+{% for s in sources %}
+<tr>
+<td><a href="{{ s.url }}" target="_blank">{{ s.name }}</a></td>
+<td>{{ "{:,}".format(s.in_theobroma) }}</td>
+<td>{{ s.license_data }}</td>
+<td>{% if s.citation and s.citation.startswith('10.') %}<a href="https://doi.org/{{ s.citation }}" target="_blank">{{ s.citation }}</a>{% else %}{{ s.citation or 'N/A' }}{% endif %}</td>
+</tr>
+{% endfor %}
+</table>
+{% if removed %}
+<h2 style="margin-top:2rem;">Removed Sources</h2>
+{% for r in removed %}
+<p><strong>{{ r.name }}</strong>: {{ r.reason }}</p>
+{% endfor %}
+{% endif %}
+{% endblock %}

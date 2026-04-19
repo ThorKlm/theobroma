@@ -1106,5 +1106,15 @@ def api_stereoisomers(comp_id):
     results = [dict(zip(cols, r)) for r in cur.fetchall()]
     return jsonify({"inchikey_prefix": ik_prefix, "count": len(results), "stereoisomers": results})
 
+
+@app.route("/sources")
+def sources_page():
+    import yaml
+    with open("sources.yaml") as f:
+        manifest = yaml.safe_load(f)
+    return render_template("sources.html", sources=manifest["sources"],
+                           removed=manifest.get("removed_sources", []),
+                           enrichment=manifest.get("enrichment", []))
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
