@@ -731,7 +731,13 @@ def api_similarity():
                     cur.execute("SELECT smiles FROM compounds WHERE LOWER(name)=%s LIMIT 1", (raw.lower(),))
                 row = cur.fetchone()
                 if row: smiles = row[0]
-    hits = sim_engine.tanimoto_search(smiles, top_n=top_n, threshold=threshold)
+    metric = request.args.get("metric", "morgan")
+    if metric == "chemberta":
+        hits = sim_engine.chemberta_search(smiles, top_n=top_n)
+    elif metric == "maccs":
+        hits = sim_engine.maccs_search(smiles, top_n=top_n, threshold=threshold)
+    else:
+        hits = sim_engine.tanimoto_search(smiles, top_n=top_n, threshold=threshold)
     comp_ids = [h["comp_id"] for h in hits]
     scores = {h["comp_id"]: h["tanimoto"] for h in hits}
     if not comp_ids:
