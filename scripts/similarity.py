@@ -107,15 +107,18 @@ class SimilarityEngine:
             inputs = tokenizer(query_smiles, return_tensors="pt", padding=True, truncation=True, max_length=512)
             with torch.no_grad():
                 out = model(**inputs)
-            emb = out.last_hidden_state[:,0,:].numpy().astype(np.float32)
+            mask = inputs["attention_mask"].unsqueeze(-1).float()
+            emb = (out.last_hidden_state * mask).sum(dim=1) / mask.sum(dim=1)
+            emb = emb.numpy().astype(np.float32)
             import faiss
             faiss.normalize_L2(emb)
             D, I = self.faiss_index.search(emb, top_n)
             results = []
             for i, (dist, idx) in enumerate(zip(D[0], I[0])):
-                if idx < 0 or idx >= len(self.comp_ids): continue
+                if idx < 0 or idx >= len(self.valid_idx): continue
+                global_idx = self.valid_idx[idx]
                 results.append({
-                    "comp_id": str(self.comp_ids[idx]),
+                    "comp_id": str(self.comp_ids[global_idx]),
                     "tanimoto": round(float(dist), 4)
                 })
             return results
