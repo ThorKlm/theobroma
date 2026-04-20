@@ -9,7 +9,7 @@
             <select name="metric">
                 <option value="morgan" {{ 'selected' if metric == 'morgan' }}>Morgan/ECFP4</option>
                 <option value="maccs" {{ 'selected' if metric == 'maccs' }}>MACCS keys</option>
-                <option value="chemberta" {{ 'selected' if metric == 'chemberta' }}>ChemBERTa</option>
+                <option value="chemberta" disabled style="color:#999">ChemBERTa (coming soon)</option>
             </select>
             <select name="top_n">
                 {% for n in [10,25,50,100,200] %}
