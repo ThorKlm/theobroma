@@ -469,9 +469,9 @@ def api_search():
         pm_tuple = (nq, nq+'%', '%'+nq+'%')
         license_filter = request.args.get("license", "all")
         if license_filter == "commercial":
-            base += " AND c.license_tier IN ('CC BY 4.0', 'CC0')"
+            base = base.replace("ORDER BY", "WHERE c.license_tier IN ('CC BY 4.0', 'CC0') ORDER BY")
         elif license_filter == "academic":
-            base += " AND c.license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')"
+            base = base.replace("ORDER BY", "WHERE c.license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0') ORDER BY")
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(f"SELECT COUNT(*) FROM ({base}) sq", pm_tuple)
