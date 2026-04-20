@@ -1,7 +1,7 @@
 meta:
   database: THEOBROMA
   version: '1.0'
-  compounds: 1081103
+  compounds: 1080994
   freeze_date: '2026-04-17'
   maintainer: Thorben Klamt <thorben.klamt@stud.uni-hannover.de>
   repository: https://github.com/ThorKlm/theobroma
