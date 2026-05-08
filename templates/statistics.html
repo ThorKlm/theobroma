@@ -6,7 +6,7 @@
     <div class="stat-item"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-label">Total compounds</div></div>
     <div class="stat-item"><div class="stat-num">{{ sources|length }}</div><div class="stat-label">Source databases</div></div>
     <div class="stat-item"><div class="stat-num">{{ kingdoms|length }}</div><div class="stat-label">Kingdoms</div></div>
-    <div class="stat-item"><div class="stat-num">{{ "{:,}".format(multi_source) }}</div><div class="stat-label">Multi-source compounds</div></div>
+    <div class="stat-item" title="Compounds reported by two or more source databases (identified by full 27-character InChIKey)."><div class="stat-num">{{ "{:,}".format(multi_source) }}</div><div class="stat-label">Compounds in multiple source databases</div></div>
 </div>
 {% if prop_stats %}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
@@ -47,7 +47,7 @@
         </div>
     </div>
     <div class="card">
-        <h3 class="card-title">Compounds by source</h3>
+        <h3 class="card-title">Compounds by source database</h3>
         <div class="bar-chart">
             {% set max_s = sources[0].cnt if sources else 1 %}
             {% for s in sources %}

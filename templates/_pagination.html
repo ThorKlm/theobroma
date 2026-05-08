@@ -25,6 +25,7 @@
         <option value="{{ pp }}" {{ 'selected' if per_page == pp }}>{{ pp }}/page</option>
         {% endfor %}
     </select>
-    <a href="/export?{% for k,v in request.args.items() %}{{ k }}={{ v }}&{% endfor %}" class="export-btn" title="Download results as CSV">CSV</a>
+    {% set qs %}{% for k,v in request.args.items() if k not in ('page','per_page') %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}{% endset %}
+    <a href="/export?{{ qs }}" class="export-btn" title="Download results as CSV">CSV</a>
 </div>
 {% endif %}

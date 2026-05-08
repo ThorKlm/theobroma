@@ -4,58 +4,81 @@
 <h1 class="section-title">Help</h1>
 <div class="help-content">
     <h2>About THEOBROMA</h2>
-    <p>THEOBROMA is an open, curated natural products database aggregating compounds from 27 source databases spanning five biological kingdoms (plant, fungi, bacteria, marine, animal) plus a multi-kingdom category and six continents. It supports structure-based virtual screening, cheminformatics research, and drug discovery from natural product chemical space.</p>
+    <p>THEOBROMA is an open, curated natural products database aggregating compounds from 27 source databases spanning five biological kingdoms (plant, fungi, bacteria, animal, marine) plus a multi-kingdom category and 13 resolved geographic regions. It supports structure-based virtual screening, cheminformatics research, and drug discovery from natural product chemical space.</p>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem;">Note on classification: the <em>marine</em> kingdom value is currently a provenance bucket for compounds whose original source attributed them to marine organisms without resolving the underlying biological kingdom (plant, animal, bacteria, or fungi). Per-compound resolution of marine entries is planned for v1.1.</p>
     <h2>Search</h2>
-    <p><strong>Compound name</strong> &mdash; partial matching, case-insensitive. Autocomplete suggestions appear after 2 characters. Also searches PubChem synonyms (e.g., "alpha-lipoic acid" finds "Thioctic acid"). Hyphens and Greek letters are normalized automatically.</p>
-    <p><strong>SMILES</strong> &mdash; exact canonical SMILES match.</p>
-    <p><strong>InChIKey</strong> &mdash; exact 27-character match. If found, redirects directly to the compound page.</p>
-    <p><strong>Source organism</strong> &mdash; search by producing organism with autocomplete.</p>
-    <p><strong>Source database</strong> &mdash; filter by originating database. Clicking the dropdown shows all 27 available sources.</p>
-    <p><strong>Geographic region</strong> &mdash; search by region of origin. Clicking the dropdown shows all 13 resolved regions.</p>
-    <p><strong>Kingdom</strong> &mdash; filter by biological kingdom (plant, fungi, bacteria, marine, animal, multi).</p>
-    <p><strong>Chemical property</strong> &mdash; filter by chemical class (NP Classifier/ClassyFire) or by numerical property ranges including molecular weight, LogP, TPSA, HBA, HBD, rings, rotatable bonds, and ADMET predictions (solubility, lipophilicity, DILI risk, hepatocyte clearance).</p>
+    <p><strong>Compound name</strong> &mdash; partial substring matching, case-insensitive. Autocomplete suggestions appear after 2 characters. Also searches PubChem synonyms (e.g., "alpha-lipoic acid" finds "Thioctic acid"). Hyphens and Greek letters are normalized automatically. The <strong>"Named only"</strong> toggle excludes unnamed compounds (placeholder identifiers). Use the <strong>"/"</strong> keyboard shortcut to focus the search box from anywhere on the page.</p>
+    <p><strong>SMILES</strong> &mdash; exact canonical SMILES match. The query SMILES is canonicalized via RDKit before lookup, so equivalent representations resolve to the same compound.</p>
+    <p><strong>InChIKey</strong> &mdash; exact 27-character match (full stereochemistry-aware key). If the compound is found, the search redirects directly to the compound detail page.</p>
+    <p><strong>Source organism</strong> &mdash; substring matching against the producing organism field with autocomplete.</p>
+    <p><strong>Source database</strong> &mdash; filter by originating database. The dropdown lists all 27 source databases.</p>
+    <p><strong>Geographic region</strong> &mdash; search by region of origin. The dropdown lists all 13 resolved regions.</p>
+    <p><strong>Kingdom</strong> &mdash; filter by biological kingdom (plant, fungi, bacteria, animal, marine, or multi).</p>
+    <p><strong>Chemical property</strong> &mdash; filter by chemical class (NPClassifier or ClassyFire) or by numerical property ranges (molecular weight, LogP, TPSA, HBA, HBD, rings, rotatable bonds, plus selected ADMET predictions: solubility, lipophilicity, DILI risk, hepatocyte clearance).</p>
     <h3 style="font-size:1rem;margin-top:1.5rem;">Multi-filter search</h3>
     <p>Click <strong>"+ Add filter"</strong> to combine multiple criteria with AND logic. For example, search for all triterpenoids from Africa, or all fungal compounds with molecular weight 200-500 Da and low DILI risk.</p>
-    <p>Results are <strong>relevance-sorted</strong> &mdash; exact name matches appear first, followed by prefix matches, then substring matches. Within each tier, shorter (simpler) names rank higher.</p>
-    <p>All result tables have <strong>sortable columns</strong> &mdash; click any column header to sort ascending/descending. Use the <strong>"Named only"</strong> checkbox in Browse to filter out unnamed compounds. Press <strong>/</strong> to focus the search box.</p>
+    <p>Results are <strong>relevance-sorted</strong> for name searches: exact matches appear first, then prefix matches, then substring matches. Within each tier, shorter (simpler) names rank higher. All result tables have <strong>sortable columns</strong> &mdash; click any column header to sort ascending or descending.</p>
     <h3 style="font-size:1rem;margin-top:1.5rem;">Similarity search</h3>
-    <p>Enter a SMILES string, compound name, or THEO_ ID to find structurally similar compounds. Three metrics are available: Morgan/ECFP4 Tanimoto, MACCS keys Tanimoto, and ChemBERTa cosine similarity. Results can be filtered by region, kingdom, and chemical class.</p>
+    <p>Enter a SMILES string, compound name, or THEO_ ID to find structurally similar compounds. Three metrics are available:</p>
+    <ul style="margin-left:1.5rem;">
+        <li><strong>Morgan / ECFP4 Tanimoto</strong> (default) &mdash; circular fingerprint, radius 2, 2048-bit. Good for general structural similarity.</li>
+        <li><strong>MACCS Tanimoto</strong> &mdash; 167-bit substructure key fingerprint. Good for matching based on functional-group composition; less sensitive to large skeletal differences.</li>
+        <li><strong>ChemBERTa cosine</strong> &mdash; 768-dimensional dense embedding from a transformer pretrained on ZINC. Captures learned chemical-space features that may differ from hand-engineered fingerprints.</li>
+    </ul>
+    <p>Threshold (Tc) defaults to 0.3; Morgan and MACCS apply this as a hard cutoff. ChemBERTa retrieval uses a FAISS HNSW index (M=32, efConstruction=200, efSearch=128) and returns the top-N nearest neighbors. Results can be post-filtered by region, kingdom, and chemical class.</p>
     <h3 style="font-size:1rem;margin-top:1.5rem;">Substructure search</h3>
     <p>Enter a SMILES or SMARTS pattern to find all compounds containing that substructure. Uses Morgan fingerprint pre-screening followed by RDKit substructure matching.</p>
     <h3 style="font-size:1rem;margin-top:1.5rem;">Scaffold browser</h3>
     <p>Browse compounds grouped by their Bemis-Murcko molecular framework. Click any scaffold to see all compounds sharing that core structure.</p>
-    <h3 style="font-size:1rem;margin-top:1.5rem;">Advanced search</h3>
-    <p>Combine multiple text filters with AND logic and set numerical ranges for physicochemical properties. Property distributions are shown as interactive histograms with selectable ranges.</p>
-    <h2>Provenance</h2>
-    <p>Each compound tracks its full provenance across all source databases. The <code>all_sources</code> field lists every database where the compound was found (pipe-separated). The primary <code>source_db</code> preferentially shows regional/specialized databases over aggregators like COCONUT.</p>
+    <h2>Property computation provenance</h2>
+    <p>Physicochemical properties (molecular weight, LogP, TPSA, HBA, HBD, ring count, rotatable bonds) are <strong>computed by THEOBROMA</strong> from canonical SMILES via RDKit (Descriptors.ExactMolWt, Descriptors.MolLogP, Descriptors.TPSA, rdMolDescriptors functions). Source-database property values are not carried forward, ensuring consistent computation across the corpus.</p>
+    <p>Chemical classifications come from two ontologies: <strong>NPClassifier</strong> (pretrained on natural-products taxonomy, applied via dual-input fingerprints) and <strong>ClassyFire</strong> (carried forward from source databases where present, supplemented by inference for unclassified compounds via per-class XGBoost on Morgan plus MACCS plus ChemBERTa features).</p>
+    <p>ADMET predictions (104 endpoints) are produced by ADMET-AI (Chemprop D-MPNN ensemble; Swanson et al.).</p>
+    <h2>Multi-source compounds</h2>
+    <p>When a compound (identified by full 27-character InChIKey) is reported by more than one source database, THEOBROMA stores it as a <strong>single row</strong> with all contributing databases listed in the <code>all_sources</code> field (pipe-separated). The primary <code>source_db</code> preferentially shows regional or specialized databases over aggregators like COCONUT. Compounds appearing in two or more source databases are counted in the "Multi-source compounds" statistic on the Statistics page.</p>
     <p>Compounds with <strong>"unresolved"</strong> region or kingdom lack geographic or taxonomic metadata in their source databases.</p>
     <h2 id="cite">How to cite</h2>
     <pre>Klamt, T. et al. (2026). THEOBROMA: an open multi-kingdom natural products database
 with per-compound license tiers for legally-aware drug discovery.
-To be done [...]</pre>
+Submitted to Nucleic Acids Research.</pre>
     <p>Please also cite the original source databases for any compounds you use. Source database citations and licenses are listed at <a href="/sources">/sources</a>.</p>
     <h2>API</h2>
-    <pre>GET /api/search?q=QUERY&amp;type=TYPE&amp;limit=N&amp;offset=M&amp;format=FORMAT
+    <pre>GET /api/search?q=QUERY&amp;type=TYPE&amp;limit=N&amp;offset=M&amp;format=FORMAT&amp;license=LIC
 
 Parameters:
-  q      &mdash; search query (required)
-  type   &mdash; name | smiles | inchikey | kingdom | organism | region | source
-  limit  &mdash; max results, 1-10000 (default: 50)
-  offset &mdash; pagination offset (default: 0)
-  format &mdash; json | csv (default: json)
+  q       &mdash; search query (required)
+  type    &mdash; name | smiles | inchikey | kingdom | organism |
+            region | source | class | pathway
+  limit   &mdash; max results, 1-10000 (default: 50)
+  offset  &mdash; pagination offset (default: 0)
+  format  &mdash; json | csv (default: json)
+  license &mdash; all | commercial | academic (default: all)
 
-GET /api/compound/COMP_ID     &mdash; full compound details
-GET /api/autocomplete?q=QUERY &mdash; name autocomplete
-GET /api/organisms?q=QUERY    &mdash; organism autocomplete
-GET /api/stats                &mdash; database statistics</pre>
+GET /api/compound/COMP_ID       &mdash; full compound details by THEO_ id
+GET /api/stereoisomers/COMP_ID  &mdash; all stereoisomers (14-char InChIKey match)
+GET /api/similarity?smiles=...&amp;metric=morgan|maccs|chemberta
+GET /api/autocomplete?q=QUERY   &mdash; name autocomplete
+GET /api/organisms?q=QUERY      &mdash; organism autocomplete
+GET /api/filter_options         &mdash; available kingdom, region, source, class values
+GET /api/stats                  &mdash; database statistics
+GET /api/bulk?cols=...&amp;tier=... &mdash; streaming bulk export (CSV)</pre>
+    <p>Full OpenAPI specification at <a href="/api">/api</a>.</p>
+    <p style="font-size:0.85rem;color:var(--text-muted);">Recommended bulk-download size: up to 100,000 rows per request through <code>/export</code> or <code>/api/search</code>; use <code>/api/bulk</code> for full-corpus exports (streaming, no row limit).</p>
     <h2 id="license">License</h2>
-    <p><strong>CC BY 4.0:</strong> Compounds from open-access sources (COCONUT, MIBiG, NPAtlas, CSIRO, phytochemdb, EMNPD, CyanoMetDB, ANPDB, SANCDB, CMNPD, MeFSAT, MicotoXilico, NPASS, StreptomeDB, AMDB, MycoCentral, NaturAr, LMDB, TMDB, CMDB, SMDB, AfroDb).</p>
-    <p><strong>CC0:</strong> TM-MC 2.0 compounds.</p>
-    <p><strong>CC BY-NC 4.0:</strong> Compounds from HERB, Phyto4Health, IMPPAT, FooDB, CMAUPv2.</p>
-    <p>Each record includes a <code>license_tier</code> field. When a compound appears in multiple sources, the most permissive license applies.</p>
+    <p><strong>Web application code:</strong> MIT License.</p>
+    <p><strong>Compound data:</strong> per-record license tiers carried forward from source databases.</p>
+    <ul style="margin-left:1.5rem;">
+        <li><strong>CC BY 4.0</strong> (977,470 compounds): COCONUT 2.0, MIBiG 4.0, NPAtlas, CSIRO, ANPDB, SANCDB, AfroDb, NaturAr, MeFSAT, EMNPD, CyanoMetDB, MycoCentral, AMDB, StreptomeDB, NPASS 3.0, phytochemdb.</li>
+        <li><strong>CC0</strong> (12,044 compounds): TM-MC 2.0.</li>
+        <li><strong>CC BY-NC 4.0</strong> (86,648 compounds): HERB 2.0, FooDB, IMPPAT 2.0, Phyto4Health.</li>
+        <li><strong>Unspecified</strong> (2,509 compounds): MicotoXilico, LMDB_Lichen, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice. The license filter excludes Unspecified rows from both "Commercial use allowed" and "Non-commercial research" categories pending source-license confirmation.</li>
+    </ul>
+    <p>Each record includes a <code>license_tier</code> field. When a compound appears in multiple sources, the most permissive license applies. The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause; CMNPD-exclusive compounds were dropped and CMNPD provenance was stripped from multi-source rows.</p>
     <h2>Source databases (27)</h2>
-    <p>COCONUT 2.0, CMAUPv2, NPASS 3.0, HERB 2.0, TM-MC 2.0, FooDB, CMNPD, IMPPAT 2.0, NPAtlas, CSIRO, ANPDB, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, SMDB_Spice, MycoCentral, CyanoMetDB, MeFSAT, LMDB_Lichen, AMDB, NaturAr, CMDB_Cereals, TMDB_Trichoderma, Phyto4Health, AfroDb, SANCDB.</p>
+    <p>COCONUT 2.0, FooDB, NPASS 3.0, HERB 2.0, TM-MC 2.0, IMPPAT 2.0, CSIRO Australian NP, ANPDB, NPAtlas, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, MeFSAT, CyanoMetDB, MycoCentral, NaturAr, LMDB_Lichen, AMDB, Phyto4Health, AfroDb, SANCDB, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice, CMAUPv2.</p>
+    <h2>Database update cadence</h2>
+    <p>THEOBROMA tracks source-database releases and re-integrates on a roughly biannual cycle. Per-source download dates and version strings are tracked in <a href="https://github.com/ThorKlm/theobroma/blob/main/sources.yaml"><code>sources.yaml</code></a>. Major releases are tagged in the GitHub repository and deposited on Zenodo for long-term archival.</p>
     <h2>Contact</h2>
-    <p>Open an issue on <a href="https://github.com/ThorKlm/theobroma/issues">GitHub</a> or contact the corresponding author.</p>
+    <p>For bug reports and feature requests, please open an issue on <a href="https://github.com/ThorKlm/theobroma/issues">GitHub</a>. For other inquiries, contact the corresponding author Thor Klamt at <a href="mailto:Thor.Klamt@gmail.com">Thor.Klamt@gmail.com</a>.</p>
 </div>
 {% endblock %}

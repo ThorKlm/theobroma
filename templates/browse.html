@@ -17,6 +17,11 @@
             <option value="">All regions</option>
             {% for r in all_regions %}<option value="{{ r }}" {{ 'selected' if region == r }}>{{ r }}</option>{% endfor %}
         </select>
+        <select name="license">
+            <option value="all"{{ ' selected' if request.args.get('license','all') == 'all' }}>All licenses</option>
+            <option value="commercial"{{ ' selected' if request.args.get('license') == 'commercial' }}>Commercial use</option>
+            <option value="academic"{{ ' selected' if request.args.get('license') == 'academic' }}>Non-commercial</option>
+        </select>
         <label class="checkbox-label"><input type="checkbox" name="named" value="1" {{ 'checked' if named }}> Named only</label>
         <button type="submit">Filter</button>
     </form>
