@@ -7,6 +7,7 @@ from flask import (Flask, render_template, request, send_from_directory,
 from config import Config
 import psycopg2, psycopg2.extras, os, math, re, csv, io
 import sys
+import json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scripts.similarity import SimilarityEngine
 
@@ -108,9 +109,14 @@ def index():
     return render_template("index.html", total=total, kingdoms=kingdoms,
                            n_sources=n_sources, n_regions=n_regions, regions=regions)
 
+def _exact_flag():
+    """Return True if the request asks for exact-match semantics."""
+    return request.args.get("exact", "").lower() in ("true", "1", "yes")
+
 @app.route("/search")
 def search():
     q = request.args.get("q","").strip()
+    exact = _exact_flag()
     st_preview = request.args.get("type","name")
     if st_preview == "smiles" and q:
         try:
@@ -147,7 +153,13 @@ def search():
                 if row:
                     return redirect(url_for("compound_detail", comp_id=row["comp_id"]))
     tq = {
-        "name":    (f"""SELECT c.* FROM (
+        "name":    ((f"""SELECT c.* FROM (
+               SELECT DISTINCT ON (sn.comp_id) sn.comp_id, 0 AS relevance
+               FROM search_names sn
+               WHERE sn.name_norm = %s
+             ) matched
+             JOIN compounds c ON c.comp_id = matched.comp_id
+             ORDER BY c.name""", (normalize_query(q),)) if exact else (f"""SELECT c.* FROM (
                SELECT DISTINCT ON (sn.comp_id) sn.comp_id,
                CASE WHEN sn.name_norm = %s THEN 0
                     WHEN sn.name_norm LIKE %s THEN 1
@@ -156,13 +168,13 @@ def search():
                WHERE sn.name_norm LIKE %s
              ) matched
              JOIN compounds c ON c.comp_id = matched.comp_id
-             ORDER BY matched.relevance, LENGTH(c.name), c.name""", (normalize_query(q), normalize_query(q)+'%', '%'+normalize_query(q)+'%')),
+             ORDER BY matched.relevance, LENGTH(c.name), c.name""", (normalize_query(q), normalize_query(q)+'%', '%'+normalize_query(q)+'%'))),
         "smiles":  (f"""SELECT * FROM compounds WHERE inchikey = (
             SELECT inchikey FROM compounds WHERE smiles=%s LIMIT 1
           ) {oc}""", (q,)),
         "inchikey":(f"SELECT * FROM compounds WHERE inchikey=%s {oc}", (q,)),
         "source":  (f"SELECT * FROM compounds WHERE source_db ILIKE %s {oc}", (f"%{q}%",)),
-        "organism":(f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",)),
+        "organism":((f"SELECT * FROM compounds WHERE LOWER(%s) = ANY(string_to_array(LOWER(source_organism), '; ')) {oc}", (q,)) if exact else (f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",))),
         "region":  (f"SELECT * FROM compounds WHERE region ILIKE %s {oc}", (f"%{q}%",)),
         "kingdom": (f"SELECT * FROM compounds WHERE kingdom ILIKE %s {oc}", (f"%{q}%",)),
         "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%")),
@@ -179,8 +191,8 @@ def search():
         if not et or not eq:
             continue
         emap = {
-            "name": "LOWER(name) LIKE %s",
-            "organism": "source_organism ILIKE %s",
+            "name": "LOWER(name) = LOWER(%s)" if exact else "LOWER(name) LIKE %s",
+            "organism": "LOWER(%s) = ANY(string_to_array(LOWER(source_organism), '; '))" if exact else "source_organism ILIKE %s",
             "kingdom": "kingdom ILIKE %s",
             "region": "region ILIKE %s",
             "source": "source_db ILIKE %s",
@@ -192,6 +204,9 @@ def search():
             if et == "class":
                 extra_clauses.append(esql)
                 extra_params.extend([f"%{eq}%", f"%{eq}%"])
+            elif exact and et in ("name", "organism"):
+                extra_clauses.append(esql)
+                extra_params.append(eq)
             else:
                 extra_clauses.append(esql)
                 extra_params.append(f"%{eq}%")
@@ -413,6 +428,20 @@ def statistics():
                            sources=sources, regions=regions, prop_stats=prop_stats,
                            licenses=licenses, multi_source=multi_source, admet_stats=admet_stats)
 
+def _build_filename(args, ext):
+    """Construct a descriptive filename from active query args.
+    Format: theobroma_<key>_<val>_..._<ext>. Falls back to theobroma_export."""
+    keys = ("q", "type", "kingdom", "region", "source", "class",
+            "license", "tier", "named")
+    parts = []
+    for k in keys:
+        v = args.get(k, "").strip()
+        if v and v not in ("all", ""):
+            safe = "".join(c if c.isalnum() else "_" for c in v)[:24]
+            parts.append(f"{k}_{safe}")
+    base = "theobroma_" + "_".join(parts) if parts else "theobroma_export"
+    return f"{base}.{ext}"
+
 @app.route("/download")
 def download_page():
     d = app.config["DATA_DIR"]
@@ -452,11 +481,21 @@ def api_search():
                      "/api/search?q=Streptomyces&type=organism&format=csv"]
     }}), 400
     cols = "comp_id,name,smiles,inchikey,kingdom,source_db,all_sources,source_organism,region,mw,logp,license_tier"
+    exact = _exact_flag()
     if st == "name":
         nq = normalize_query(q)
-        nq = normalize_query(q)
         cols = "c.comp_id,c.name,c.smiles,c.inchikey,c.kingdom,c.source_db,c.all_sources,c.source_organism,c.region,c.mw,c.logp,c.license_tier"
-        base = f"""SELECT {cols} FROM (
+        if exact:
+            base = f"""SELECT {cols} FROM (
+              SELECT DISTINCT ON (sn.comp_id) sn.comp_id, 0 AS relevance
+              FROM search_names sn
+              WHERE sn.name_norm = %s
+            ) matched
+            JOIN compounds c ON c.comp_id = matched.comp_id
+            ORDER BY c.name"""
+            pm_tuple = (nq,)
+        else:
+            base = f"""SELECT {cols} FROM (
               SELECT DISTINCT ON (sn.comp_id) sn.comp_id,
               CASE WHEN sn.name_norm = %s THEN 0
                    WHEN sn.name_norm LIKE %s THEN 1
@@ -466,7 +505,7 @@ def api_search():
             ) matched
             JOIN compounds c ON c.comp_id = matched.comp_id
             ORDER BY matched.relevance, LENGTH(c.name), c.name"""
-        pm_tuple = (nq, nq+'%', '%'+nq+'%')
+            pm_tuple = (nq, nq+'%', '%'+nq+'%')
         license_filter = request.args.get("license", "all")
         if license_filter == "commercial":
             base = base.replace("ORDER BY", "WHERE c.license_tier IN ('CC BY 4.0', 'CC0') ORDER BY")
@@ -480,7 +519,7 @@ def api_search():
                 results = cur.fetchall()
     else:
         tc = {"smiles":"smiles=%s","inchikey":"inchikey=%s",
-              "kingdom":"kingdom ILIKE %s","organism":"source_organism ILIKE %s",
+              "kingdom":"kingdom ILIKE %s","organism": ("LOWER(%s) = ANY(string_to_array(LOWER(source_organism), '; '))" if exact else "source_organism ILIKE %s"),
               "region":"region ILIKE %s","source":"source_db ILIKE %s",
               "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s", "pathway":"np_pathway ILIKE %s"}
         cl = tc.get(st, "LOWER(name) LIKE %s")
@@ -489,7 +528,7 @@ def api_search():
         elif st == "class":
             pm = (f"%{q}%", f"%{q}%", f"%{q}%")
         else:
-            pm = f"%{q.lower()}%" if st == "organism" else (f"%{q}%" if st in ("kingdom","region","source") else q)
+            pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (f"%{q}%" if st in ("kingdom","region","source") else q)
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 params = pm if isinstance(pm, tuple) else (pm,)
@@ -511,6 +550,10 @@ def api_search():
             w.writerows(results)
         return Response(si.getvalue(), mimetype="text/csv",
                        headers={"Content-Disposition": f"attachment; filename=theobroma_{st}_{q[:20]}.csv"})
+    if fmt == "json" and request.args.get("download", "").lower() in ("true", "1", "yes"):
+        payload = json.dumps({"count":len(results), "total":total, "offset":offset, "limit":limit, "results":[dict(r) for r in results]}, default=str)
+        return Response(payload, mimetype="application/json",
+                       headers={"Content-Disposition": f"attachment; filename=theobroma_{st}_{q[:20]}.json"})
     return jsonify({"count":len(results), "total":total, "offset":offset, "limit":limit, "results":results})
 
 @app.route("/api/compound/<comp_id>")
@@ -608,13 +651,18 @@ def export_results():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(f"SELECT {cols} FROM compounds {where} LIMIT %s", params + (limit,))
             results = cur.fetchall()
+    fmt = request.args.get("format", "csv").lower()
+    if fmt == "json":
+        payload = json.dumps({"count": len(results), "results": [dict(r) for r in results]}, default=str)
+        return Response(payload, mimetype="application/json",
+                       headers={"Content-Disposition": f"attachment; filename={_build_filename(request.args, 'json')}"})
     si = io.StringIO()
     if results:
         w = csv.DictWriter(si, fieldnames=results[0].keys())
         w.writeheader()
         w.writerows(results)
     return Response(si.getvalue(), mimetype="text/csv",
-                   headers={"Content-Disposition": "attachment; filename=theobroma_export.csv"})
+                   headers={"Content-Disposition": f"attachment; filename={_build_filename(request.args, 'csv')}"})
 
 @app.route("/similarity")
 def similarity():
@@ -984,7 +1032,7 @@ def api_filter_options():
             regions = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT source_db FROM compounds WHERE source_db IS NOT NULL ORDER BY source_db")
             sources = [r[0] for r in cur.fetchall()]
-            cur.execute("SELECT DISTINCT np_class FROM compounds WHERE np_class IS NOT NULL AND np_class != '' ORDER BY np_class LIMIT 100")
+            cur.execute("SELECT DISTINCT TRIM(c) AS cls FROM compounds, regexp_split_to_table(np_class, ' [$] ') AS c WHERE np_class IS NOT NULL AND np_class != '' ORDER BY cls")
             classes = [r[0] for r in cur.fetchall()]
     return jsonify({"kingdom": kingdoms, "region": regions, "source": sources, "class": classes})
 
@@ -1058,7 +1106,8 @@ def api_bulk():
         params = tuple(allowed_tier)
     limit_sql = f"LIMIT {int(limit)}" if limit.isdigit() else ""
 
-    def stream():
+    fmt = request.args.get("format", "csv").lower()
+    def stream_csv():
         import csv, io
         buf = io.StringIO()
         w = csv.writer(buf)
@@ -1066,7 +1115,7 @@ def api_bulk():
         yield buf.getvalue()
         buf.seek(0); buf.truncate()
         with get_db() as conn:
-            with conn.cursor(name="bulk_cursor") as cur:  # server-side cursor
+            with conn.cursor(name="bulk_cursor") as cur:
                 cur.itersize = 10000
                 cur.execute(f"SELECT {col_sql} FROM compounds {where} {limit_sql}", params)
                 for row in cur:
@@ -1075,7 +1124,23 @@ def api_bulk():
                         yield buf.getvalue()
                         buf.seek(0); buf.truncate()
                 yield buf.getvalue()
-    return Response(stream(), mimetype="text/csv",
+    def stream_json():
+        yield "["
+        first = True
+        with get_db() as conn:
+            with conn.cursor(name="bulk_cursor_json") as cur:
+                cur.itersize = 10000
+                cur.execute(f"SELECT {col_sql} FROM compounds {where} {limit_sql}", params)
+                for row in cur:
+                    obj = {k: (None if v is None else str(v)) for k, v in zip(cols, row)}
+                    prefix = "" if first else ","
+                    first = False
+                    yield prefix + json.dumps(obj)
+        yield "]"
+    if fmt == "json":
+        return Response(stream_json(), mimetype="application/json",
+                        headers={"Content-Disposition": f"attachment; filename=theobroma_bulk_{tier}.json"})
+    return Response(stream_csv(), mimetype="text/csv",
                     headers={"Content-Disposition": f"attachment; filename=theobroma_bulk_{tier}.csv"})
 
 @app.errorhandler(404)

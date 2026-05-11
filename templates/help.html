@@ -25,6 +25,7 @@
         <li><strong>MACCS Tanimoto</strong> &mdash; 167-bit substructure key fingerprint. Good for matching based on functional-group composition; less sensitive to large skeletal differences.</li>
         <li><strong>ChemBERTa cosine</strong> &mdash; 768-dimensional dense embedding from a transformer pretrained on ZINC. Captures learned chemical-space features that may differ from hand-engineered fingerprints.</li>
     </ul>
+    <p style="margin-top:0.5rem;"><strong>When to use which:</strong> Morgan/ECFP4 is the default for general-purpose similarity ranking and is what most cheminformatics tools use. MACCS is preferred when functional-group composition matters more than overall skeleton (e.g. looking for compounds with similar pharmacophore patterns despite different scaffolds). ChemBERTa is useful when you want learned representations that may pick up subtle features fingerprints miss; it is also the fastest option for top-N retrieval against the full corpus.</p>
     <p>Threshold (Tc) defaults to 0.3; Morgan and MACCS apply this as a hard cutoff. ChemBERTa retrieval uses a FAISS HNSW index (M=32, efConstruction=200, efSearch=128) and returns the top-N nearest neighbors. Results can be post-filtered by region, kingdom, and chemical class.</p>
     <h3 style="font-size:1rem;margin-top:1.5rem;">Substructure search</h3>
     <p>Enter a SMILES or SMARTS pattern to find all compounds containing that substructure. Uses Morgan fingerprint pre-screening followed by RDKit substructure matching.</p>
@@ -32,11 +33,12 @@
     <p>Browse compounds grouped by their Bemis-Murcko molecular framework. Click any scaffold to see all compounds sharing that core structure.</p>
     <h2>Property computation provenance</h2>
     <p>Physicochemical properties (molecular weight, LogP, TPSA, HBA, HBD, ring count, rotatable bonds) are <strong>computed by THEOBROMA</strong> from canonical SMILES via RDKit (Descriptors.ExactMolWt, Descriptors.MolLogP, Descriptors.TPSA, rdMolDescriptors functions). Source-database property values are not carried forward, ensuring consistent computation across the corpus.</p>
-    <p>Chemical classifications come from two ontologies: <strong>NPClassifier</strong> (pretrained on natural-products taxonomy, applied via dual-input fingerprints) and <strong>ClassyFire</strong> (carried forward from source databases where present, supplemented by inference for unclassified compounds via per-class XGBoost on Morgan plus MACCS plus ChemBERTa features).</p>
+    <p>Chemical classifications come from two ontologies. <strong>NPClassifier</strong> (NP-class, NP-superclass, NP-pathway) is computed for the full corpus via the pretrained NPClassifier dual-input model on Morgan fingerprints. <strong>ClassyFire</strong> superclasses are carried forward where present in source databases; for compounds lacking a ClassyFire annotation, the <code>inferred_class</code> field provides a per-class XGBoost prediction trained on Morgan, MACCS, and ChemBERTa-PCA features with calibrated probability thresholds.</p>
     <p>ADMET predictions (104 endpoints) are produced by ADMET-AI (Chemprop D-MPNN ensemble; Swanson et al.).</p>
     <h2>Multi-source compounds</h2>
     <p>When a compound (identified by full 27-character InChIKey) is reported by more than one source database, THEOBROMA stores it as a <strong>single row</strong> with all contributing databases listed in the <code>all_sources</code> field (pipe-separated). The primary <code>source_db</code> preferentially shows regional or specialized databases over aggregators like COCONUT. Compounds appearing in two or more source databases are counted in the "Multi-source compounds" statistic on the Statistics page.</p>
     <p>Compounds with <strong>"unresolved"</strong> region or kingdom lack geographic or taxonomic metadata in their source databases.</p>
+    <p>Compounds reported by databases spanning multiple kingdoms (e.g. a plant database and a fungal database for the same metabolite) are stored as a single row with kingdom set to <strong>multi-kingdom</strong>; the contributing kingdoms are recoverable via the <code>source_db</code> and <code>all_sources</code> fields together with the per-database kingdom assignments listed at <a href="/sources">/sources</a>.</p>
     <h2 id="cite">How to cite</h2>
     <pre>Klamt, T. et al. (2026). THEOBROMA: an open multi-kingdom natural products database
 with per-compound license tiers for legally-aware drug discovery.
@@ -60,10 +62,14 @@ GET /api/similarity?smiles=...&amp;metric=morgan|maccs|chemberta
 GET /api/autocomplete?q=QUERY   &mdash; name autocomplete
 GET /api/organisms?q=QUERY      &mdash; organism autocomplete
 GET /api/filter_options         &mdash; available kingdom, region, source, class values
+GET /api/search?...&amp;format=json&amp;download=true   &mdash; download results as JSON attachment
+GET /api/bulk?cols=...&amp;format=json   &mdash; bulk download in JSON format (streamed)
+GET /api/search?q=&lt;query&gt;&amp;type=name&amp;exact=true   &mdash; exact-match toggle for name and organism types
 GET /api/stats                  &mdash; database statistics
 GET /api/bulk?cols=...&amp;tier=... &mdash; streaming bulk export (CSV)</pre>
     <p>Full OpenAPI specification at <a href="/api">/api</a>.</p>
     <p style="font-size:0.85rem;color:var(--text-muted);">Recommended bulk-download size: up to 100,000 rows per request through <code>/export</code> or <code>/api/search</code>; use <code>/api/bulk</code> for full-corpus exports (streaming, no row limit).</p>
+    <p style="font-size:0.85rem;color:var(--text-muted);">No per-request rate limit is enforced at present; for sustained high-throughput use (more than a few requests per second), please contact the corresponding author so we can plan server load.</p>
     <h2 id="license">License</h2>
     <p><strong>Web application code:</strong> MIT License.</p>
     <p><strong>Compound data:</strong> per-record license tiers carried forward from source databases.</p>
@@ -74,6 +80,29 @@ GET /api/bulk?cols=...&amp;tier=... &mdash; streaming bulk export (CSV)</pre>
         <li><strong>Unspecified</strong> (2,509 compounds): MicotoXilico, LMDB_Lichen, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice. The license filter excludes Unspecified rows from both "Commercial use allowed" and "Non-commercial research" categories pending source-license confirmation.</li>
     </ul>
     <p>Each record includes a <code>license_tier</code> field. When a compound appears in multiple sources, the most permissive license applies. The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause; CMNPD-exclusive compounds were dropped and CMNPD provenance was stripped from multi-source rows.</p>
+    <h2>Glossary</h2>
+    <p style="font-size:0.85rem;color:var(--text-muted);">Compact reference for non-cheminformatician users.</p>
+    <dl style="margin-left:1rem;">
+        <dt><strong>SMILES</strong></dt><dd>Simplified Molecular-Input Line-Entry System; an ASCII string representation of a molecular graph (e.g. <code>CC(=O)Oc1ccccc1C(=O)O</code> for aspirin).</dd>
+        <dt><strong>SMARTS</strong></dt><dd>A SMILES-derived pattern language for substructure queries; supports wildcards and logical operators.</dd>
+        <dt><strong>InChI / InChIKey</strong></dt><dd>InChI is a normalized textual identifier capturing the full molecular graph and stereochemistry. The 27-character InChIKey is its compact hash, suitable for exact-match lookup.</dd>
+        <dt><strong>Canonical SMILES</strong></dt><dd>A SMILES string produced by a deterministic canonicalization algorithm so that the same molecule always yields the same string regardless of input order.</dd>
+        <dt><strong>Tanimoto coefficient (Tc)</strong></dt><dd>Similarity metric between two binary fingerprints, computed as the size of their intersection divided by the size of their union. Range 0 to 1; higher means more similar.</dd>
+        <dt><strong>Morgan / ECFP4 fingerprint</strong></dt><dd>Circular fingerprint encoding atom-environment substructures within radius 2 (ECFP4 convention). Folded to 2048 bits in THEOBROMA. The cheminformatics community default for similarity ranking.</dd>
+        <dt><strong>MACCS keys</strong></dt><dd>167-bit substructure-presence fingerprint with a curated dictionary of functional-group and ring-system queries. Good for functional-group similarity; weaker for whole-skeleton similarity.</dd>
+        <dt><strong>ChemBERTa embedding</strong></dt><dd>768-dimensional dense vector produced by a transformer model pretrained on millions of compounds from ZINC. Captures learned chemical-space structure; queried via cosine similarity in a FAISS HNSW index for sub-second retrieval.</dd>
+        <dt><strong>Bemis-Murcko scaffold</strong></dt><dd>The molecular framework obtained by stripping all acyclic side chains while retaining linkers between ring systems. Used to group compounds by core skeleton.</dd>
+        <dt><strong>FAISS HNSW</strong></dt><dd>Hierarchical Navigable Small World graph index for approximate-nearest-neighbor search over dense embeddings. Enables fast top-N retrieval in 1M+ compound corpora.</dd>
+        <dt><strong>NPClassifier</strong></dt><dd>Deep-learning model that assigns natural-product class, superclass, and biosynthetic pathway from molecular structure (Kim et al., 2021).</dd>
+        <dt><strong>ClassyFire</strong></dt><dd>Rule-based chemical taxonomy assigning kingdom, superclass, class, and subclass via expert-curated structural patterns (Djoumbou-Feunang et al., 2016).</dd>
+        <dt><strong>ADMET</strong></dt><dd>Absorption, Distribution, Metabolism, Excretion, Toxicity; properties that predict in-vivo behavior of drug candidates. THEOBROMA reports 104 endpoints from the ADMET-AI Chemprop ensemble.</dd>
+        <dt><strong>DILI</strong></dt><dd>Drug-Induced Liver Injury; predicted probability that a compound causes hepatotoxicity.</dd>
+        <dt><strong>AqSolDB solubility</strong></dt><dd>Predicted aqueous solubility (log mol/L) from a model trained on the AqSolDB benchmark.</dd>
+        <dt><strong>LogP</strong></dt><dd>Logarithm of the octanol-water partition coefficient; measures lipophilicity. Drug-like compounds typically have LogP between 0 and 5.</dd>
+        <dt><strong>TPSA</strong></dt><dd>Topological polar surface area in square angstroms; correlates with membrane permeability and oral bioavailability.</dd>
+        <dt><strong>HBA / HBD</strong></dt><dd>Hydrogen-bond acceptor and donor counts; together with MW and LogP, part of Lipinski's Rule of Five for oral drug likeness.</dd>
+        <dt><strong>Trust score</strong></dt><dd>THEOBROMA-internal composite (0-1) reflecting source-database authority, classification coverage, and provenance completeness. Higher means more confidently characterized.</dd>
+    </dl>
     <h2>Source databases (27)</h2>
     <p>COCONUT 2.0, FooDB, NPASS 3.0, HERB 2.0, TM-MC 2.0, IMPPAT 2.0, CSIRO Australian NP, ANPDB, NPAtlas, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, MeFSAT, CyanoMetDB, MycoCentral, NaturAr, LMDB_Lichen, AMDB, Phyto4Health, AfroDb, SANCDB, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice, CMAUPv2.</p>
     <h2>Database update cadence</h2>

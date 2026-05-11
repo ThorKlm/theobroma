@@ -39,7 +39,10 @@
         </div>
         <div id="extra-filters"></div>
         <div class="search-actions">
-            <a href="#" id="add-filter-btn" onclick="addFilter();return false;" class="add-filter-link">+ Add filter</a>
+            <label style="font-size:0.9em; display:inline-flex; align-items:center; gap:4px; margin-right:8px;"><input type="checkbox" name="exact" value="true" id="exact-match-cb"{% if request.args.get('exact') == 'true' %} checked{% endif %}> Exact match</label>
+            <a href="#" id="add-filter-btn" onclick="addFilter();return false;" class="add-filter-link" title="Add another search criterion combined with AND">+ Add another filter &#9662;</a>
+            <span style="display:inline-block;width:1px;height:1.5em;background:var(--border);margin:0 0.5em;vertical-align:middle;"></span>
+            <label style="font-size:0.82rem;color:var(--text-muted);margin-right:4px;">License:</label>
             <select name="license" style="font-size:0.82rem;padding:0.4rem;border:1px solid var(--border);border-radius:var(--radius);">
                 <option value="all"{{ ' selected' if request.args.get('license','all') == 'all' }}>All licenses</option>
                 <option value="commercial"{{ ' selected' if request.args.get('license') == 'commercial' }}>Commercial use allowed</option>
@@ -166,7 +169,7 @@ function onTypeChange(sel, idx) {
     var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
     if (!input) return;
 
-    if (['kingdom','region','source'].indexOf(t) >= 0 && !restoring) {
+    if (['kingdom','region','source','class'].indexOf(t) >= 0 && !restoring) {
         loadOptions().then(function(opts) {
             var items = opts[t];
             if (!items || items.length === 0) return;
