@@ -59,12 +59,43 @@
         </table>
     </div>
     <div class="card">
-        <h3 class="card-title">Classification</h3>
+        <h3 class="card-title">Taxonomic classification</h3>
         <table class="prop-table">
             <tr><th>Kingdom</th><td>{{ c.kingdom|kingdom_label }}</td></tr>
-            <tr><th>ClassyFire superclass</th><td>{{ c.classyfire_superclass or '&mdash;'|safe }}</td></tr>
-            <tr><th>NP Classifier class</th><td>{{ c.np_class or '&mdash;'|safe }}</td></tr>
+            {% if taxonomy and taxonomy[0].genus %}
+            <tr><th>Genus</th><td>{{ taxonomy|map(attribute='genus')|select|list|unique|join(', ') or '&mdash;'|safe }}</td></tr>
+            <tr><th>Family</th><td>{{ taxonomy|map(attribute='family')|select|list|unique|join(', ') or '&mdash;'|safe }}</td></tr>
+            {% else %}
+            <tr><th>Genus / Family</th><td><span style="color:var(--text-muted);">not resolved via WCVP</span></td></tr>
+            {% endif %}
+            {% if c.source_organism %}
+            <tr><th>Source organism(s)</th><td style="font-size:0.85rem;">{{ c.source_organism }}</td></tr>
+            {% endif %}
         </table>
+    </div>
+    <div class="card">
+        <h3 class="card-title">Chemical classification</h3>
+        <table class="prop-table">
+            <tr><th>NPClassifier class</th><td>{{ c.np_class or '&mdash;'|safe }}</td></tr>
+            <tr><th>NPClassifier superclass</th><td>{{ c.np_superclass or '&mdash;'|safe }}</td></tr>
+            <tr><th>NPClassifier pathway</th><td>{{ c.np_pathway or '&mdash;'|safe }}</td></tr>
+            <tr><th>ClassyFire superclass</th><td>{{ c.classyfire_superclass or '&mdash;'|safe }}</td></tr>
+            <tr><th>Inferred class</th><td>{{ c.inferred_class or '&mdash;'|safe }}{% if c.inferred_class_source %} <span style="font-size:0.75rem;color:var(--text-muted);">({{ c.inferred_class_source }})</span>{% endif %}</td></tr>
+        </table>
+        {% if class_hierarchy %}
+        <div style="margin-top:0.75rem;">
+            <strong style="font-size:0.9rem;">NPClassifier hierarchy</strong>
+            <ul style="margin-left:1.25rem;list-style:none;padding-left:0;">
+            {% for h in class_hierarchy %}
+                <li style="font-size:0.85rem;color:var(--text);margin:0.25rem 0;">
+                    {{ h.class_name }}
+                    {% if h.superclass_name %} &rarr; <span style="color:var(--text-muted);">{{ h.superclass_name }}</span>{% endif %}
+                    {% if h.pathway_name %} &rarr; <span style="color:var(--text-muted);">{{ h.pathway_name }}</span>{% endif %}
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </div>
     {% if admet %}
     <div class="card" style="grid-column: 1 / -1;">

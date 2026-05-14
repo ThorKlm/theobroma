@@ -8,7 +8,7 @@ An open multi-kingdom natural products database with per-compound license tiers 
 
 ## Overview
 
-THEOBROMA aggregates 1,078,671 natural product compounds from 27 source databases spanning five biological kingdoms (plant, fungi, bacteria, animal, marine) plus a multi-kingdom category, across 13 resolved geographic regions. Compounds are deduplicated by full 27-character InChIKey (preserving stereoisomers as distinct entries: 303,211 stereoisomer families). Each compound carries a per-record license tier so the corpus can be filtered for commercial-use compatibility. The full pipeline integrates ChemBERTa molecular embeddings, Bemis-Murcko scaffold classification, NPClassifier and ClassyFire chemical-class assignments, ADMET-AI predictions across 104 endpoints, synthetic accessibility scores, and SEA-style target predictions against ChEMBL v34 actives.
+THEOBROMA aggregates 1,133,004 natural product compounds from 29 source databases spanning five biological kingdoms (plant, fungi, bacteria, animal, marine) plus a multi-kingdom category, across 13 resolved geographic regions. Compounds are deduplicated by full 27-character InChIKey (preserving stereoisomers as distinct entries: 486,215 stereoisomer families). Each compound carries a per-record license tier so the corpus can be filtered for commercial-use compatibility. The full pipeline integrates ChemBERTa molecular embeddings, Bemis-Murcko scaffold classification, NPClassifier and ClassyFire chemical-class assignments, ADMET-AI predictions across 104 endpoints (four persisted in the searchable database), synthetic accessibility scores, and SEA-style target predictions against ChEMBL v34 actives.
 
 ## Features
 
@@ -16,13 +16,13 @@ Search by compound name, SMILES, InChIKey, source organism, geographic region, k
 
 ## Source databases
 
-COCONUT 2.0, FooDB, NPASS 3.0, HERB 2.0, TM-MC 2.0, IMPPAT 2.0, CSIRO Australian NP, ANPDB, NPAtlas, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, MeFSAT, CyanoMetDB, MycoCentral, NaturAr, LMDB_Lichen, AMDB, Phyto4Health, AfroDb, SANCDB, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice, CMAUPv2.
+COCONUT 2.0, LOTUS v11, FooDB, NPASS 3.0, HERB 2.0, TM-MC 2.0, IMPPAT 2.0, CSIRO Australian NP, ANPDB, NPAtlas, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, MeFSAT, CyanoMetDB, MycoCentral, NaturAr, LMDB_Lichen, AMDB, TIPdb-3D, Phyto4Health, AfroDb, CMAUPv2, SANCDB, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice.
 
-The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause; CMNPD-exclusive compounds were dropped and CMNPD provenance was stripped from multi-source rows.
+The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause; CMNPD-exclusive compounds were dropped and CMNPD provenance was stripped from multi-source rows. TIPdb-3D was integrated in v33 from the 2015 archive following decommissioning of the original server (structures only; full ethnobotanical metadata pending a successor TIPdb release). LOTUS v11 (April 2026 release) was added in v33 contributing 53,862 novel compounds and enriching 173,436 existing rows with cross-source provenance.
 
 ## License tiers
 
-Permissive open (977,470 compounds, 90.62%) carry CC BY 4.0 from their source databases. Public domain (12,044, 1.12%) carry CC0. Non-commercial (86,648, 8.03%) carry CC BY-NC 4.0. Unspecified (2,509, 0.23%) await source-license confirmation; the license filter excludes these from both commercial and academic categories pending resolution.
+Permissive open (1,031,332 compounds, 91.03%) carry CC BY 4.0 from their source databases. Public domain (12,044, 1.06%) carry CC0. Non-commercial (87,119, 7.69%) carry CC BY-NC 4.0. Unspecified (2,509, 0.22%) await source-license confirmation; the license filter excludes these from both commercial and academic categories pending resolution.
 
 When a compound appears in multiple source databases, the most permissive license applies. Each record carries a `license_tier` field for downstream filtering.
 

@@ -63,7 +63,7 @@ class SimilarityEngine:
         for bit in fp.GetOnBits(): 
             if bit < 167: arr[bit] = 1
         qfp = sparse.csr_matrix(arr.reshape(1, -1))
-        valid_maccs = self.maccs[self.valid_idx]
+        valid_maccs = self.maccs
         intersection = valid_maccs.dot(qfp.T).toarray().flatten()
         query_bits = qfp.sum()
         target_bits = np.array(valid_maccs.sum(axis=1)).flatten()
@@ -81,7 +81,7 @@ class SimilarityEngine:
         if not self.loaded: return []
         qfp = self.smiles_to_morgan(query_smiles)
         if qfp is None: return []
-        valid_morgan = self.morgan[self.valid_idx]
+        valid_morgan = self.morgan
         intersection = valid_morgan.dot(qfp.T).toarray().flatten()
         query_bits = qfp.sum()
         target_bits = np.array(valid_morgan.sum(axis=1)).flatten()
@@ -143,7 +143,7 @@ class SimilarityEngine:
         query_bits = list(fp.GetOnBits())
         if not query_bits: return []
         # Screen: candidates must have all query bits set
-        valid_morgan = self.morgan[self.valid_idx]
+        valid_morgan = self.morgan
         query_arr = np.zeros(2048, dtype=np.uint8)
         for b in query_bits: query_arr[b] = 1
         query_sparse = sparse.csr_matrix(query_arr.reshape(1, -1))

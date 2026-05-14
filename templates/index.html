@@ -90,7 +90,7 @@
 
     typesel.addEventListener('change', function() {
         var t = this.value;
-        if (['kingdom','region','source','class'].indexOf(t) >= 0) {
+        if (['kingdom','region','source','class','genus','family'].indexOf(t) >= 0) {
             showSubmenu(t);
             input.placeholder = 'Select or type ' + t + '...';
         } else {

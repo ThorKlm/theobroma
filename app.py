@@ -177,6 +177,8 @@ def search():
         "organism":((f"SELECT * FROM compounds WHERE LOWER(%s) = ANY(string_to_array(LOWER(source_organism), '; ')) {oc}", (q,)) if exact else (f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",))),
         "region":  (f"SELECT * FROM compounds WHERE region ILIKE %s {oc}", (f"%{q}%",)),
         "kingdom": (f"SELECT * FROM compounds WHERE kingdom ILIKE %s {oc}", (f"%{q}%",)),
+        "genus":   ((f"SELECT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.genus) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.genus ILIKE %s {oc}", (f"%{q}%",))),
+        "family":  ((f"SELECT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.family) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.family ILIKE %s {oc}", (f"%{q}%",))),
         "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%")),
         "pathway": (f"SELECT * FROM compounds WHERE np_pathway ILIKE %s {oc}", (f"%{q}%",)),
         "mw":      (f"SELECT * FROM compounds WHERE 1=1 {oc}", ()),
@@ -376,7 +378,33 @@ def compound_detail(comp_id):
                 admet_data = cur3.fetchone()
             except:
                 conn3.rollback()
-    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data)
+    taxonomy = []
+    with get_db() as conn4:
+        with conn4.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur4:
+            try:
+                cur4.execute("""SELECT token, accepted_taxon, genus, family
+                                FROM compound_taxonomy
+                                WHERE comp_id = %s
+                                ORDER BY (genus IS NULL), token""", (c["comp_id"],))
+                taxonomy = cur4.fetchall()
+            except Exception:
+                conn4.rollback()
+    class_hierarchy = []
+    if c.get("np_class"):
+        atomic_classes = [a.strip() for a in c["np_class"].split(" $ ") if a.strip()]
+        if atomic_classes:
+            with get_db() as conn5:
+                with conn5.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur5:
+                    try:
+                        placeholders = ",".join(["%s"] * len(atomic_classes))
+                        cur5.execute(
+                            f"SELECT DISTINCT class_name, superclass_name, pathway_name FROM npc_class_parents WHERE class_name IN ({placeholders}) ORDER BY class_name",
+                            tuple(atomic_classes)
+                        )
+                        class_hierarchy = cur5.fetchall()
+                    except Exception:
+                        conn5.rollback()
+    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, class_hierarchy=class_hierarchy)
 
 @app.route("/statistics")
 def statistics():
@@ -520,6 +548,8 @@ def api_search():
     else:
         tc = {"smiles":"smiles=%s","inchikey":"inchikey=%s",
               "kingdom":"kingdom ILIKE %s","organism": ("LOWER(%s) = ANY(string_to_array(LOWER(source_organism), '; '))" if exact else "source_organism ILIKE %s"),
+              "genus": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND LOWER(ct.genus) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.genus ILIKE %s)"),
+              "family": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND LOWER(ct.family) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.family ILIKE %s)"),
               "region":"region ILIKE %s","source":"source_db ILIKE %s",
               "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s", "pathway":"np_pathway ILIKE %s"}
         cl = tc.get(st, "LOWER(name) LIKE %s")
@@ -1034,7 +1064,11 @@ def api_filter_options():
             sources = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT TRIM(c) AS cls FROM compounds, regexp_split_to_table(np_class, ' [$] ') AS c WHERE np_class IS NOT NULL AND np_class != '' ORDER BY cls")
             classes = [r[0] for r in cur.fetchall()]
-    return jsonify({"kingdom": kingdoms, "region": regions, "source": sources, "class": classes})
+            cur.execute("SELECT DISTINCT genus FROM compound_taxonomy WHERE genus IS NOT NULL ORDER BY genus")
+            genera = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT family FROM compound_taxonomy WHERE family IS NOT NULL ORDER BY family")
+            families = [r[0] for r in cur.fetchall()]
+    return jsonify({"kingdom": kingdoms, "region": regions, "source": sources, "class": classes, "genus": genera, "family": families})
 
 
 

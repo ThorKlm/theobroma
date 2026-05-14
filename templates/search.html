@@ -13,6 +13,8 @@
             </select>
             <select name="prop_type" id="prop-type-0" class="prop-subselect" style="display:none;" onchange="onPropChange(this, 0)">
                 <option value="class">Chemical class</option>
+                <option value="genus">Genus (botanical)</option>
+                <option value="family">Family (botanical)</option>
                 <option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>
                 <option value="logp">LogP (-33.97 - 47.20, mean: 2.6)</option>
                 <option value="tpsa">TPSA (0.0 - 1539.4, mean: 103.8)</option>
@@ -169,7 +171,7 @@ function onTypeChange(sel, idx) {
     var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
     if (!input) return;
 
-    if (['kingdom','region','source','class'].indexOf(t) >= 0 && !restoring) {
+    if (['kingdom','region','source','class','genus','family'].indexOf(t) >= 0 && !restoring) {
         loadOptions().then(function(opts) {
             var items = opts[t];
             if (!items || items.length === 0) return;
@@ -262,6 +264,8 @@ function addFilter() {
         '<option value="source">Source database</option>' +
         '<option value="region">Geographic region</option>' +
         '<option value="kingdom">Kingdom</option>' +
+        '<option value="genus">Genus (botanical)</option>' +
+        '<option value="family">Family (botanical)</option>' +
         '<option value="property">Chemical property</option>' +
         '</select>' +
         '<select name="extra_prop_' + filterCount + '" class="prop-subselect" style="display:none;" onchange="onPropChange(this,' + filterCount + ')">' +

@@ -22,7 +22,7 @@
 
         sel.addEventListener('change', function() {
             var t = this.value;
-            if (['kingdom','region','source','class'].indexOf(t) >= 0) {
+            if (['kingdom','region','source','class','genus','family'].indexOf(t) >= 0) {
                 loadOptions().then(function(opts) {
                     var items = opts[t];
                     if (!items || items.length === 0) { submenu.style.display = 'none'; return; }

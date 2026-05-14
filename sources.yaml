@@ -1,9 +1,9 @@
 meta:
   database: THEOBROMA
-  version: '1.0'
-  compounds: 1080994
-  freeze_date: '2026-04-17'
-  maintainer: Thorben Klamt <thorben.klamt@stud.uni-hannover.de>
+  version: 1.0.1
+  compounds: 1133004
+  freeze_date: '2026-05-14'
+  maintainer: Thor Klamt <Thor.Klamt@gmail.com>
   repository: https://github.com/ThorKlm/theobroma
   dataset: https://huggingface.co/datasets/ThorKl/theobroma
   website: https://theobroma.l3s.uni-hannover.de
@@ -195,8 +195,7 @@ sources:
   converter: integrate_cyanometdb_v3.py
   license_data: CC BY 4.0
   citation: 10.1016/j.watres.2021.117017
-  notes: Upgraded from v2 (2023) to v3 (2024). 162 novel + 921 organism + 375 class
-    enrichments
+  notes: Upgraded from v2 (2023) to v3 (2024). 162 novel + 921 organism + 375 class enrichments
 - name: MycoCentral
   url: https://mycocentral.org
   download_url: https://mycocentral.org
@@ -318,10 +317,37 @@ sources:
   license_data: CC BY 4.0
   citation: 10.1093/nar/gkad1012
   notes: Primarily metadata enrichment, some unique compounds
+- name: TIPdb-3D
+  url: http://cb.imsc.res.in/tipdb-3d (offline)
+  download_url: Manual archive via correspondence (tipdb_chemical.zip, August 2015)
+  download_date: '2026-05-08'
+  version: 2015 archive (TIPdb-3D era)
+  format: Per-compound .mol files (Chem3D Core 12.0)
+  raw_compounds: 7615
+  in_theobroma: 471
+  converter: convert_tipdb.py
+  license_data: CC BY-NC 4.0 (placeholder, awaiting written confirmation from C.-W. Tung)
+  citation: 10.1186/1758-2946-1-15
+  notes: 'Manual recovery of structures from the 2015 TIPdb-3D archive after server decommissioning. Structures only: per-compound
+    names, source organisms, and ethnobotanical metadata not present in archive. To be re-integrated when a successor TIPdb
+    release becomes available.'
+- name: LOTUS
+  url: https://lotus.naturalproducts.net
+  download_url: https://zenodo.org/records/19360665
+  download_date: '2026-04-18'
+  version: v11 (April 13, 2026)
+  format: Frozen Wikidata extract, tabular CSV exports
+  raw_compounds: 227298
+  in_theobroma: 53862
+  overlap_with_corpus: 173436
+  converter: convert_lotus.py + merge_lotus.py
+  license_data: CC BY 4.0 (Zenodo) / CC0 (Wikidata)
+  citation: 10.7554/eLife.70780
+  notes: Wikidata-curated structure-organism-reference triples. LOTUS v11 is the April 2026 frozen dataset. Bulk dump used
+    for integration; LOTUS web-search applies additional curation filters not reflected in the dump.
 removed_sources:
 - name: CMNPD
-  reason: CC BY-NC-SA 4.0 share-alike clause forces entire derivative work to adopt
-    same license
+  reason: CC BY-NC-SA 4.0 share-alike clause forces entire derivative work to adopt same license
   exclusive_compounds_removed: 3847
   multi_source_stripped: 27003
 enrichment:
