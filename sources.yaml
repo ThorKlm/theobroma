@@ -417,3 +417,25 @@ pipeline:
   optuna: '3.6'
   admet_ai: '1.3'
   postgresql: '17'
+
+- name: ChEBI 3-stars
+  type: enrichment
+  url: https://www.ebi.ac.uk/chebi
+  download_url: https://ftp.ebi.ac.uk/pub/databases/chebi/SDF/chebi_3_stars.sdf.gz
+  download_date: '2026-05-15'
+  version: '3-stars 2026-05-01'
+  format: SDF
+  raw_compounds: 52903
+  matched_inchikeys: 20285
+  compounds_annotated: 19677
+  synonyms_added: 84019
+  metadata_added:
+    chebi_id: 19677
+    chebi_definition: 16763
+    chebi_iupac_name: 19029
+    chebi_pmids: 12017
+    chebi_xrefs: 19673
+  matching: full 27-character InChIKey
+  license_data: CC BY 4.0
+  citation: 10.1093/nar/gkad1031
+  notes: Enrichment layer; does not alter compound license_tier. Cross-references to 21 external databases packed as JSONB in chebi_xrefs column.

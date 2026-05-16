@@ -4,20 +4,23 @@
 <h1 class="section-title">Help</h1>
 <div class="help-content">
     <h2>About THEOBROMA</h2>
-    <p>THEOBROMA is an open, curated natural products database aggregating compounds from 27 source databases spanning five biological kingdoms (plant, fungi, bacteria, animal, marine) plus a multi-kingdom category and 13 resolved geographic regions. It supports structure-based virtual screening, cheminformatics research, and drug discovery from natural product chemical space.</p>
-    <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem;">Note on classification: the <em>marine</em> kingdom value is currently a provenance bucket for compounds whose original source attributed them to marine organisms without resolving the underlying biological kingdom (plant, animal, bacteria, or fungi). Per-compound resolution of marine entries is planned for v1.1.</p>
+    <p>THEOBROMA is an open, curated natural products database aggregating compounds from 29 source databases spanning five biological kingdoms (plant, fungi, bacteria, animal, marine) plus a multi-kingdom category and 13 resolved geographic regions. It supports structure-based virtual screening, cheminformatics research, and drug discovery from natural product chemical space.</p>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem;">Note on classification: the <em>marine</em> kingdom value is currently a provenance bucket for compounds whose original source attributed them to marine organisms without resolving the underlying biological kingdom (plant, animal, bacteria, or fungi). Per-compound resolution of marine entries is planned for a future release.</p>
     <h2>Search</h2>
-    <p><strong>Compound name</strong> &mdash; partial substring matching, case-insensitive. Autocomplete suggestions appear after 2 characters. Also searches PubChem synonyms (e.g., "alpha-lipoic acid" finds "Thioctic acid"). Hyphens and Greek letters are normalized automatically. The <strong>"Named only"</strong> toggle excludes unnamed compounds (placeholder identifiers). Use the <strong>"/"</strong> keyboard shortcut to focus the search box from anywhere on the page.</p>
+    <p><strong>Compound name</strong> &mdash; partial substring matching, case-insensitive. Autocomplete suggestions appear after 2 characters. Also searches PubChem synonyms (e.g., "alpha-lipoic acid" finds "Thioctic acid"). Hyphens and Greek letters are normalized automatically. The <strong>"Exact match"</strong> toggle restricts to literal equality on the chosen field. Use the <strong>"/"</strong> keyboard shortcut to focus the search box from anywhere on the page.</p>
     <p><strong>SMILES</strong> &mdash; exact canonical SMILES match. The query SMILES is canonicalized via RDKit before lookup, so equivalent representations resolve to the same compound.</p>
     <p><strong>InChIKey</strong> &mdash; exact 27-character match (full stereochemistry-aware key). If the compound is found, the search redirects directly to the compound detail page.</p>
     <p><strong>Source organism</strong> &mdash; substring matching against the producing organism field with autocomplete.</p>
-    <p><strong>Source database</strong> &mdash; filter by originating database. The dropdown lists all 27 source databases.</p>
-    <p><strong>Geographic region</strong> &mdash; search by region of origin. The dropdown lists all 13 resolved regions.</p>
-    <p><strong>Kingdom</strong> &mdash; filter by biological kingdom (plant, fungi, bacteria, animal, marine, or multi).</p>
-    <p><strong>Genus</strong> and <strong>Family</strong> &mdash; taxonomic search by botanical genus or family. Resolution is based on the World Checklist of Vascular Plants (WCVP, Kew, January 2026 release), which covers vascular plants. Coverage on plant-attributed compounds is approximately 67%; non-plant kingdoms (fungi, bacteria, animal, marine) are not resolved through WCVP. Synonyms are automatically mapped to accepted names.</p>
-    <p><strong>Chemical property</strong> &mdash; filter by chemical class (NPClassifier or ClassyFire) or by numerical property ranges (molecular weight, LogP, TPSA, HBA, HBD, rings, rotatable bonds, plus selected ADMET predictions: solubility, lipophilicity, DILI risk, hepatocyte clearance).</p>
+    <p><strong>Source database</strong>, <strong>Geographic region</strong>, <strong>Kingdom</strong> &mdash; case-insensitive equality against controlled vocabularies (29 databases, 13 resolved regions, 6 kingdom values: plant, fungi, bacteria, animal, marine, multi). Selecting from the dropdown always works; typed values are matched case-insensitively against the same domain.</p>
+    <p><strong>Genus</strong> and <strong>Family</strong> &mdash; taxonomic search by botanical genus or family. Resolution is based on the World Checklist of Vascular Plants (WCVP, Kew, January 2026 release). Coverage on plant-attributed compounds is approximately 67%; non-plant kingdoms are not resolved through WCVP. Synonyms are automatically mapped to accepted names.</p>
+    <p><strong>Chemical property</strong> &mdash; filter by chemical class or by numerical property ranges. Two class-filter types are available reflecting the two underlying classification ontologies:</p>
+    <ul style="margin-left:1.5rem;">
+        <li><strong>NPClassifier class</strong> &mdash; queries the <code>np_class</code> and <code>inferred_class</code> fields together. NPClassifier is the natural-products-focused ontology computed for the full corpus via a pretrained dual-input model on Morgan fingerprints; <code>inferred_class</code> covers compounds where the upstream NPClassifier output was empty, filled by a per-class XGBoost ensemble trained on Morgan + MACCS + ChemBERTa features.</li>
+        <li><strong>ClassyFire superclass</strong> &mdash; queries the <code>classyfire_superclass</code> field, carrying forward ClassyFire's broad chemical-taxonomy assignment where the source database provided it.</li>
+    </ul>
+    <p>Numerical property ranges are also available for molecular weight, LogP, TPSA, HBA, HBD, rings, rotatable bonds, plus selected ADMET predictions (solubility, lipophilicity, DILI risk, hepatocyte clearance).</p>
     <h3 style="font-size:1rem;margin-top:1.5rem;">Multi-filter search</h3>
-    <p>Click <strong>"+ Add filter"</strong> to combine multiple criteria with AND logic. For example, search for all triterpenoids from Africa, or all fungal compounds with molecular weight 200-500 Da and low DILI risk.</p>
+    <p>Click <strong>"+ Add another filter"</strong> to combine multiple criteria with AND logic. For example, search for all triterpenoids from Africa, or all fungal compounds with molecular weight 200-500 Da and low DILI risk.</p>
     <p>Results are <strong>relevance-sorted</strong> for name searches: exact matches appear first, then prefix matches, then substring matches. Within each tier, shorter (simpler) names rank higher. All result tables have <strong>sortable columns</strong> &mdash; click any column header to sort ascending or descending.</p>
     <h3 style="font-size:1rem;margin-top:1.5rem;">Similarity search</h3>
     <p>Enter a SMILES string, compound name, or THEO_ ID to find structurally similar compounds. Three metrics are available:</p>
@@ -35,7 +38,8 @@
     <h2>Property computation provenance</h2>
     <p>Physicochemical properties (molecular weight, LogP, TPSA, HBA, HBD, ring count, rotatable bonds) are <strong>computed by THEOBROMA</strong> from canonical SMILES via RDKit (Descriptors.ExactMolWt, Descriptors.MolLogP, Descriptors.TPSA, rdMolDescriptors functions). Source-database property values are not carried forward, ensuring consistent computation across the corpus.</p>
     <p>Chemical classifications come from two ontologies. <strong>NPClassifier</strong> (NP-class, NP-superclass, NP-pathway) is computed for the full corpus via the pretrained NPClassifier dual-input model on Morgan fingerprints. <strong>ClassyFire</strong> superclasses are carried forward where present in source databases; for compounds lacking a ClassyFire annotation, the <code>inferred_class</code> field provides a per-class XGBoost prediction trained on Morgan, MACCS, and ChemBERTa-PCA features with calibrated probability thresholds.</p>
-    <p>ADMET predictions (104 endpoints) are produced by ADMET-AI (Chemprop D-MPNN ensemble; Swanson et al.).</p>
+    <p>ADMET predictions (104 endpoints computed, 4 persisted in the searchable database: AqSolDB solubility, AstraZeneca lipophilicity, DILI risk, hepatocyte clearance) are produced by ADMET-AI (Chemprop D-MPNN ensemble; Swanson et al.).</p>
+    <p>For the 19,677 compounds with a matching ChEBI 3-stars entry, additional curator-written metadata is surfaced on the compound detail page: a chemistry definition, an IUPAC name (where ChEBI's IUPAC variant differs from the THEOBROMA primary name), PubMed PMID arrays, and per-database deep-links to the external resources cross-referenced by ChEBI. Matching is by InChIKey; no transformation of the THEOBROMA structure or naming is performed.</p>
     <h2>Multi-source compounds</h2>
     <p>When a compound (identified by full 27-character InChIKey) is reported by more than one source database, THEOBROMA stores it as a <strong>single row</strong> with all contributing databases listed in the <code>all_sources</code> field (pipe-separated). The primary <code>source_db</code> preferentially shows regional or specialized databases over aggregators like COCONUT. Compounds appearing in two or more source databases are counted in the "Multi-source compounds" statistic on the Statistics page.</p>
     <p>Compounds with <strong>"unresolved"</strong> region or kingdom lack geographic or taxonomic metadata in their source databases.</p>
@@ -51,7 +55,11 @@ Submitted to Nucleic Acids Research.</pre>
 Parameters:
   q       &mdash; search query (required)
   type    &mdash; name | smiles | inchikey | kingdom | organism |
-            region | source | class | pathway
+            region | source | genus | family |
+            npclassifier_class | classyfire_class |
+            class (legacy union of both) | pathway
+  exact   &mdash; true to require literal equality on name/organism/genus/family
+            (default false; substring match)
   limit   &mdash; max results, 1-10000 (default: 50)
   offset  &mdash; pagination offset (default: 0)
   format  &mdash; json | csv (default: json)
@@ -62,23 +70,23 @@ GET /api/stereoisomers/COMP_ID  &mdash; all stereoisomers (14-char InChIKey matc
 GET /api/similarity?smiles=...&amp;metric=morgan|maccs|chemberta
 GET /api/autocomplete?q=QUERY   &mdash; name autocomplete
 GET /api/organisms?q=QUERY      &mdash; organism autocomplete
-GET /api/filter_options         &mdash; available kingdom, region, source, class values
+GET /api/filter_options         &mdash; available values per filter type
+                                  (includes npclassifier_class, classyfire_class)
 GET /api/search?...&amp;format=json&amp;download=true   &mdash; download results as JSON attachment
 GET /api/bulk?cols=...&amp;format=json   &mdash; bulk download in JSON format (streamed)
-GET /api/search?q=&lt;query&gt;&amp;type=name&amp;exact=true   &mdash; exact-match toggle for name and organism types
 GET /api/stats                  &mdash; database statistics
 GET /api/bulk?cols=...&amp;tier=... &mdash; streaming bulk export (CSV)</pre>
     <p>Full OpenAPI specification at <a href="/api">/api</a>.</p>
     <p style="font-size:0.85rem;color:var(--text-muted);">Recommended bulk-download size: up to 100,000 rows per request through <code>/export</code> or <code>/api/search</code>; use <code>/api/bulk</code> for full-corpus exports (streaming, no row limit).</p>
-    <p style="font-size:0.85rem;color:var(--text-muted);">No per-request rate limit is enforced at present; for sustained high-throughput use (more than a few requests per second), please contact the corresponding author so we can plan server load.</p>
+    <p style="font-size:0.85rem;color:var(--text-muted);">No per-request rate limit is enforced at present; for sustained high-throughput use (more than a few requests per second), please contact the corresponding author so we can plan server load. Known scraping user-agents (GPTBot, CCBot, ClaudeBot, anthropic-ai, PerplexityBot, Bytespider) are rate-limited on the heaviest routes; <a href="/robots.txt">robots.txt</a> documents the policy.</p>
     <h2 id="license">License</h2>
     <p><strong>Web application code:</strong> MIT License.</p>
     <p><strong>Compound data:</strong> per-record license tiers carried forward from source databases.</p>
     <ul style="margin-left:1.5rem;">
-        <li><strong>CC BY 4.0</strong> (977,470 compounds): COCONUT 2.0, MIBiG 4.0, NPAtlas, CSIRO, ANPDB, SANCDB, AfroDb, NaturAr, MeFSAT, EMNPD, CyanoMetDB, MycoCentral, AMDB, StreptomeDB, NPASS 3.0, phytochemdb.</li>
-        <li><strong>CC0</strong> (12,044 compounds): TM-MC 2.0.</li>
-        <li><strong>CC BY-NC 4.0</strong> (86,648 compounds): HERB 2.0, FooDB, IMPPAT 2.0, Phyto4Health.</li>
-        <li><strong>Unspecified</strong> (2,509 compounds): MicotoXilico, LMDB_Lichen, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice. The license filter excludes Unspecified rows from both "Commercial use allowed" and "Non-commercial research" categories pending source-license confirmation.</li>
+        <li><strong>CC BY 4.0</strong> (1,031,332 compounds, 91.03%): COCONUT 2.0, LOTUS v11, MIBiG 4.0, NPAtlas, CSIRO, ANPDB, SANCDB, AfroDb, NaturAr, MeFSAT, EMNPD, CyanoMetDB, MycoCentral, AMDB, StreptomeDB, NPASS 3.0, phytochemdb.</li>
+        <li><strong>CC0</strong> (12,044 compounds, 1.06%): TM-MC 2.0.</li>
+        <li><strong>CC BY-NC 4.0</strong> (87,119 compounds, 7.69%): HERB 2.0, FooDB, IMPPAT 2.0, Phyto4Health, TIPdb-3D (placeholder pending source-license confirmation).</li>
+        <li><strong>Unspecified</strong> (2,509 compounds, 0.22%): MicotoXilico, LMDB_Lichen, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice. The license filter excludes Unspecified rows from both "Commercial use allowed" and "Non-commercial research" categories pending source-license confirmation.</li>
     </ul>
     <p>Each record includes a <code>license_tier</code> field. When a compound appears in multiple sources, the most permissive license applies. The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause; CMNPD-exclusive compounds were dropped and CMNPD provenance was stripped from multi-source rows.</p>
     <h2>Glossary</h2>
@@ -91,12 +99,13 @@ GET /api/bulk?cols=...&amp;tier=... &mdash; streaming bulk export (CSV)</pre>
         <dt><strong>Tanimoto coefficient (Tc)</strong></dt><dd>Similarity metric between two binary fingerprints, computed as the size of their intersection divided by the size of their union. Range 0 to 1; higher means more similar.</dd>
         <dt><strong>Morgan / ECFP4 fingerprint</strong></dt><dd>Circular fingerprint encoding atom-environment substructures within radius 2 (ECFP4 convention). Folded to 2048 bits in THEOBROMA. The cheminformatics community default for similarity ranking.</dd>
         <dt><strong>MACCS keys</strong></dt><dd>167-bit substructure-presence fingerprint with a curated dictionary of functional-group and ring-system queries. Good for functional-group similarity; weaker for whole-skeleton similarity.</dd>
+        <dt><strong>ChEBI</strong></dt><dd>Chemical Entities of Biological Interest; a manually-curated chemistry ontology maintained by EMBL-EBI under CC BY 4.0. THEOBROMA integrates the 3-stars (highest curation tier) subset, matching by InChIKey. For 19,677 compounds, ChEBI provides a curator-written definition, IUPAC name, PubMed PMID arrays, and cross-references to KEGG, KNApSAcK, LIPID MAPS, MetaboLights, ChEMBL, MetaCyc, UniProt, Rhea, NMRShiftDB, CompTox, and other resources.</dd>
         <dt><strong>ChemBERTa embedding</strong></dt><dd>768-dimensional dense vector produced by a transformer model pretrained on millions of compounds from ZINC. Captures learned chemical-space structure; queried via cosine similarity in a FAISS HNSW index for sub-second retrieval.</dd>
         <dt><strong>Bemis-Murcko scaffold</strong></dt><dd>The molecular framework obtained by stripping all acyclic side chains while retaining linkers between ring systems. Used to group compounds by core skeleton.</dd>
         <dt><strong>FAISS HNSW</strong></dt><dd>Hierarchical Navigable Small World graph index for approximate-nearest-neighbor search over dense embeddings. Enables fast top-N retrieval in 1M+ compound corpora.</dd>
-        <dt><strong>NPClassifier</strong></dt><dd>Deep-learning model that assigns natural-product class, superclass, and biosynthetic pathway from molecular structure (Kim et al., 2021).</dd>
-        <dt><strong>ClassyFire</strong></dt><dd>Rule-based chemical taxonomy assigning kingdom, superclass, class, and subclass via expert-curated structural patterns (Djoumbou-Feunang et al., 2016).</dd>
-        <dt><strong>ADMET</strong></dt><dd>Absorption, Distribution, Metabolism, Excretion, Toxicity; properties that predict in-vivo behavior of drug candidates. THEOBROMA reports 104 endpoints from the ADMET-AI Chemprop ensemble.</dd>
+        <dt><strong>NPClassifier</strong></dt><dd>Deep-learning model that assigns natural-product class, superclass, and biosynthetic pathway from molecular structure (Kim et al., 2021). In THEOBROMA, the <code>npclassifier_class</code> filter type queries both the direct NPClassifier output (<code>np_class</code>) and the per-class XGBoost-inferred extensions (<code>inferred_class</code>).</dd>
+        <dt><strong>ClassyFire</strong></dt><dd>Rule-based chemical taxonomy assigning kingdom, superclass, class, and subclass via expert-curated structural patterns (Djoumbou-Feunang et al., 2016). In THEOBROMA, the <code>classyfire_class</code> filter type queries the superclass field carried forward from source databases.</dd>
+        <dt><strong>ADMET</strong></dt><dd>Absorption, Distribution, Metabolism, Excretion, Toxicity; properties that predict in-vivo behavior of drug candidates. THEOBROMA computes 104 endpoints from the ADMET-AI Chemprop ensemble; four are persisted in the searchable database (solubility, lipophilicity, DILI, hepatocyte clearance).</dd>
         <dt><strong>DILI</strong></dt><dd>Drug-Induced Liver Injury; predicted probability that a compound causes hepatotoxicity.</dd>
         <dt><strong>AqSolDB solubility</strong></dt><dd>Predicted aqueous solubility (log mol/L) from a model trained on the AqSolDB benchmark.</dd>
         <dt><strong>LogP</strong></dt><dd>Logarithm of the octanol-water partition coefficient; measures lipophilicity. Drug-like compounds typically have LogP between 0 and 5.</dd>
@@ -104,8 +113,17 @@ GET /api/bulk?cols=...&amp;tier=... &mdash; streaming bulk export (CSV)</pre>
         <dt><strong>HBA / HBD</strong></dt><dd>Hydrogen-bond acceptor and donor counts; together with MW and LogP, part of Lipinski's Rule of Five for oral drug likeness.</dd>
         <dt><strong>Trust score</strong></dt><dd>THEOBROMA-internal composite (0-1) reflecting source-database authority, classification coverage, and provenance completeness. Higher means more confidently characterized.</dd>
     </dl>
-    <h2>Source databases (27)</h2>
-    <p>COCONUT 2.0, FooDB, NPASS 3.0, HERB 2.0, TM-MC 2.0, IMPPAT 2.0, CSIRO Australian NP, ANPDB, NPAtlas, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, MeFSAT, CyanoMetDB, MycoCentral, NaturAr, LMDB_Lichen, AMDB, Phyto4Health, AfroDb, SANCDB, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice, CMAUPv2.</p>
+    <h2>Source databases (29)</h2>
+    <p>COCONUT 2.0, LOTUS v11, FooDB, NPASS 3.0, HERB 2.0, TM-MC 2.0, IMPPAT 2.0, CSIRO Australian NP, ANPDB, NPAtlas, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, MeFSAT, CyanoMetDB, MycoCentral, NaturAr, LMDB_Lichen, AMDB, Phyto4Health, AfroDb, SANCDB, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice, CMAUPv2, TIPdb-3D.</p>
+    <h2>Enrichment layers</h2>
+    <p>In addition to the 29 source databases, THEOBROMA integrates several enrichment layers that annotate compounds with metadata not directly available from any single source:</p>
+    <ul style="margin-left:1.5rem;">
+        <li><strong>LOTUS</strong> (via Wikidata SPARQL): natural-product to organism linkages, references, and chemical classifications.</li>
+        <li><strong>PubChem synonyms</strong> (PUG REST + RDF bulk): compound name variants, CAS, INN, USAN, brand and trade names.</li>
+        <li><strong>WCVP</strong> (World Checklist of Vascular Plants, Kew): plant genus and family taxonomy, resolved for approximately 67% of plant-attributed compounds.</li>
+        <li><strong>GBIF</strong> (Global Biodiversity Information Facility): species-name resolution and geographic region attribution.</li>
+        <li><strong>ChEBI</strong> (Chemical Entities of Biological Interest, EBI; 3-stars manually-curated subset): curator-written definitions, IUPAC names, PubMed PMIDs, and cross-references to KEGG, KNApSAcK, LIPID MAPS, MetaboLights, ChEMBL, MetaCyc, UniProt, Rhea, NMRShiftDB, CompTox, CAS, and BRENDA. ChEBI annotations apply to 19,677 compounds (1.74% of corpus); 84,019 net new synonyms were merged into the searchable synonyms layer. License: CC BY 4.0.</li>
+    </ul>
     <h2>Database update cadence</h2>
     <p>THEOBROMA tracks source-database releases and re-integrates on a roughly biannual cycle. Per-source download dates and version strings are tracked in <a href="https://github.com/ThorKlm/theobroma/blob/main/sources.yaml"><code>sources.yaml</code></a>. Major releases are tagged in the GitHub repository and deposited on Zenodo for long-term archival.</p>
     <h2>Contact</h2>
