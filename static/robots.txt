@@ -1,0 +1,45 @@
+# THEOBROMA robots.txt
+# Allow normal indexing; block known LLM training crawlers from heavy routes
+# (/admet was hit 856k times by GPTBot in the first 60 days of v32, dominating
+# server traffic with no user benefit).
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/bulk
+Crawl-delay: 5
+
+User-agent: GPTBot
+Disallow: /admet
+Disallow: /api/
+Disallow: /export
+Disallow: /similarity
+Disallow: /substructure
+Disallow: /scaffolds
+
+User-agent: ClaudeBot
+Disallow: /admet
+Disallow: /api/
+Disallow: /export
+
+User-agent: anthropic-ai
+Disallow: /admet
+Disallow: /api/
+Disallow: /export
+
+User-agent: CCBot
+Disallow: /admet
+Disallow: /api/
+
+User-agent: PerplexityBot
+Disallow: /admet
+Disallow: /api/
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: AhrefsBot
+Crawl-delay: 30
+
+User-agent: SemrushBot
+Crawl-delay: 30
