@@ -26,6 +26,7 @@
         {% endfor %}
     </select>
     {% set qs %}{% for k,v in request.args.items() if k not in ('page','per_page') %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}{% endset %}
-    <a href="/export?{{ qs }}" class="export-btn" title="Download results as CSV">CSV</a>
+    <a href="/export?{{ qs }}&format=csv" class="export-btn" title="Download results as CSV">CSV</a>
+    <a href="/export?{{ qs }}&format=json" class="export-btn" title="Download results as JSON">JSON</a>
 </div>
 {% endif %}

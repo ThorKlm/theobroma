@@ -45,6 +45,19 @@
             </div>
             {% endfor %}
         </div>
+        {% if licenses %}
+        <h3 class="card-title" style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border);">Compounds by license</h3>
+        <div class="bar-chart">
+            {% set max_l = licenses[0].cnt if licenses else 1 %}
+            {% for l in licenses %}
+            <div class="bar-row">
+                <span class="bar-label">{{ l.license_tier }}</span>
+                <div class="bar-track"><div class="bar-fill" style="width:{{ (l.cnt/max_l*100)|round(1) }}%;background:{{ '#2d6a4f' if l.license_tier in ('CC BY 4.0','CC0') else '#d4a373' }}"></div></div>
+                <span class="bar-value">{{ "{:,}".format(l.cnt) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
     <div class="card">
         <h3 class="card-title">Compounds by source database</h3>
@@ -75,20 +88,58 @@
         </div>
     </div>
     {% endif %}
-    {% if licenses %}
-    <div class="card">
-        <h3 class="card-title">Compounds by license</h3>
-        <div class="bar-chart">
-            {% set max_l = licenses[0].cnt if licenses else 1 %}
-            {% for l in licenses %}
-            <div class="bar-row">
-                <span class="bar-label">{{ l.license_tier }}</span>
-                <div class="bar-track"><div class="bar-fill" style="width:{{ (l.cnt/max_l*100)|round(1) }}%;background:{{ '#2d6a4f' if l.license_tier in ('CC BY 4.0','CC0') else '#d4a373' }}"></div></div>
-                <span class="bar-value">{{ "{:,}".format(l.cnt) }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 </div>
+
+{% if visitors_by_country %}
+<div class="card" style="margin-top:1.5rem;">
+    <h3 class="card-title">Visitors by country
+      <span style="font-size:0.72rem;color:var(--text-muted);font-weight:400;">
+        ({{ visitors_meta.distinct_visitor_ips|default(0) }} non-bot IPs,
+         {{ visitors_meta.countries|default(0) }} countries,
+         updated {{ visitors_meta.last_updated|default('') }})
+      </span>
+    </h3>
+    <div id="visitors-choropleth" style="width:100%;height:320px;"></div>
+    <details style="margin-top:0.4rem;">
+      <summary style="font-size:0.78rem;color:var(--text-muted);cursor:pointer;">Show top countries (table)</summary>
+      <table class="prop-table" style="margin-top:0.4rem;font-size:0.8rem;">
+        <thead><tr><th>Country</th><th style="text-align:right;">Visitors</th><th style="text-align:right;">Hits</th></tr></thead>
+        <tbody>
+        {% for c in visitors_by_country[:15] %}
+        <tr><td>{{ c.iso2 }} ({{ c.iso3 }})</td>
+            <td style="text-align:right;">{{ c.visitors }}</td>
+            <td style="text-align:right;">{{ "{:,}".format(c.hits) }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </details>
+</div>
+{% endif %}
+
+{% if visitors_by_country %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script>
+(function(){
+  var data = {{ visitors_by_country|tojson }};
+  if (!data || data.length === 0) return;
+  var trace = {
+    type: 'choropleth',
+    locationmode: 'ISO-3',
+    locations: data.map(function(d){return d.iso3;}),
+    z: data.map(function(d){return d.visitors;}),
+    text: data.map(function(d){return d.iso2 + ': ' + d.visitors + ' visitors, ' + d.hits.toLocaleString() + ' hits';}),
+    hoverinfo: 'text',
+    colorscale: [[0,'#e6f0e8'],[0.5,'#74c69d'],[1,'#1b4332']],
+    marker: { line: { width: 0.3, color: '#444' } },
+    colorbar: { thickness: 8, len: 0.7, x: 1.02, title: { text: 'Visitors', font: { size: 10 } } }
+  };
+  var layout = {
+    margin: { l: 0, r: 0, t: 0, b: 0 },
+    geo: { projection: { type: 'natural earth' }, showframe: false, showcoastlines: true, coastlinewidth: 0.3, showland: true, landcolor: '#fafafa' },
+    paper_bgcolor: 'transparent'
+  };
+  Plotly.newPlot('visitors-choropleth', [trace], layout, {displayModeBar: false, responsive: true});
+})();
+</script>
+{% endif %}
 {% endblock %}

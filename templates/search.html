@@ -12,7 +12,8 @@
                 {% endfor %}
             </select>
             <select name="prop_type" id="prop-type-0" class="prop-subselect" style="display:none;" onchange="onPropChange(this, 0)">
-                <option value="class">Chemical class</option>
+                <option value="npclassifier_class">NPClassifier class</option>
+                <option value="classyfire_class">ClassyFire superclass</option>
                 <option value="genus">Genus (botanical)</option>
                 <option value="family">Family (botanical)</option>
                 <option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>
@@ -54,7 +55,7 @@
         </div>
     </form>
     {% if not query %}
-    <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=Triterpenoids&type=class">Triterpenoids</a> &middot; <a href="/search?q=OC(=O)c1ccccc1&type=smiles">OC(=O)c1ccccc1</a></p>
+    <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=Triterpenoids&type=property&prop_type=npclassifier_class">Triterpenoids (NPClassifier)</a> &middot; <a href="/search?q=OC(=O)c1ccccc1&type=smiles">OC(=O)c1ccccc1</a></p>
     {% endif %}
 </div>
 {% if query %}
@@ -204,7 +205,15 @@ function onPropChange(sel, idx) {
     var old = row.querySelector('.search-submenu');
     if (old) old.remove();
 
-    if (pt === 'class') {
+    // Class-like prop types (npclassifier_class, classyfire_class, and the
+    // legacy 'class' alias) all show a text input with a typed submenu drawn
+    // from the matching filter_options key.
+    var classProps = {
+        "npclassifier_class": "npclassifier_class",
+        "classyfire_class":   "classyfire_class",
+        "class":              "class"
+    };
+    if (pt in classProps) {
         if (textWrap) textWrap.style.display = '';
         if (rangeWrap) rangeWrap.style.display = 'none';
         var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
@@ -212,10 +221,11 @@ function onPropChange(sel, idx) {
         if (typesel) typesel.value = 'property';
         if (input) {
             input.name = input.name || 'q';
-            input.placeholder = 'Select or type class...';
+            input.placeholder = (pt === 'classyfire_class' ? 'Select or type ClassyFire superclass...'
+                                                           : 'Select or type NPClassifier class...');
         }
         if (!restoring) loadOptions().then(function(opts) {
-            var items = opts['class'];
+            var items = opts[classProps[pt]];
             if (!items || items.length === 0) return;
             var sub = document.createElement('div');
             sub.className = 'search-submenu';
@@ -269,7 +279,8 @@ function addFilter() {
         '<option value="property">Chemical property</option>' +
         '</select>' +
         '<select name="extra_prop_' + filterCount + '" class="prop-subselect" style="display:none;" onchange="onPropChange(this,' + filterCount + ')">' +
-        '<option value="class">Chemical class</option>' +
+        '<option value="npclassifier_class">NPClassifier class</option>' +
+        '<option value="classyfire_class">ClassyFire superclass</option>' +
         '<option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>' +
         '<option value="logp">LogP (-33.97 - 47.20, mean: 2.6)</option>' +
         '<option value="tpsa">TPSA (0.0 - 1539.4, mean: 103.8)</option>' +
@@ -343,7 +354,7 @@ document.addEventListener('click', function(e) {
         if (mainType === 'property') {
             onTypeChange(typesel, 0);
             var propSel = document.getElementById('prop-type-0');
-            var propType = params.get('prop_type') || 'class';
+            var propType = params.get('prop_type') || 'npclassifier_class';
             if (propSel) {
                 for (var i = 0; i < propSel.options.length; i++) {
                     if (propSel.options[i].value === propType) {

@@ -10,12 +10,46 @@ import sys
 import json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scripts.similarity import SimilarityEngine
+from kingdom_thumbnail import kingdom_thumbnail_svg
 
 sim_engine = SimilarityEngine(vectors_dir="data/vectors")
 sim_engine.load()
 
+# Warm the ChemBERTa embedding mmap so the first /api/similarity?metric=chemberta
+# call does not pay the 30-60s cold-mmap cost. Reading a few scattered rows
+# forces the OS to populate the page cache with the index pages.
+try:
+    import numpy as _np_warm
+    _emb_path = "data/vectors/chemberta_embeddings.npy"
+    if os.path.exists(_emb_path):
+        _warm = _np_warm.load(_emb_path, mmap_mode="r")
+        _ = _warm[0].copy(); _ = _warm[len(_warm)//2].copy(); _ = _warm[-1].copy()
+        del _warm
+except Exception as _e:
+    print(f"[startup] WARN: could not warm chemberta mmap: {_e}")
+
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Module-level cache of browse-page dropdown options. Loaded once at import
+# time; refreshed only by service restart, which is the v33 corpus-update
+# convention. Removes 3 redundant queries per /browse request (the dominant
+# component of /browse latency in the v33 benchmark).
+_BROWSE_CACHE = {"all_kingdoms": None, "all_sources_list": None, "all_regions": None}
+
+def _load_browse_options():
+    """Populate _BROWSE_CACHE. Called once at import time after sim_engine.load()."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""SELECT kingdom, COUNT(*) AS cnt FROM compounds
+                           WHERE kingdom IS NOT NULL AND kingdom!=''
+                           GROUP BY kingdom ORDER BY kingdom""")
+            _BROWSE_CACHE["all_kingdoms"] = cur.fetchall()
+            cur.execute("SELECT source_db, COUNT(*) AS cnt FROM compounds "
+                        "GROUP BY source_db ORDER BY source_db")
+            _BROWSE_CACHE["all_sources_list"] = cur.fetchall()
+            cur.execute(f"SELECT DISTINCT {REGION_SQL} AS reg FROM compounds ORDER BY reg")
+            _BROWSE_CACHE["all_regions"] = [r["reg"] for r in cur.fetchall()]
 
 SORTABLE = {"comp_id","name","kingdom","source_db","region","source_organism",
             "mw","logp","tpsa","hba","hbd","n_rings","rotatable_bonds","license_tier"}
@@ -58,6 +92,26 @@ def kingdom_label(v):
     return "unresolved" if not v or v in ("nan","") else v
 
 
+# User-agents whose crawling traffic dominated v32 server time with no user
+# benefit. GPTBot alone hit /admet 856k times in two months. The robots.txt
+# Disallow is voluntary; this enforcement returns 429 so the bot eventually
+# backs off. Substring match so version variants (GPTBot/1.3 etc.) are caught.
+_BLOCKED_BOTS_HEAVY_ROUTES = ("GPTBot", "ClaudeBot", "anthropic-ai", "CCBot",
+                              "Bytespider", "PerplexityBot")
+_BOT_BLOCKED_PREFIXES = ("/admet", "/api/", "/export", "/similarity",
+                         "/substructure", "/scaffolds")
+
+@app.before_request
+def block_heavy_bots():
+    """Return 429 Too Many Requests for known scraper bots on heavy routes."""
+    ua = request.headers.get("User-Agent", "")
+    if any(bot in ua for bot in _BLOCKED_BOTS_HEAVY_ROUTES):
+        if any(request.path.startswith(p) for p in _BOT_BLOCKED_PREFIXES):
+            return Response("Bot traffic on heavy routes is rate-limited.\n",
+                            status=429, mimetype="text/plain",
+                            headers={"Retry-After": "86400"})
+
+
 @app.after_request
 def log_access(response):
     if request.path.startswith("/static/"):
@@ -89,6 +143,8 @@ def normalize_query(q):
     # Remove hyphens for fuzzy matching
     q = q.replace("-", "").replace("–", "").replace("—", "")
     return q
+
+_load_browse_options()
 
 # --- Routes ---
 
@@ -144,6 +200,14 @@ def search():
     if not q and not has_extra and not has_range and st not in ("mw",):
         return render_template("search.html", results=[], query="", search_type=st,
                                page=1, total=0, pages=0, sort=sort, order=order, per_page=per_page)
+    # THEO_id direct redirect
+    if re.match(r"^THEO_\d{7}$", q):
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("SELECT comp_id FROM compounds WHERE comp_id=%s LIMIT 1", (q,))
+                if cur.fetchone():
+                    return redirect(url_for("compound_detail", comp_id=q))
+
     # InChIKey direct redirect
     if st == "inchikey" and re.match(r'^[A-Z]{14}-[A-Z]{10}-[A-Z]$', q):
         with get_db() as conn:
@@ -173,13 +237,15 @@ def search():
             SELECT inchikey FROM compounds WHERE smiles=%s LIMIT 1
           ) {oc}""", (q,)),
         "inchikey":(f"SELECT * FROM compounds WHERE inchikey=%s {oc}", (q,)),
-        "source":  (f"SELECT * FROM compounds WHERE source_db ILIKE %s {oc}", (f"%{q}%",)),
-        "organism":((f"SELECT * FROM compounds WHERE LOWER(%s) = ANY(string_to_array(LOWER(source_organism), '; ')) {oc}", (q,)) if exact else (f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",))),
-        "region":  (f"SELECT * FROM compounds WHERE region ILIKE %s {oc}", (f"%{q}%",)),
-        "kingdom": (f"SELECT * FROM compounds WHERE kingdom ILIKE %s {oc}", (f"%{q}%",)),
+        "source":  (f"SELECT * FROM compounds WHERE LOWER(source_db) = LOWER(%s) {oc}", (q,)),
+        "organism":((f"SELECT * FROM compounds WHERE LOWER(source_organism) = LOWER(%s) {oc if request.args.get('sort') else ''}", (q,)) if exact else (f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",))),
+        "region":  (f"SELECT * FROM compounds WHERE LOWER(region) = LOWER(%s) {oc}", (q,)),
+        "kingdom": (f"SELECT * FROM compounds WHERE LOWER(kingdom) = LOWER(%s) {oc}", (q,)),
         "genus":   ((f"SELECT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.genus) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.genus ILIKE %s {oc}", (f"%{q}%",))),
         "family":  ((f"SELECT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.family) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.family ILIKE %s {oc}", (f"%{q}%",))),
         "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%")),
+        "npclassifier_class": (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%")),
+        "classyfire_class":   (f"SELECT * FROM compounds WHERE classyfire_superclass ILIKE %s {oc}", (f"%{q}%",)),
         "pathway": (f"SELECT * FROM compounds WHERE np_pathway ILIKE %s {oc}", (f"%{q}%",)),
         "mw":      (f"SELECT * FROM compounds WHERE 1=1 {oc}", ()),
     }
@@ -194,19 +260,28 @@ def search():
             continue
         emap = {
             "name": "LOWER(name) = LOWER(%s)" if exact else "LOWER(name) LIKE %s",
-            "organism": "LOWER(%s) = ANY(string_to_array(LOWER(source_organism), '; '))" if exact else "source_organism ILIKE %s",
-            "kingdom": "kingdom ILIKE %s",
-            "region": "region ILIKE %s",
-            "source": "source_db ILIKE %s",
+            "organism": "LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s",
+            "kingdom": "LOWER(kingdom) = LOWER(%s)",
+            "region": "LOWER(region) = LOWER(%s)",
+            "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
+            "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
+            "classyfire_class": "classyfire_superclass ILIKE %s",
             "pathway": "np_pathway ILIKE %s",
         }
         esql = emap.get(et)
         if esql:
-            if et == "class":
+            if et in ("class", "npclassifier_class"):
                 extra_clauses.append(esql)
                 extra_params.extend([f"%{eq}%", f"%{eq}%"])
+            elif et == "classyfire_class":
+                extra_clauses.append(esql)
+                extra_params.append(f"%{eq}%")
             elif exact and et in ("name", "organism"):
+                extra_clauses.append(esql)
+                extra_params.append(eq)
+            elif et in ("kingdom", "region", "source"):
+                # Controlled-vocabulary equality (LOWER = LOWER), no wildcards.
                 extra_clauses.append(esql)
                 extra_params.append(eq)
             else:
@@ -291,14 +366,14 @@ def browse():
     sort, order, oc = get_sort()
     clauses, params = [], ()
     if kingdom:
-        clauses.append("kingdom=%s"); params += (kingdom,)
+        clauses.append("LOWER(kingdom) = LOWER(%s)"); params += (kingdom,)
     if source:
-        clauses.append("(source_db=%s OR all_sources LIKE %s)"); params += (source, f"%{source}%")
+        clauses.append("(LOWER(source_db) = LOWER(%s) OR all_sources LIKE %s)"); params += (source, f"%{source}%")
     if region:
         if region in ("unresolved", "global / unresolved"):
             clauses.append("(region IS NULL OR region='' OR region='global')")
         else:
-            clauses.append("region=%s"); params += (region,)
+            clauses.append("LOWER(region) = LOWER(%s)"); params += (region,)
     license_filter = request.args.get("license", "all")
     if license_filter == "commercial":
         clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
@@ -313,47 +388,21 @@ def browse():
     query = f"SELECT * FROM compounds {where} {oc}"
     with get_db() as conn:
         results, total, pages = paginate(query, params, page, per_page, conn)
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""SELECT kingdom, COUNT(*) AS cnt FROM compounds
-                          WHERE kingdom IS NOT NULL AND kingdom!='' GROUP BY kingdom ORDER BY kingdom""")
-            all_kingdoms = cur.fetchall()
-            # Count each source by appearances in all_sources (full credit to smaller DBs)
-            cur.execute("""
-                        SELECT TRIM(src) AS source_db, COUNT(*) AS cnt
-                        FROM (SELECT unnest(string_to_array(COALESCE(NULLIF(all_sources, ''), source_db), '|')) AS src
-                              FROM compounds) t
-                        WHERE TRIM(src) != '' AND LENGTH(TRIM(src)) > 0
-                        GROUP BY TRIM (src)
-                        ORDER BY cnt DESC
-                        """)
-            raw_sources = cur.fetchall()
-
-            # For COCONUT, show only exclusive compounds (not in any other source)
-            cur.execute("""
-                        SELECT COUNT(*) AS cnt
-                        FROM compounds
-                        WHERE (all_sources IS NULL OR all_sources = '' OR all_sources = 'COCONUT'
-                            OR all_sources NOT LIKE '%%|%%')
-                          AND (source_db = 'COCONUT' OR source_db IS NULL)
-                        """)
-            coconut_exclusive = cur.fetchone()["cnt"]
-
-            sources = []
-            for s in raw_sources:
-                if s["source_db"] == "COCONUT":
-                    sources.append({"source_db": "COCONUT (exclusive)", "cnt": coconut_exclusive})
-                else:
-                    sources.append(s)
-            sources.sort(key=lambda x: -x["cnt"])
-            cur.execute("SELECT source_db, COUNT(*) AS cnt FROM compounds GROUP BY source_db ORDER BY source_db")
-            all_sources = cur.fetchall()
-            cur.execute(f"SELECT DISTINCT {REGION_SQL} AS reg FROM compounds ORDER BY reg")
-            all_regions = [r["reg"] for r in cur.fetchall()]
+        if kingdom or source or region or named or chem_class or license_filter != "all":
+            count_query = f"SELECT kingdom, COUNT(*) AS cnt FROM compounds {where} GROUP BY kingdom"
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(count_query, params)
+                thumb_kingdoms = cur.fetchall()
+        else:
+            thumb_kingdoms = _BROWSE_CACHE["all_kingdoms"]
+    thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=200, title="Result-set kingdoms")
     return render_template("browse.html", results=results, page=page, total=total,
                            pages=pages, kingdom=kingdom, source=source, region=region,
-                           all_kingdoms=all_kingdoms,
-                           all_sources_list=all_sources,
-                           all_regions=all_regions, sort=sort, order=order,
+                           all_kingdoms=_BROWSE_CACHE["all_kingdoms"],
+                           all_sources_list=_BROWSE_CACHE["all_sources_list"],
+                           thumb=thumb,
+                           all_regions=_BROWSE_CACHE["all_regions"],
+                           sort=sort, order=order,
                            named=named, per_page=per_page, chem_class=chem_class)
 
 @app.route("/compound/<comp_id>")
@@ -408,6 +457,41 @@ def compound_detail(comp_id):
 
 @app.route("/statistics")
 def statistics():
+    # Prefer the offline-built cache JSON if present and recent.
+    import os, json, time
+    cache_path = "/home/thorben.klamt/theobroma/static/statistics_cache.json"
+    cache_max_age_sec = 7 * 24 * 3600  # 7 days; cron should refresh daily but we tolerate gaps
+    cached = None
+    if os.path.exists(cache_path):
+        try:
+            age = time.time() - os.path.getmtime(cache_path)
+            if age < cache_max_age_sec:
+                with open(cache_path) as f:
+                    cached = json.load(f)
+        except Exception:
+            cached = None
+    if cached is not None:
+        visitors_by_country = []
+        visitors_meta = {}
+        try:
+            with open("/home/thorben.klamt/theobroma/static/visitors_by_country.json") as f:
+                visitors_by_country = json.load(f)
+            with open("/home/thorben.klamt/theobroma/static/visitors_meta.json") as f:
+                visitors_meta = json.load(f)
+        except Exception:
+            pass
+        return render_template("statistics.html",
+                               total=cached.get("total", 0),
+                               kingdoms=cached.get("kingdoms", []),
+                               sources=cached.get("sources", []),
+                               regions=cached.get("regions", []),
+                               prop_stats=cached.get("prop_stats", {}),
+                               licenses=cached.get("licenses", []),
+                               multi_source=cached.get("multi_source", 0),
+                               admet_stats=cached.get("admet_stats", {}),
+                               visitors_by_country=visitors_by_country,
+                               visitors_meta=visitors_meta)
+    # Live-query fallback below (used if cache missing/stale)
     with get_db() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT COUNT(*) AS cnt FROM compounds")
@@ -424,6 +508,16 @@ def statistics():
             licenses = cur.fetchall()
             cur.execute("SELECT COUNT(*) AS cnt FROM compounds WHERE all_sources LIKE '%%|%%'")
             multi_source = cur.fetchone()["cnt"]
+    visitors_by_country = []
+    visitors_meta = {}
+    try:
+        import json as _json
+        with open("/home/thorben.klamt/theobroma/static/visitors_by_country.json") as _f:
+            visitors_by_country = _json.load(_f)
+        with open("/home/thorben.klamt/theobroma/static/visitors_meta.json") as _f:
+            visitors_meta = _json.load(_f)
+    except Exception:
+        pass
     # ADMET summary stats
     admet_stats = {}
     try:
@@ -454,7 +548,7 @@ def statistics():
         pass
     return render_template("statistics.html", total=total, kingdoms=kingdoms,
                            sources=sources, regions=regions, prop_stats=prop_stats,
-                           licenses=licenses, multi_source=multi_source, admet_stats=admet_stats)
+                           licenses=licenses, multi_source=multi_source, admet_stats=admet_stats, visitors_by_country=visitors_by_country, visitors_meta=visitors_meta)
 
 def _build_filename(args, ext):
     """Construct a descriptive filename from active query args.
@@ -547,18 +641,25 @@ def api_search():
                 results = cur.fetchall()
     else:
         tc = {"smiles":"smiles=%s","inchikey":"inchikey=%s",
-              "kingdom":"kingdom ILIKE %s","organism": ("LOWER(%s) = ANY(string_to_array(LOWER(source_organism), '; '))" if exact else "source_organism ILIKE %s"),
+              "kingdom":"LOWER(kingdom) = LOWER(%s)","organism": ("LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s"),
               "genus": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND LOWER(ct.genus) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.genus ILIKE %s)"),
               "family": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND LOWER(ct.family) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.family ILIKE %s)"),
-              "region":"region ILIKE %s","source":"source_db ILIKE %s",
-              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s", "pathway":"np_pathway ILIKE %s"}
+              "region":"LOWER(region) = LOWER(%s)","source":"LOWER(source_db) = LOWER(%s)",
+              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s",
+              "npclassifier_class":"np_class ILIKE %s OR inferred_class ILIKE %s",
+              "classyfire_class":"classyfire_superclass ILIKE %s",
+              "pathway":"np_pathway ILIKE %s"}
         cl = tc.get(st, "LOWER(name) LIKE %s")
         if st == "pathway":
             pm = (f"%{q}%",)
         elif st == "class":
             pm = (f"%{q}%", f"%{q}%", f"%{q}%")
+        elif st == "npclassifier_class":
+            pm = (f"%{q}%", f"%{q}%")
+        elif st == "classyfire_class":
+            pm = (f"%{q}%",)
         else:
-            pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (f"%{q}%" if st in ("kingdom","region","source") else q)
+            pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (q if st in ("kingdom","region","source") else q)
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 params = pm if isinstance(pm, tuple) else (pm,)
@@ -655,17 +756,17 @@ def export_results():
     clauses, params = [], ()
     if q:
         tmap = {"name":"LOWER(name) LIKE %s","smiles":"smiles=%s","inchikey":"inchikey=%s",
-                "source":"source_db ILIKE %s","organism":"source_organism ILIKE %s",
-                "region":"region ILIKE %s","kingdom":"kingdom ILIKE %s"}
+                "source":"LOWER(source_db) = LOWER(%s)","organism":"source_organism ILIKE %s",
+                "region":"LOWER(region) = LOWER(%s)","kingdom":"LOWER(kingdom) = LOWER(%s)"}
         cl = tmap.get(st, tmap["name"])
-        pm = f"%{q.lower()}%" if st in ("name","organism") else (f"%{q}%" if st in ("kingdom","region","source") else q)
+        pm = f"%{q.lower()}%" if st in ("name","organism") else (q if st in ("kingdom","region","source") else q)
         clauses.append(cl); params += (pm,)
     if kingdom:
-        clauses.append("kingdom=%s"); params += (kingdom,)
+        clauses.append("LOWER(kingdom) = LOWER(%s)"); params += (kingdom,)
     if source:
-        clauses.append("(source_db=%s OR all_sources LIKE %s)"); params += (source, f"%{source}%")
+        clauses.append("(LOWER(source_db) = LOWER(%s) OR all_sources LIKE %s)"); params += (source, f"%{source}%")
     if region and region != "unresolved":
-        clauses.append("region=%s"); params += (region,)
+        clauses.append("LOWER(region) = LOWER(%s)"); params += (region,)
     elif region == "unresolved":
         clauses.append("(region IS NULL OR region='' OR region='global')")
     license_filter = request.args.get("license", "all")
@@ -994,22 +1095,26 @@ def advanced_search():
         field_map = {
             "name": "LOWER(name) LIKE %s",
             "organism": "source_organism ILIKE %s",
-            "kingdom": "kingdom ILIKE %s",
-            "region": "region ILIKE %s",
-            "source": "source_db ILIKE %s",
+            "kingdom": "LOWER(kingdom) = LOWER(%s)",
+            "region": "LOWER(region) = LOWER(%s)",
+            "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "pathway": "np_pathway ILIKE %s",
         }
         sql = field_map.get(field)
         if sql:
             if field == "pathway":
-                extra_params.append(f"%{val}%")
+                clauses.append(sql)
+                params.append(f"%{value}%")
             elif field == "class":
                 clauses.append(sql)
                 params.extend([f"%{value}%", f"%{value}%"])
+            elif field in ("kingdom", "region", "source"):
+                clauses.append(sql)
+                params.append(value)
             else:
                 clauses.append(sql)
-                params.append(f"%{value}%" if field != "kingdom" else f"%{value}%")
+                params.append(f"%{value}%")
     # License filter
     license_filter = request.args.get("license", "all")
     if license_filter == "commercial":
@@ -1053,7 +1158,10 @@ def advanced_search():
 
 @app.route("/api/filter_options")
 def api_filter_options():
-    """Return available values for each filter type."""
+    """Return available values for each filter type. Class values are split
+    by ontology: npclassifier_class (NPClassifier-derived, atomic class names
+    from np_class and inferred_class), classyfire_class (ClassyFire
+    superclass), plus a unified 'class' for backward compatibility."""
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT DISTINCT kingdom FROM compounds WHERE kingdom IS NOT NULL AND kingdom != '' ORDER BY kingdom")
@@ -1062,13 +1170,23 @@ def api_filter_options():
             regions = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT source_db FROM compounds WHERE source_db IS NOT NULL ORDER BY source_db")
             sources = [r[0] for r in cur.fetchall()]
+            # NPClassifier classes: atomic (split on ' $ ') from np_class.
             cur.execute("SELECT DISTINCT TRIM(c) AS cls FROM compounds, regexp_split_to_table(np_class, ' [$] ') AS c WHERE np_class IS NOT NULL AND np_class != '' ORDER BY cls")
-            classes = [r[0] for r in cur.fetchall()]
+            npc_classes = [r[0] for r in cur.fetchall()]
+            # ClassyFire superclasses: stored as plain single values, not dollar-split.
+            cur.execute("SELECT DISTINCT classyfire_superclass FROM compounds WHERE classyfire_superclass IS NOT NULL AND classyfire_superclass != '' ORDER BY classyfire_superclass")
+            cf_classes = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT genus FROM compound_taxonomy WHERE genus IS NOT NULL ORDER BY genus")
             genera = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT family FROM compound_taxonomy WHERE family IS NOT NULL ORDER BY family")
             families = [r[0] for r in cur.fetchall()]
-    return jsonify({"kingdom": kingdoms, "region": regions, "source": sources, "class": classes, "genus": genera, "family": families})
+    # Union of both for backward-compatible 'class' key (deduplicated).
+    classes = sorted(set(npc_classes) | set(cf_classes))
+    return jsonify({"kingdom": kingdoms, "region": regions, "source": sources,
+                    "class": classes,
+                    "npclassifier_class": npc_classes,
+                    "classyfire_class": cf_classes,
+                    "genus": genera, "family": families})
 
 
 
@@ -1118,7 +1236,7 @@ def api_bulk():
         "source_db", "kingdom", "region", "source_organism",
         "mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds",
         "license_tier", "all_sources", "np_class", "classyfire_superclass",
-        "inferred_class", "reference_doi, trad_medicine, trust_score"
+        "inferred_class", "reference_doi", "trad_medicine", "trust_score"
     }
     cols = [c.strip() for c in cols_param.split(",") if c.strip() in allowed_cols]
     if not cols:
@@ -1220,6 +1338,24 @@ def sources_page():
     return render_template("sources.html", sources=manifest["sources"],
                            removed=manifest.get("removed_sources", []),
                            enrichment=manifest.get("enrichment", []))
+
+@app.route("/robots.txt")
+def robots_txt():
+    return send_from_directory("static", "robots.txt", mimetype="text/plain")
+
+@app.route("/admin/refresh_cache")
+def admin_refresh_cache():
+    """Reload the browse-options cache. Localhost-only so SSH-tunneled admin
+    requests work but external traffic cannot trigger cache rebuilds. Use after
+    any bulk corpus mutation (INSERT, UPDATE, DELETE on compounds) that was
+    applied without a service restart."""
+    if request.remote_addr not in ("127.0.0.1", "::1"):
+        abort(403)
+    _load_browse_options()
+    return jsonify({"ok": True,
+                    "kingdoms": len(_BROWSE_CACHE["all_kingdoms"]),
+                    "sources": len(_BROWSE_CACHE["all_sources_list"]),
+                    "regions": len(_BROWSE_CACHE["all_regions"])})
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
