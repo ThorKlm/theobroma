@@ -61,7 +61,7 @@ def kingdom_thumbnail_svg(kingdom_counts, total=None, size=200, title="Kingdoms"
     cx = cy = size / 2
     r_outer = size * 0.42
     r_inner = size * 0.24
-    parts = [f'<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg" class="kingdom-thumbnail">']
+    parts = [f'<svg viewBox="0 0 {size} {size}" width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" class="kingdom-thumbnail" style="flex-shrink:0;">']
     parts.append(f'<title>{title}: {total:,} compounds</title>')
     angle = -math.pi / 2  # start at top (12 o'clock)
     legend = []
@@ -73,8 +73,14 @@ def kingdom_thumbnail_svg(kingdom_counts, total=None, size=200, title="Kingdoms"
             continue
         end = angle + sweep
         colour = KINGDOM_FALLBACK.get(kingdom, "#999")
-        path = _arc_path(cx, cy, r_outer, r_inner, angle, end)
-        parts.append(f'<path d="{path}" fill="{colour}" stroke="white" stroke-width="1" />')
+        # Full-circle case: SVG path with identical endpoints renders as zero-length.
+        # Split into two semicircles or use circle-with-hole.
+        if abs(sweep - 2 * math.pi) < 1e-6:
+            parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" fill="{colour}" stroke="white" stroke-width="1"><title>{kingdom}: {count:,} ({pct:.1f}%)</title></circle>')
+            parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" fill="white" />')
+        else:
+            path = _arc_path(cx, cy, r_outer, r_inner, angle, end)
+            parts.append(f'<path d="{path}" fill="{colour}" stroke="white" stroke-width="1"><title>{kingdom}: {count:,} ({pct:.1f}%)</title></path>')
         legend.append((kingdom, count, pct))
         angle = end
     # Total in the donut hole

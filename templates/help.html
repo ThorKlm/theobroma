@@ -12,7 +12,7 @@
     <p><strong>InChIKey</strong> &mdash; exact 27-character match (full stereochemistry-aware key). If the compound is found, the search redirects directly to the compound detail page.</p>
     <p><strong>Source organism</strong> &mdash; substring matching against the producing organism field with autocomplete.</p>
     <p><strong>Source database</strong>, <strong>Geographic region</strong>, <strong>Kingdom</strong> &mdash; case-insensitive equality against controlled vocabularies (29 databases, 13 resolved regions, 6 kingdom values: plant, fungi, bacteria, animal, marine, multi). Selecting from the dropdown always works; typed values are matched case-insensitively against the same domain.</p>
-    <p><strong>Genus</strong> and <strong>Family</strong> &mdash; taxonomic search by botanical genus or family. Resolution is based on the World Checklist of Vascular Plants (WCVP, Kew, January 2026 release). Coverage on plant-attributed compounds is approximately 67%; non-plant kingdoms are not resolved through WCVP. Synonyms are automatically mapped to accepted names.</p>
+    <p><strong>Genus</strong>, <strong>Family</strong>, <strong>Order</strong>, <strong>Class</strong>, and <strong>Phylum</strong> &mdash; taxonomic search across all five ranks. Resolution combines three authorities: the World Checklist of Vascular Plants (WCVP, Kew, January 2026 release) for plant binomials, NCBI Taxonomy (taxdump 2026-05) for non-plant taxa, and the World Register of Marine Species (WoRMS) for marine organisms. Combined coverage is 92.5% of compound-taxonomy rows. Genus and family come primarily from WCVP for plants and NCBI for non-plants; order, class, and phylum come from NCBI and WoRMS JSONB lineages. Synonyms are automatically mapped to accepted names. Note that NCBI Taxonomy does not consistently fill order for plant clades, so order-rank queries for plant taxa may return fewer results than expected; family or genus search is recommended for plant queries.</p>
     <p><strong>Chemical property</strong> &mdash; filter by chemical class or by numerical property ranges. Two class-filter types are available reflecting the two underlying classification ontologies:</p>
     <ul style="margin-left:1.5rem;">
         <li><strong>NPClassifier class</strong> &mdash; queries the <code>np_class</code> and <code>inferred_class</code> fields together. NPClassifier is the natural-products-focused ontology computed for the full corpus via a pretrained dual-input model on Morgan fingerprints; <code>inferred_class</code> covers compounds where the upstream NPClassifier output was empty, filled by a per-class XGBoost ensemble trained on Morgan + MACCS + ChemBERTa features.</li>
@@ -55,10 +55,10 @@ Submitted to Nucleic Acids Research.</pre>
 Parameters:
   q       &mdash; search query (required)
   type    &mdash; name | smiles | inchikey | kingdom | organism |
-            region | source | genus | family |
+            region | source | genus | family | order | tax_class | phylum |
             npclassifier_class | classyfire_class |
-            class (legacy union of both) | pathway
-  exact   &mdash; true to require literal equality on name/organism/genus/family
+            class (union of chemistry-class ontologies) | pathway
+  exact   &mdash; true to require literal equality on text-search types
             (default false; substring match)
   limit   &mdash; max results, 1-10000 (default: 50)
   offset  &mdash; pagination offset (default: 0)
@@ -120,7 +120,7 @@ GET /api/bulk?cols=...&amp;tier=... &mdash; streaming bulk export (CSV)</pre>
     <ul style="margin-left:1.5rem;">
         <li><strong>LOTUS</strong> (via Wikidata SPARQL): natural-product to organism linkages, references, and chemical classifications.</li>
         <li><strong>PubChem synonyms</strong> (PUG REST + RDF bulk): compound name variants, CAS, INN, USAN, brand and trade names.</li>
-        <li><strong>WCVP</strong> (World Checklist of Vascular Plants, Kew): plant genus and family taxonomy, resolved for approximately 67% of plant-attributed compounds.</li>
+        <li><strong>WCVP</strong> (World Checklist of Vascular Plants, Kew): plant genus and family taxonomy. Combined with NCBI Taxonomy and WoRMS, taxonomic resolution reaches 92.5% across plant, non-plant, and marine kingdoms.</li>
         <li><strong>GBIF</strong> (Global Biodiversity Information Facility): species-name resolution and geographic region attribution.</li>
         <li><strong>ChEBI</strong> (Chemical Entities of Biological Interest, EBI; 3-stars manually-curated subset): curator-written definitions, IUPAC names, PubMed PMIDs, and cross-references to KEGG, KNApSAcK, LIPID MAPS, MetaboLights, ChEMBL, MetaCyc, UniProt, Rhea, NMRShiftDB, CompTox, CAS, and BRENDA. ChEBI annotations apply to 19,677 compounds (1.74% of corpus); 84,019 net new synonyms were merged into the searchable synonyms layer. License: CC BY 4.0.</li>
     </ul>

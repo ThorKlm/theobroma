@@ -5,15 +5,23 @@
     {% set _ = base.__setitem__('page', page - 1) %}
     <a href="?{% for k,v in base.items() %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}">&laquo; Prev</a>
     {% endif %}
-    {% for p in range(1, pages+1) %}
-        {% if p == page %}
-        <span class="current">{{ p }}</span>
-        {% elif p <= 3 or p >= pages-2 or (p >= page-2 and p <= page+2) %}
-        {% set _ = base.__setitem__('page', p) %}
-        <a href="?{% for k,v in base.items() %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}">{{ p }}</a>
-        {% elif p == 4 or p == pages-3 %}
+    {% set visible_pages = [] %}
+    {% for p in [1, 2, 3, page-2, page-1, page, page+1, page+2, pages-2, pages-1, pages] %}
+        {% if p >= 1 and p <= pages and p not in visible_pages %}{% set _ = visible_pages.append(p) %}{% endif %}
+    {% endfor %}
+    {% set visible_pages = visible_pages|sort %}
+    {% set prev_p = namespace(v=0) %}
+    {% for p in visible_pages %}
+        {% if prev_p.v > 0 and p - prev_p.v > 1 %}
         <span class="info">&hellip;</span>
         {% endif %}
+        {% if p == page %}
+        <span class="current">{{ p }}</span>
+        {% else %}
+        {% set _ = base.__setitem__('page', p) %}
+        <a href="?{% for k,v in base.items() %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}">{{ p }}</a>
+        {% endif %}
+        {% set prev_p.v = p %}
     {% endfor %}
     {% if page < pages %}
     {% set _ = base.__setitem__('page', page + 1) %}

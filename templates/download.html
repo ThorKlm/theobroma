@@ -8,7 +8,7 @@
     <div class="download-card">
         <h3>{{ f.fmt }}</h3>
         <p class="size">{{ f.size }}</p>
-        <a href="/download/{{ f.name }}" class="btn">Download {{ f.fmt }}</a>
+        <a href="{{ f.url }}" class="btn">Download {{ f.fmt }}</a>
     </div>
     {% endfor %}
     {% if not files %}

@@ -1,0 +1,702 @@
+<div id="taxonomy-expand" style="display:none;margin:1rem 0 1.5rem 0;">
+  <div class="card">
+    <div style="display:none;"><span id="tax-query-string"></span></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem;">
+      <div>
+        <div id="tax-breadcrumb" style="font-size:0.85rem;color:var(--text-muted);">THEOBROMA</div>
+        <div style="font-size:1.1rem;font-weight:600;color:var(--text-strong);margin-top:0.1rem;">Taxonomic distribution</div>
+      </div>
+      <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;">
+        <a href="#" id="tax-close" style="font-size:0.8rem;color:var(--accent);text-decoration:none;">[ close ]</a>
+        <div id="tax-query-list" style="font-size:0.78rem;color:var(--text-muted);font-family:monospace;line-height:1.35;text-align:right;"></div>
+      </div>
+    </div>
+    <div id="tax-container" style="width:100%;display:flex;justify-content:center;min-height:600px;"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.6rem;font-size:0.8rem;">
+      <div style="display:flex;align-items:center;gap:0.4rem;">
+        <span style="color:var(--text-muted);">Font</span>
+        <button id="tax-font-dec" type="button" style="padding:0.1rem 0.45rem;font-size:0.8rem;border:1px solid var(--border);background:white;cursor:pointer;border-radius:3px;">&minus;</button>
+        <button id="tax-font-inc" type="button" style="padding:0.1rem 0.45rem;font-size:0.8rem;border:1px solid var(--border);background:white;cursor:pointer;border-radius:3px;margin-right:0.8rem;">+</button>
+        <button id="tax-rotate-toggle" type="button" style="padding:0.15rem 0.55rem;font-size:0.8rem;border:1px solid var(--border);background:white;cursor:pointer;border-radius:3px;margin-right:0.8rem;">Toggle label rotation</button>
+        <button id="tax-compound-toggle" type="button" style="padding:0.15rem 0.55rem;font-size:0.8rem;border:1px solid var(--border);background:white;cursor:pointer;border-radius:3px;margin-right:0.8rem;display:none;">Hide compound names</button>
+        <span style="color:var(--text-muted);">Export</span>
+        <button id="tax-export-png" type="button" style="padding:0.15rem 0.55rem;font-size:0.8rem;border:1px solid var(--border);background:white;cursor:pointer;border-radius:3px;">PNG</button>
+        <button id="tax-export-pdf" type="button" style="padding:0.15rem 0.55rem;font-size:0.8rem;border:1px solid var(--border);background:white;cursor:pointer;border-radius:3px;">PDF</button>
+      </div>
+      <div id="tax-detail" style="min-height:1.4em;color:var(--text-strong);text-align:right;"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;">THEOBROMA v33.x.1 (2026-05)</div>
+
+    <div id="tax-floating-tip" style="position:fixed;display:none;background:white;border:1px solid var(--border);padding:0.3rem 0.5rem;font-size:0.85rem;pointer-events:none;z-index:1000;box-shadow:0 2px 6px rgba(0,0,0,0.1);border-radius:3px;"></div>
+    <div id="tax-loading" style="text-align:center;padding:2rem;color:var(--text-muted);display:none;">Loading taxonomy data...</div>
+  </div>
+</div>
+<style>
+  #tax-container svg .tax-export-only { display: none; }
+  #tax-container.tax-exporting svg .tax-export-only { display: inline; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/d3@7" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+<script>
+(function(){
+  var loaded = false, data = null, expanded = false;
+  var wrap = document.querySelector('.kingdom-thumb-wrap');
+  var panel = document.getElementById('taxonomy-expand');
+  var closeBtn = document.getElementById('tax-close');
+  if (!wrap || !panel) return;
+
+  function toggle(e){
+    if (e) e.preventDefault();
+    expanded = !expanded;
+    panel.style.display = expanded ? '' : 'none';
+    if (expanded && !loaded) loadAndRender();
+  }
+  wrap.addEventListener('click', toggle);
+  closeBtn.addEventListener('click', toggle);
+
+  function loadAndRender(){
+    var loading = document.getElementById('tax-loading');
+    loading.style.display = '';
+    // Render the active query string in the top-right header for replicability.
+    var qsBox = document.getElementById('tax-query-string');
+    var qsList = document.getElementById('tax-query-list');
+    var qs = window.location.search;
+    // Parse URL into ordered (label, value) pairs. Extras (extra_type_N, extra_q_N) are paired up.
+    var qsLines = [];
+    if (qs && qs.length > 1) {
+      var params = {};
+      var order = [];
+      qs.substring(1).split('&').forEach(function(p){
+        if (!p || p.indexOf('=') < 0) return;
+        var kv = p.split('=');
+        var k = kv[0];
+        var v = decodeURIComponent(kv[1] || '');
+        if (!v) return;
+        params[k] = v;
+        order.push(k);
+      });
+      // Primary type/q first.
+      if (params.type && params.q) {
+        qsLines.push(params.type + ': ' + params.q);
+      } else if (params.q) {
+        qsLines.push('q: ' + params.q);
+      }
+      // Then extras, ordered 1..5.
+      for (var i = 1; i <= 5; i++) {
+        var t = params['extra_type_' + i];
+        var v = params['extra_q_' + i];
+        if (t && v) qsLines.push(t + ': ' + v);
+      }
+      // Other meaningful filters.
+      ['kingdom', 'source', 'region', 'license', 'named', 'exact'].forEach(function(k){
+        if (params[k] && params[k] !== 'all' && params[k] !== 'false') {
+          qsLines.push(k + ': ' + params[k]);
+        }
+      });
+    }
+    if (qsLines.length === 0) qsLines = ['(no filters)'];
+    qsBox.textContent = qsLines.join(' . ');
+    qsList.innerHTML = qsLines.map(function(l){ return l; }).join('<br>');
+    fetch('/api/taxonomy_tree' + window.location.search).then(function(r){return r.json();}).then(function(d){
+      data = d;
+      loaded = true;
+      loading.style.display = 'none';
+      render();
+      // Wire up font-size controls and export buttons after render.
+      var fontIn = document.getElementById('tax-font-inc');
+      var fontDe = document.getElementById('tax-font-dec');
+      var pngBtn = document.getElementById('tax-export-png');
+      var pdfBtn = document.getElementById('tax-export-pdf');
+      function getSvg(){ return document.querySelector('#tax-container svg'); }
+      function adjustFont(delta){
+        var svg = getSvg(); if (!svg) return;
+        // Each text element has its own inline font-size that overrides the SVG.
+        // Scale all <text> elements by adding delta to their current size.
+        var texts = svg.querySelectorAll('text');
+        for (var i = 0; i < texts.length; i++) {
+          var t = texts[i];
+          var cs = window.getComputedStyle(t);
+          var cur = parseFloat(cs.fontSize) || 11;
+          var newSize = Math.max(4, Math.min(36, cur + delta));
+          t.style.fontSize = newSize + 'px';
+        }
+      }
+      var rotBtn = document.getElementById('tax-rotate-toggle');
+      var labelsHorizontal = false;
+      function applyRotation(){
+        var labels = document.querySelectorAll('#tax-container svg text.wedge-label');
+        // Compound-label elements are always radial; never rotate them.
+        labels.forEach(function(t){
+          var mid = parseFloat(t.getAttribute('data-mid'));
+          var r = parseFloat(t.getAttribute('data-radius'));
+          var x = r * Math.sin(mid);
+          var y = -r * Math.cos(mid);
+          if (labelsHorizontal) {
+            t.setAttribute('transform', 'translate(' + x + ',' + y + ')');
+          } else {
+            var deg = mid * 180 / Math.PI - 90;
+            var flip = deg > 90 || deg < -90;
+            t.setAttribute('transform', 'translate(' + x + ',' + y + ') rotate(' + (flip ? deg + 180 : deg) + ')');
+          }
+        });
+        applyOverlapHiding();
+      }
+      function applyOverlapHiding(){
+        // Iterate text elements in depth order (inner first). Hide any whose
+        // bounding rect intersects an already-shown earlier rect.
+        var labels = Array.from(document.querySelectorAll('#tax-container svg text.wedge-label'));
+        // First reset visibility
+        labels.forEach(function(t){ t.style.display = ''; });
+        // Sort by depth (innermost first) via data-radius ascending
+        labels.sort(function(a,b){
+          return parseFloat(a.getAttribute('data-radius')) - parseFloat(b.getAttribute('data-radius'));
+        });
+        var kept = [];
+        labels.forEach(function(t){
+          var r;
+          try { r = t.getBoundingClientRect(); } catch(e){ return; }
+          if (r.width === 0 || r.height === 0) return;
+          var collide = false;
+          for (var i = 0; i < kept.length; i++) {
+            var k = kept[i];
+            if (!(r.right < k.left || r.left > k.right || r.bottom < k.top || r.top > k.bottom)) {
+              collide = true; break;
+            }
+          }
+          if (collide) {
+            t.style.display = 'none';
+          } else {
+            kept.push(r);
+          }
+        });
+      }
+      // Hook adjustFont to also reapply overlap-hiding after a small delay.
+      var origAdjust = adjustFont;
+      adjustFont = function(delta){
+        origAdjust(delta);
+        setTimeout(applyOverlapHiding, 30);
+      };
+      fontIn.addEventListener('click', function(){adjustFont(1);});
+      fontDe.addEventListener('click', function(){adjustFont(-1);});
+      rotBtn.addEventListener('click', function(){
+        labelsHorizontal = !labelsHorizontal;
+        applyRotation();
+      });
+      // Compound-name toggle (only visible when show_compounds is true).
+      var cmpBtn = document.getElementById('tax-compound-toggle');
+      if (data.show_compounds && cmpBtn) {
+        cmpBtn.style.display = '';
+        cmpBtn.addEventListener('click', function(){
+          // Save current rotation state to preserve it across re-render.
+          var savedHorizontal = labelsHorizontal;
+          data.show_compounds = !data.show_compounds;
+          cmpBtn.textContent = data.show_compounds ? 'Hide compound names' : 'Show compound names';
+          render();
+          // After re-render, restore rotation choice (the new render's listener init
+          // will reset labelsHorizontal to false, then apply the kingdom-count default;
+          // we override both to match what the user had before toggling).
+          setTimeout(function(){
+            if (savedHorizontal !== labelsHorizontal) {
+              labelsHorizontal = savedHorizontal;
+              applyRotation();
+            }
+          }, 50);
+        });
+      }
+      // Default labels horizontal when result set has <= 5 kingdoms.
+      if (typeof kingdomCount !== 'undefined' && kingdomCount <= 5 && !labelsHorizontal) {
+        labelsHorizontal = true;
+        applyRotation();
+      }
+      pngBtn.addEventListener('click', function(){exportPNG();});
+      pdfBtn.addEventListener('click', function(){exportPDF();});
+      // Initial overlap pass after first render.
+      setTimeout(applyOverlapHiding, 100);
+    }).catch(function(err){
+      loading.textContent = 'Failed to load taxonomy data: ' + err;
+    });
+  }
+
+  var kingdomColors = {
+    'plant': '#2d6a4f', 'fungi': '#9d4edd', 'bacteria': '#0077b6',
+    'marine': '#0096c7', 'animal': '#bc4749', 'multi': '#7d8597',
+    'Animalia': '#bc4749', 'Metazoa': '#bc4749',
+    '(unresolved)': '#cccccc'
+  };
+
+  function render(){
+    var width = 900, height = 900, radius = Math.min(width, height) / 2 - 60;
+    if (data && data.show_compounds) radius = radius * 0.8;
+    // Initial-horizontal: if result set has <= 5 kingdoms, start labels horizontal so the first paint is correct.
+    var _initKingdoms = (data.tree && data.tree.children) ? data.tree.children.length : 0;
+    if (typeof labelsHorizontal === 'undefined') var labelsHorizontal = false;
+    if (_initKingdoms <= 5) labelsHorizontal = true;
+    // Single-class detection: count distinct kingdom-level entries in tree.
+    var kingdomCount = (data.tree && data.tree.children) ? data.tree.children.length : 0;
+    var showCompounds = data.show_compounds === true;
+    var rings = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus'];
+    if (showCompounds) rings.push('compound');
+    var ringRadii = rings.map(function(_, i){ return radius * (i + 1) / rings.length; });
+
+    var root = d3.hierarchy(data.tree)
+      .sum(function(d){
+        // For leaf compound nodes, ensure each gets unit weight so partition assigns its own arc.
+        if (d.children && d.children.length > 0) return 0;
+        return d.value || 1;
+      })
+      .sort(function(a, b){ return b.value - a.value; });
+
+    // partition: x positions in [0, 2*pi], y in [0, height]
+    d3.partition().size([2 * Math.PI, rings.length + 1])(root);
+
+    function kingdomOf(d){
+      var n = d;
+      while (n.depth > 1) n = n.parent;
+      return n && n.data ? n.data.name : null;
+    }
+    function colorFor(d){
+      var k = kingdomOf(d);
+      return kingdomColors[k] || '#888';
+    }
+    function strokeFor(d){
+      return colorFor(d);
+    }
+
+    var container = document.getElementById('tax-container');
+    container.innerHTML = '';
+    var svg = d3.select(container).append('svg')
+      .attr('viewBox', [-width/2, -height/2, width, height])
+      .style('width', '100%').style('height', 'auto').style('max-width', width + 'px')
+      .style('font-family', 'sans-serif').style('font-size', '11px');
+
+    // SVG-embedded labels: title (top-left), query (top-right), version (bottom-left).
+    // Positioned in the viewBox's coordinate system: [-width/2, -height/2] is top-left.
+    var labelTopY = -height/2 + 18;
+    var labelBotY = height/2 - 8;
+    var leftX = -width/2 + 8;
+    var rightX = width/2 - 8;
+    svg.append('text').attr('class', 'tax-svg-title tax-export-only')
+      .attr('x', leftX).attr('y', labelTopY)
+      .attr('text-anchor', 'start')
+      .style('font-size', '20px').style('font-weight', '600').style('fill', '#222')
+      .text('Taxonomic distribution');
+    var qs = window.location.search;
+    var qsPretty = '(no filters)';
+    if (qs && qs.length > 1) {
+      qsPretty = qs.substring(1).split('&')
+        .filter(function(p){ return p && p.indexOf('=') > 0; })
+        .map(function(p){ var kv = p.split('='); return kv[0] + '=' + decodeURIComponent(kv[1] || ''); })
+        .join(' . ');
+    }
+    // SVG-internal query: render line-broken so PNG/PDF capture the full criteria list.
+    var qsLines = qsPretty.split(' . ');
+    var qSel = svg.append('g').attr('class', 'tax-svg-query tax-export-only');
+    qsLines.forEach(function(line, idx){
+      qSel.append('text')
+        .attr('x', rightX).attr('y', labelTopY + idx * 15)
+        .attr('text-anchor', 'end')
+        .style('font-size', '13px').style('font-family', 'monospace').style('fill', '#666')
+        .text(line);
+    });
+    svg.append('text').attr('class', 'tax-svg-version tax-export-only')
+      .attr('x', rightX).attr('y', labelBotY)
+      .attr('text-anchor', 'end')
+      .style('font-size', '12px').style('fill', '#888')
+      .text('THEOBROMA v33.x.1 (2026-05)');
+
+    // Per-wedge clockwise alpha gradients live in <defs>.
+    var defs = svg.append('defs');
+
+    // Draw arcs as strokes (interrupted rings)
+    var nodes = root.descendants().filter(function(d){
+      return d.depth >= 1 && d.depth <= rings.length;
+    });
+
+    var arcGen = d3.arc()
+      .innerRadius(function(d){ return ringRadii[d.depth - 1] - 2; })
+      .outerRadius(function(d){ return ringRadii[d.depth - 1] + 2; })
+      .startAngle(function(d){ return d.x0; })
+      .endAngle(function(d){ return d.x1; })
+      .padAngle(function(d){
+        // Per-wedge padding scaled by sibling count.
+        // 6 or fewer siblings: full padding (0.012). 100+ siblings: zero.
+        var siblings = (d.parent && d.parent.children) ? d.parent.children.length : 1;
+        if (siblings <= 6) return 0.012;
+        if (siblings >= 100) return 0;
+        var t = (siblings - 6) / 94;
+        var pad = 0.012 * (1 - t);
+        return Math.min(pad, (d.x1 - d.x0) * 0.3);
+      });
+    // Min angular sweep for hit detection of thin arcs (~3 degrees minimum)
+    var MIN_HIT_SWEEP = 0.05;
+    var hitArcGen = d3.arc()
+      .innerRadius(function(d){ return ringRadii[d.depth - 1] - 14; })
+      .outerRadius(function(d){ return ringRadii[d.depth - 1] + 14; })
+      .startAngle(function(d){
+        var mid = (d.x0 + d.x1) / 2;
+        var sweep = Math.max(d.x1 - d.x0, MIN_HIT_SWEEP);
+        return mid - sweep / 2;
+      })
+      .endAngle(function(d){
+        var mid = (d.x0 + d.x1) / 2;
+        var sweep = Math.max(d.x1 - d.x0, MIN_HIT_SWEEP);
+        return mid + sweep / 2;
+      })
+      .padAngle(0.001);
+
+    // Radial connecting lines between depth and depth+1
+    var connectors = [];
+    nodes.forEach(function(d){
+      if (d.children && d.depth >= 2 && d.depth < rings.length){
+        var mid = (d.x0 + d.x1) / 2;
+        var r0 = ringRadii[d.depth - 2];
+        var r1 = ringRadii[d.depth - 1];
+        connectors.push({
+          x1: r0 * Math.sin(mid), y1: -r0 * Math.cos(mid),
+          x2: r1 * Math.sin(mid), y2: -r1 * Math.cos(mid),
+          color: strokeFor(d)
+        });
+      }
+    });
+    // Per-compound radial connector lines when compound names are visible.
+    if (showCompounds) {
+      var compoundNodes = nodes.filter(function(d){ return d.data && d.data.is_compound; });
+      compoundNodes.forEach(function(d){
+        var mid = (d.x0 + d.x1) / 2;
+        var depthIdx = Math.min(d.depth - 1, ringRadii.length - 1);
+        var r0 = ringRadii[depthIdx - 1] || (ringRadii[depthIdx] - 20);
+        var r1 = ringRadii[depthIdx];
+        connectors.push({
+          x1: r0 * Math.sin(mid), y1: -r0 * Math.cos(mid),
+          x2: r1 * Math.sin(mid), y2: -r1 * Math.cos(mid),
+          color: strokeFor(d)
+        });
+      });
+    }
+
+    svg.append('g').selectAll('line')
+      .data(connectors).join('line')
+      .attr('x1', function(d){return d.x1;}).attr('y1', function(d){return d.y1;})
+      .attr('x2', function(d){return d.x2;}).attr('y2', function(d){return d.y2;})
+      .attr('stroke', function(d){return d.color;})
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.25);
+
+    // Detect partial rings: a node's children that don't fill the parent's angular span.
+    // For each such wedge, build a per-wedge clockwise linear gradient.
+    function isPartial(d){
+      // A wedge is "in a divided ring" when its parent has more than one child.
+      if (!d.parent || !d.parent.children) return false;
+      return d.parent.children.length > 1;
+    }
+    var partialCount = 0;
+    nodes.forEach(function(d, i){
+      if (!isPartial(d)) { return; }
+      partialCount++;
+      var midR = ringRadii[d.depth - 1];
+      var x_start = midR * Math.sin(d.x0);
+      var y_start = -midR * Math.cos(d.x0);
+      var x_end = midR * Math.sin(d.x1);
+      var y_end = -midR * Math.cos(d.x1);
+      var layerAlpha = (d.depth === 1 ? 0.95 : 0.7 - 0.1*d.depth) * 0.5;
+      // Smooth blend: tiny wedges (<5% of full circle) render uniform at layerAlpha,
+      // wedges >=10% get the full gradient, in between is linear blend.
+      var spanFrac = (d.x1 - d.x0) / (2 * Math.PI);
+      var t = Math.max(0, Math.min(1, (spanFrac - 0.05) / 0.05));
+      var aStartFull = 0.85 * layerAlpha + 0.15;
+      var aEndFull = 0.5 * layerAlpha;
+      var aStart = (1 - t) * layerAlpha + t * aStartFull;
+      var aEnd = (1 - t) * layerAlpha + t * aEndFull;
+      var grad = defs.append('linearGradient')
+        .attr('id', 'wedgegrad-' + i)
+        .attr('gradientUnits', 'userSpaceOnUse')
+        .attr('x1', x_start).attr('y1', y_start)
+        .attr('x2', x_end).attr('y2', y_end);
+      grad.append('stop').attr('offset', '0%').attr('stop-color', colorFor(d)).attr('stop-opacity', aStart);
+      grad.append('stop').attr('offset', '100%').attr('stop-color', colorFor(d)).attr('stop-opacity', aEnd);
+      d._partialGradId = 'wedgegrad-' + i;
+    });
+    console.log('TAX partial wedges:', partialCount, 'of', nodes.length);
+    svg.append('g').selectAll('path')
+      .data(nodes.filter(function(d){ return !(d.data && d.data.is_compound); })).join('path')
+      .attr('d', arcGen)
+      .attr('fill', function(d){
+        return d._partialGradId ? 'url(#' + d._partialGradId + ')' : colorFor(d);
+      })
+      .attr('opacity', function(d){
+        // Partial wedges have alpha baked into their gradient; keep their wedge opacity at 1.
+        if (d._partialGradId) return 1;
+        return (d.depth === 1 ? 0.95 : 0.7 - 0.1*d.depth) * 0.5;
+      })
+      .style('pointer-events', 'none');
+
+    // Build a per-unresolved-wedge clockwise gradient for the black spokes only.
+    var unresolvedNodes2 = nodes.filter(function(d){
+      return d.data && d.data.name === '(unresolved)';
+    });
+    unresolvedNodes2.forEach(function(d, i){
+      var midR = ringRadii[d.depth - 1];
+      var x_start = midR * Math.sin(d.x0);
+      var y_start = -midR * Math.cos(d.x0);
+      var x_end = midR * Math.sin(d.x1);
+      var y_end = -midR * Math.cos(d.x1);
+      var grad = defs.append('linearGradient')
+        .attr('id', 'sgrad-' + i)
+        .attr('gradientUnits', 'userSpaceOnUse')
+        .attr('x1', x_start).attr('y1', y_start)
+        .attr('x2', x_end).attr('y2', y_end);
+      grad.append('stop').attr('offset', '0%').attr('stop-color', '#000').attr('stop-opacity', 1);
+      grad.append('stop').attr('offset', '100%').attr('stop-color', '#000').attr('stop-opacity', 0);
+      d._spokeGradId = 'sgrad-' + i;
+    });
+
+    // Radial overlay: for "(unresolved)" wedges, draw thin filled spokes
+    // emanating from the chart center. Spoke + gap each occupy half the
+    // arc -- 50% coverage. Opacity matches the parent wedge's depth fade.
+    var unresolvedNodes = nodes.filter(function(d){
+      return d.data && d.data.name === '(unresolved)';
+    });
+    var spokes = [];
+    var arcSpokeGen = d3.arc()
+      .innerRadius(function(s){ return s.r0; })
+      .outerRadius(function(s){ return s.r1; })
+      .startAngle(function(s){ return s.a0; })
+      .endAngle(function(s){ return s.a1; });
+    unresolvedNodes.forEach(function(d){
+      var r0 = ringRadii[d.depth - 1] - 2;
+      var r1 = ringRadii[d.depth - 1] + 2;
+      var span = d.x1 - d.x0;
+      // Density: roughly 1 spoke per 1.5 degrees of arc, clamped.
+      var nSlots = Math.max(2, Math.min(40, Math.floor(span * 40)));
+      var slotW = span / nSlots;       // 1/4 spoke, 3/4 gap
+      var spokeW = slotW / 4;
+      var op = (d.depth === 1 ? 0.95 : 0.7 - 0.1*d.depth) * 0.5;
+      for (var i = 0; i < nSlots; i++) {
+        var a0 = d.x0 + i * slotW;
+        spokes.push({a0: a0, a1: a0 + spokeW, r0: r0, r1: r1, opacity: op});
+      }
+    });
+    // Spokes inherit the parent unresolved-wedge's clockwise gradient.
+    unresolvedNodes.forEach(function(d){
+      spokes.forEach(function(s){
+        if (s._parentId === undefined && s.a0 >= d.x0 && s.a1 <= d.x1) {
+          s._parentId = d._spokeGradId;
+        }
+      });
+    });
+    svg.append('g').selectAll('path.hash')
+      .data(spokes).join('path')
+      .attr('class', 'hash')
+      .attr('d', arcSpokeGen)
+      .attr('fill', function(s){return s._parentId ? 'url(#' + s._parentId + ')' : '#000';})
+      .attr('opacity', function(s){return s.opacity;})
+      .style('pointer-events', 'none');
+
+    svg.append('g').selectAll('path.hit')
+      .data(nodes.filter(function(d){ return !(d.data && d.data.is_compound); })).join('path')
+      .attr('class', 'hit')
+      .attr('d', hitArcGen)
+      .attr('fill', 'transparent')
+      .style('cursor', 'pointer')
+      .on('click', function(event, d){
+        var rank = rings[d.depth - 1];
+        var name = d.data.name;
+        if (!name || name === '(unresolved)') return;
+        if (rank === 'kingdom') {
+          window.location.href = '/browse?kingdom=' + encodeURIComponent(name);
+        } else if (rank === 'family' || rank === 'genus' ||
+                   rank === 'order' || rank === 'class' || rank === 'phylum') {
+          // Walk ancestors to build a multi-filter URL: each ancestor (except root)
+          // adds a filter constraint, with the clicked node as primary type/q.
+          var rankToType = function(r){ return r === 'class' ? 'tax_class' : r; };
+          var trail = d.ancestors().reverse(); // root..clicked
+          // trail[0] is root, trail[1] is kingdom (depth=1), ..., trail[N] is clicked
+          var clicked = trail[trail.length - 1];
+          var clickedRank = rings[clicked.depth - 1];
+          var clickedType = rankToType(clickedRank);
+          var url = '/search?type=' + clickedType + '&q=' + encodeURIComponent(clicked.data.name);
+          var extraIdx = 1;
+          for (var i = 1; i < trail.length - 1; i++) {
+            var anc = trail[i];
+            if (!anc.data.name || anc.data.name === '(unresolved)') continue;
+            var ancRank = rings[anc.depth - 1];
+            if (!ancRank) continue;
+            var ancType = (ancRank === 'kingdom') ? 'kingdom' : rankToType(ancRank);
+            url += '&extra_type_' + extraIdx + '=' + ancType +
+                   '&extra_q_' + extraIdx + '=' + encodeURIComponent(anc.data.name);
+            extraIdx++;
+            if (extraIdx > 5) break; // /search supports extra_type_1..5
+          }
+          window.location.href = url;
+        } else {
+          window.location.href = '/search?type=organism&q=' + encodeURIComponent(name);
+        }
+      })
+      .on('mousemove', function(event, d){
+        var trail = d.ancestors().map(function(n){return n.data.name;}).reverse().join(' \u203a ');
+        document.getElementById('tax-breadcrumb').textContent = trail;
+        document.getElementById('tax-detail').innerHTML =
+          '<strong>' + d.data.name + '</strong> (' + rings[d.depth - 1] + '): ' +
+          d.value.toLocaleString() + ' compound-organism associations';
+        var tip = document.getElementById('tax-floating-tip');
+        tip.textContent = d.data.name + ' (' + rings[d.depth - 1] + ', ' + d.value.toLocaleString() + ') \u2014 click to search';
+        tip.style.display = '';
+        tip.style.left = (event.clientX + 12) + 'px';
+        tip.style.top = (event.clientY + 12) + 'px';
+      })
+      .on('mouseleave', function(){
+        document.getElementById('tax-breadcrumb').textContent = 'THEOBROMA';
+        document.getElementById('tax-detail').innerHTML = '';
+        document.getElementById('tax-floating-tip').style.display = 'none';
+      });
+
+    // Labels: inner rings only (kingdom to family for normal mode, all but compound for compound mode).
+    var maxLabelDepth = rings.length - 1;  // skip outermost ring
+    var labelNodes = nodes.filter(function(d){
+      if (d.depth > maxLabelDepth) return false;
+      if (d.data.name === '(unresolved)') return false;
+      if (d.data.is_compound) return false;
+      var arcLen = (d.x1 - d.x0) * ringRadii[d.depth - 1];
+      return arcLen > 8;
+    });
+    // Compound labels (if applicable): render at outermost ring with full names.
+    var compoundLabels = showCompounds ? nodes.filter(function(d){
+      return d && d.data && d.data.is_compound === true;
+    }) : [];
+    console.log('TAX compoundLabels:', compoundLabels.length, 'of nodes:', nodes.length);
+
+    var wedgeLabels = svg.append('g').attr('class', 'wedge-labels').selectAll('text')
+      .data(labelNodes).join('text')
+      .attr('class', 'wedge-label')
+      .attr('data-mid', function(d){ return (d.x0 + d.x1) / 2; })
+      .attr('data-radius', function(d){ return ringRadii[d.depth - 1]; })
+      .attr('transform', function(d){
+        var mid = (d.x0 + d.x1) / 2;
+        var r = ringRadii[d.depth - 1];
+        var x = r * Math.sin(mid);
+        var y = -r * Math.cos(mid);
+        if (labelsHorizontal) {
+          return 'translate(' + x + ',' + y + ')';
+        }
+        var deg = mid * 180 / Math.PI - 90;
+        var flip = deg > 90 || deg < -90;
+        return 'translate(' + x + ',' + y + ') rotate(' + (flip ? deg + 180 : deg) + ')';
+      })
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.35em')
+      .style('font-size', function(d){ return Math.max(10, 14 - d.depth) + 'px'; })
+      .style('fill', '#222')
+      .style('paint-order', 'stroke')
+      .style('stroke', 'white')
+      .style('stroke-width', '3px')
+      .text(function(d){ return d.data.name; });
+
+    // Compound-name leaves: render as outermost ring along radial spokes.
+    // Each compound gets a clickable <a> with two lines: truncated name + THEO id.
+    if (compoundLabels.length > 0) {
+      var BASE_URL = window.location.origin;
+      var cmpGroup = svg.append('g').attr('class', 'compound-labels');
+      compoundLabels.forEach(function(d){
+        var mid = (d.x0 + d.x1) / 2;
+        var r = ringRadii[Math.min(d.depth - 1, ringRadii.length - 1)] + 12;
+        var x = r * Math.sin(mid);
+        var y = -r * Math.cos(mid);
+        var deg = mid * 180 / Math.PI - 90;
+        var flip = deg > 90 || deg < -90;
+        var anchor = flip ? 'end' : 'start';
+        var rotDeg = flip ? deg + 180 : deg;
+        var transform = 'translate(' + x + ',' + y + ') rotate(' + rotDeg + ')';
+        var compUrl = BASE_URL + '/compound/' + encodeURIComponent(d.data.comp_id);
+        var a = cmpGroup.append('a')
+          .attr('xlink:href', compUrl)
+          .attr('href', compUrl)
+          .attr('target', '_self')
+          .style('cursor', 'pointer');
+        var fullName = d.data.name || d.data.comp_id || '';
+        var truncated = fullName.length > 15 ? fullName.substring(0, 15) + '...' : fullName;
+        // Line 1: compound name (truncated).
+        a.append('text')
+          .attr('class', 'compound-label')
+          .attr('transform', transform)
+          .attr('text-anchor', anchor)
+          .attr('dy', '-0.1em')
+          .style('font-size', '11px')
+          .style('fill', '#333')
+          .text(truncated)
+          .append('title').text(fullName + ' (' + d.data.comp_id + ')');
+        // Line 2: THEO id, slightly smaller.
+        a.append('text')
+          .attr('class', 'compound-label')
+          .attr('transform', transform)
+          .attr('text-anchor', anchor)
+          .attr('dy', '1.1em')
+          .style('font-size', '9px')
+          .style('fill', '#666')
+          .text(d.data.comp_id);
+      });
+    }
+  }
+
+  function svgToBlob(svg, type){
+    var ser = new XMLSerializer().serializeToString(svg);
+    return new Blob([ser], {type: type || 'image/svg+xml;charset=utf-8'});
+  }
+  function exportPNG(){
+    var container = document.getElementById('tax-container');
+    container.classList.add('tax-exporting');
+    var svg = document.querySelector('#tax-container svg'); if (!svg) { container.classList.remove('tax-exporting'); return; }
+    var ser = new XMLSerializer().serializeToString(svg);
+    var img = new Image();
+    var blob = new Blob([ser], {type:'image/svg+xml;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    img.onload = function(){
+      var canvas = document.createElement('canvas');
+      var W = 2000, H = 2000;
+      canvas.width = W; canvas.height = H;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0,0,W,H);
+      ctx.drawImage(img, 0, 0, W, H);
+      canvas.toBlob(function(b){
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = 'theobroma_taxonomy_' + Date.now() + '.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        container.classList.remove('tax-exporting');
+      }, 'image/png');
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  }
+  function exportPDF(){
+    var container = document.getElementById('tax-container');
+    container.classList.add('tax-exporting');
+    // Rasterize SVG to a PNG at the same dimensions as exportPNG, then embed
+    // via jsPDF and trigger direct file download (no print dialog).
+    var svg = document.querySelector('#tax-container svg'); if (!svg) return;
+    if (!window.jspdf) { alert('PDF library not loaded yet, please try again.'); return; }
+    var ser = new XMLSerializer().serializeToString(svg);
+    var blob = new Blob([ser], {type:'image/svg+xml;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function(){
+      var W = 2000, H = 2000;
+      var canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'white'; ctx.fillRect(0,0,W,H);
+      ctx.drawImage(img, 0, 0, W, H);
+      var pngData = canvas.toDataURL('image/png');
+      URL.revokeObjectURL(url);
+      var jsPDF = window.jspdf.jsPDF;
+      // Use a custom PDF page size matching the image dimensions (in points).
+      // 1 point = 1/72 inch. 2000 px at 72 dpi = 2000 points.
+      var pdf = new jsPDF({orientation:'portrait', unit:'pt', format:[W, H]});
+      pdf.addImage(pngData, 'PNG', 0, 0, W, H);
+      pdf.save('theobroma_taxonomy_' + Date.now() + '.pdf');
+      container.classList.remove('tax-exporting');
+    };
+    img.src = url;
+  }
+})();
+</script>

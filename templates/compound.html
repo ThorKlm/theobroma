@@ -75,6 +75,24 @@
             {% if taxonomy and taxonomy[0].genus %}
             <tr><th>Genus</th><td>{{ taxonomy|map(attribute='genus')|select|list|unique|join(', ') or '&mdash;'|safe }}</td></tr>
             <tr><th>Family</th><td>{{ taxonomy|map(attribute='family')|select|list|unique|join(', ') or '&mdash;'|safe }}</td></tr>
+            {% set continents = [] %}
+            {% set regions = [] %}
+            {% for t in taxonomy %}
+              {% if t.native_distribution %}
+                {% for c in (t.native_distribution.continents or []) %}
+                  {% if c and c not in continents %}{% set _ = continents.append(c) %}{% endif %}
+                {% endfor %}
+                {% for r in (t.native_distribution.regions or []) %}
+                  {% if r and r not in regions %}{% set _ = regions.append(r) %}{% endif %}
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+            {% if continents %}
+            <tr><th>Native to (continents)</th><td style="font-size:0.85rem;">{{ continents|map('lower')|map('capitalize')|join(', ') }} <span style="font-size:0.7rem;color:var(--text-muted);">(WCVP)</span></td></tr>
+            {% endif %}
+            {% if regions %}
+            <tr><th>Native to (regions)</th><td style="font-size:0.8rem;">{{ regions|join(', ') }} <span style="font-size:0.7rem;color:var(--text-muted);">(WCVP TDWG level 2)</span></td></tr>
+            {% endif %}
             {% else %}
             <tr><th>Genus / Family</th><td><span style="color:var(--text-muted);">not resolved via WCVP</span></td></tr>
             {% endif %}

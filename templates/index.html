@@ -6,7 +6,7 @@
     <h1>THEOBROMA</h1>
     <p class="subtitle">An open multi-kingdom natural products database aggregating 29 source databases across five biological kingdoms (plant, fungi, bacteria, animal, marine) plus a multi-kingdom category and 13 resolved geographic regions, with per-compound license tiers for legally-aware drug discovery.</p>
     <div class="stat-row">
-        <a href="/search" class="stat-item"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-label">Compounds</div></a>
+        <a href="/browse" class="stat-item"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-label">Compounds</div></a>
         <a href="/sources" class="stat-item"><div class="stat-num">{{ n_sources }}</div><div class="stat-label">Source databases</div></a>
         <a href="/statistics" class="stat-item"><div class="stat-num">{{ kingdoms|length }}</div><div class="stat-label">Kingdoms</div></a>
         <a href="/statistics" class="stat-item"><div class="stat-num">{{ n_regions }}</div><div class="stat-label">Regions</div></a>
@@ -40,6 +40,11 @@
             <option value="source">Source database</option>
             <option value="region">Geographic region</option>
             <option value="kingdom">Kingdom</option>
+            <option value="genus">Genus</option>
+            <option value="family">Family</option>
+            <option value="order">Order</option>
+            <option value="tax_class">Class (taxonomic)</option>
+            <option value="phylum">Phylum</option>
             <option value="class">Chemical class</option>
         </select>
         <div class="search-input-wrap">
@@ -48,8 +53,62 @@
         </div>
         <button type="submit">Search</button>
     </form>
+    <div id="extra-filters-home" style="margin-top:0.5rem;"></div>
+    <div style="margin-top:0.5rem;">
+        <a href="#" id="add-filter-btn-home" onclick="addFilterHome();return false;" class="add-filter-link" style="font-size:0.85rem;color:var(--accent);text-decoration:none;border:1px dashed var(--border);padding:0.3rem 0.6rem;border-radius:var(--radius);background:rgba(0,0,0,0.02);">+ Add filter</a>
+    </div>
     <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=Triterpenoids&type=class">Triterpenoids</a> &middot; <a href="/search?q=fungi&type=kingdom">fungi</a> &middot; <span class="hint-key">/</span> to focus</p>
 </div>
+<script>
+var filterCountHome = 0;
+function addFilterHome() {
+    filterCountHome++;
+    var container = document.getElementById('extra-filters-home');
+    var row = document.createElement('div');
+    row.className = 'search-row extra-filter';
+    row.style.cssText = 'display:flex;gap:0.5rem;margin-top:0.5rem;align-items:center;';
+    var idx = filterCountHome;
+    row.innerHTML = '<span class="and-label" style="font-size:0.8rem;color:var(--text-muted);">AND</span>' +
+        '<select name="extra_type_' + idx + '" style="font-size:0.85rem;padding:0.4rem;">' +
+        '<option value="">-- select type --</option>' +
+        '<option value="name">Compound name</option>' +
+        '<option value="organism">Source organism</option>' +
+        '<option value="source">Source database</option>' +
+        '<option value="region">Geographic region</option>' +
+        '<option value="kingdom">Kingdom</option>' +
+        '<option value="genus">Genus</option>' +
+        '<option value="family">Family</option>' +
+        '<option value="order">Order</option>' +
+        '<option value="tax_class">Class (taxonomic)</option>' +
+        '<option value="phylum">Phylum</option>' +
+        '<option value="class">Chemical class</option>' +
+        '</select>' +
+        '<input type="text" name="extra_q_' + idx + '" placeholder="filter value..." style="flex:1;padding:0.4rem;">' +
+        '<a href="#" onclick="this.parentNode.remove();return false;" style="font-size:0.8rem;color:#c0392b;">x</a>';
+    container.appendChild(row);
+    // The form needs to know to include extra params; since they're inside the form-following div,
+    // we need to move them inside the form, or change the form to wrap everything
+}
+
+// Ensure the form sweeps up all filter values on submit by appending hidden inputs from extra rows
+document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('main-search');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var extras = document.querySelectorAll('#extra-filters-home select, #extra-filters-home input');
+            extras.forEach(function(el) {
+                if (el.name && el.value) {
+                    var hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = el.name;
+                    hidden.value = el.value;
+                    form.appendChild(hidden);
+                }
+            });
+        });
+    }
+});
+</script>
 <script>
 (function(){
     var typesel = document.getElementById('search-type');

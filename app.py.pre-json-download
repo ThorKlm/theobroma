@@ -202,8 +202,6 @@ def search():
     if not q and not has_extra and not has_range and st not in ("mw",):
         return render_template("search.html", results=[], query="", search_type=st,
                                page=1, total=0, pages=0, sort=sort, order=order, per_page=per_page)
-    if not q and (has_extra or has_range):
-        st = "_base"
     # THEO_id direct redirect
     if re.match(r"^THEO_\d{7}$", q):
         with get_db() as conn:
@@ -247,15 +245,14 @@ def search():
         "kingdom": (f"SELECT * FROM compounds WHERE LOWER(kingdom) = LOWER(%s) {oc}", (q,)),
         "genus":   ((f"SELECT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.genus) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.genus ILIKE %s {oc}", (f"%{q}%",))),
         "family":  ((f"SELECT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.family) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.family ILIKE %s {oc}", (f"%{q}%",))),
-        "order":   ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'order') = LOWER(%s) {oc}", (q, q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
-        "tax_class":   ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s) {oc}", (q, q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
-        "phylum":  ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'phylum') = LOWER(%s) {oc}", (q, q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
+        "order":   ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) {oc}", (q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s {oc}", (f"%{q}%", f"%{q}%"))),
+        "tax_class":   ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) {oc}", (q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s {oc}", (f"%{q}%", f"%{q}%"))),
+        "phylum":  ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) {oc}", (q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s {oc}", (f"%{q}%", f"%{q}%"))),
         "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%")),
         "npclassifier_class": (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%")),
         "classyfire_class":   (f"SELECT * FROM compounds WHERE classyfire_superclass ILIKE %s {oc}", (f"%{q}%",)),
         "pathway": (f"SELECT * FROM compounds WHERE np_pathway ILIKE %s {oc}", (f"%{q}%",)),
         "mw":      (f"SELECT * FROM compounds WHERE 1=1 {oc}", ()),
-        "_base":   (f"SELECT * FROM compounds WHERE 1=1 {oc}", ()),
     }
     query, params = tq.get(st, tq["name"])
     # Handle extra AND filters
@@ -276,11 +273,6 @@ def search():
             "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
             "classyfire_class": "classyfire_superclass ILIKE %s",
             "pathway": "np_pathway ILIKE %s",
-            "genus":  "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND LOWER(ct.genus) = LOWER(%s))",
-            "family": "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND LOWER(ct.family) = LOWER(%s))",
-            "order":  "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND (LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'order') = LOWER(%s)))",
-            "tax_class": "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND (LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s)))",
-            "phylum": "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND (LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'phylum') = LOWER(%s)))",
         }
         esql = emap.get(et)
         if esql:
@@ -297,12 +289,6 @@ def search():
                 # Controlled-vocabulary equality (LOWER = LOWER), no wildcards.
                 extra_clauses.append(esql)
                 extra_params.append(eq)
-            elif et in ("genus", "family"):
-                extra_clauses.append(esql)
-                extra_params.append(eq)
-            elif et in ("order", "tax_class", "phylum"):
-                extra_clauses.append(esql)
-                extra_params.extend([eq, eq, eq])
             else:
                 extra_clauses.append(esql)
                 extra_params.append(f"%{eq}%")
@@ -353,21 +339,12 @@ def search():
                 r["name"] = nm[0].upper() + nm[1:]
             deduped.append(r)
         results = deduped
-    # Fallback: if name is empty or looks like Mol_xxxx/placeholder, prefer ChEBI IUPAC, then first synonym.
-    placeholder_rows = [r for r in results
+        total = len(results) if len(results) < total else total
+    # Fallback: if name is empty or looks like Mol_xxxx/placeholder, use first synonym
+    empty_name_iks = [r.get("inchikey") for r in results
                        if not r.get("name") or str(r.get("name")).startswith("Mol_")
                        or str(r.get("name")).startswith("NPO") or str(r.get("name")).startswith("SA_")
                        or str(r.get("name")) == "nan"]
-    # First pass: ChEBI IUPAC for compounds that have it.
-    for r in placeholder_rows:
-        iupac = r.get("chebi_iupac_name")
-        if iupac:
-            r["name"] = iupac.split(";")[0].strip()  # first IUPAC variant
-    # Second pass: first synonym for remaining placeholders (legacy fallback).
-    empty_name_iks = [r.get("inchikey") for r in placeholder_rows
-                       if (not r.get("name") or str(r.get("name")).startswith("Mol_")
-                           or str(r.get("name")).startswith("NPO") or str(r.get("name")).startswith("SA_")
-                           or str(r.get("name")) == "nan")]
     empty_name_iks = [ik for ik in empty_name_iks if ik]
     if empty_name_iks:
         with get_db() as conn2:
@@ -465,16 +442,6 @@ def compound_detail(comp_id):
             with conn2.cursor() as cur2:
                 cur2.execute("SELECT synonym FROM compound_synonyms WHERE inchikey=%s LIMIT 20", (c["inchikey"],))
                 synonyms = [r[0] for r in cur2.fetchall()]
-    # Fallback for placeholder names: prefer ChEBI IUPAC, else first synonym.
-    nm = str(c.get("name") or "")
-    is_placeholder = (not nm or nm.startswith("Mol_") or nm.startswith("NPO")
-                      or nm.startswith("SA_") or nm == "nan")
-    if is_placeholder:
-        iupac = c.get("chebi_iupac_name")
-        if iupac:
-            c["name"] = iupac.split(";")[0].strip()
-        elif synonyms:
-            c["name"] = synonyms[0]
     with get_db() as conn3:
         with conn3.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur3:
             try:
@@ -486,7 +453,7 @@ def compound_detail(comp_id):
     with get_db() as conn4:
         with conn4.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur4:
             try:
-                cur4.execute("""SELECT token, accepted_taxon, genus, family, native_distribution
+                cur4.execute("""SELECT token, accepted_taxon, genus, family
                                 FROM compound_taxonomy
                                 WHERE comp_id = %s
                                 ORDER BY (genus IS NULL), token""", (c["comp_id"],))
@@ -640,29 +607,6 @@ def api_taxonomy_tree():
     search_type = request.args.get("type", "")
     search_q = request.args.get("q", "").strip()
     exact = request.args.get("exact", "false").lower() == "true"
-    # Apply search-page "extra_type_N / extra_q_N" filters (1..5) by reusing
-    # the same per-rank SQL patterns we use for the primary search clause.
-    for i in range(1, 6):
-        et = request.args.get(f"extra_type_{i}", "").strip()
-        eq = request.args.get(f"extra_q_{i}", "").strip()
-        if not et or not eq:
-            continue
-        extra_clauses = {
-            "name": (("LOWER(c.name) = LOWER(%s)", (eq,)) if exact else ("c.name ILIKE %s", (f"%{eq}%",))),
-            "organism": (("LOWER(c.source_organism) = LOWER(%s)", (eq,)) if exact else ("c.source_organism ILIKE %s", (f"%{eq}%",))),
-            "kingdom": ("LOWER(c.kingdom) = LOWER(%s)", (eq,)),
-            "source": ("(LOWER(c.source_db) = LOWER(%s) OR c.all_sources LIKE %s)", (eq, f"%{eq}%")),
-            "region": ("LOWER(c.region) = LOWER(%s)", (eq,)),
-            "genus": (("LOWER(ct.genus) = LOWER(%s)", (eq,)) if exact else ("ct.genus ILIKE %s", (f"%{eq}%",))),
-            "family": (("LOWER(ct.family) = LOWER(%s)", (eq,)) if exact else ("ct.family ILIKE %s", (f"%{eq}%",))),
-            "order": (("(LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'order') = LOWER(%s))", (eq, eq, eq)) if exact else ("(ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
-            "tax_class": (("(LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s))", (eq, eq, eq)) if exact else ("(ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
-            "phylum": (("(LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'phylum') = LOWER(%s))", (eq, eq, eq)) if exact else ("(ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
-        }
-        ec = extra_clauses.get(et)
-        if ec:
-            where.append(ec[0])
-            params.extend(ec[1])
     if search_type and search_q:
         type_clauses = {
             "name": (("LOWER(c.name) = LOWER(%s)", (search_q,)) if exact else ("c.name ILIKE %s", (f"%{search_q}%",))),
@@ -712,9 +656,9 @@ def api_taxonomy_tree():
                      ELSE ct.ncbi_lineage->>'kingdom' END,
                 ct.worms_lineage->>'kingdom'
             ) AS lineage_kingdom,
-            COALESCE(ct.ncbi_lineage->>'phylum',  ct.worms_lineage->>'phylum',  ct.wcvp_lineage->>'phylum')  AS phylum,
-            COALESCE(ct.ncbi_lineage->>'class',   ct.worms_lineage->>'class',   ct.wcvp_lineage->>'class')   AS class,
-            COALESCE(ct.ncbi_lineage->>'order',   ct.worms_lineage->>'order',   ct.wcvp_lineage->>'order')   AS taxon_order,
+            COALESCE(ct.ncbi_lineage->>'phylum',  ct.worms_lineage->>'phylum')  AS phylum,
+            COALESCE(ct.ncbi_lineage->>'class',   ct.worms_lineage->>'class')   AS class,
+            COALESCE(ct.ncbi_lineage->>'order',   ct.worms_lineage->>'order')   AS taxon_order,
             COALESCE(ct.family, ct.ncbi_lineage->>'family', ct.worms_lineage->>'family') AS family,
             COALESCE(ct.genus,  ct.ncbi_lineage->>'genus',  ct.worms_lineage->>'genus')  AS genus,
             COUNT(DISTINCT c.comp_id) AS n
@@ -744,59 +688,18 @@ def api_taxonomy_tree():
         theobroma_k, lineage_k, phylum, klass, order_, family, genus, n = r
         n = int(n)
         total += n
+        # Always use theobroma_kingdom (lowercase, normalized) as the kingdom label
+        # to avoid Fungi/fungi, Plantae/plant, Animalia/marine duplication
         insert(root, [theobroma_k, phylum, klass, order_, family, genus], n)
     root['value'] = total
-    # When the result set is small, fetch compound names so the sunburst can
-    # render compound nodes as a 7th ring under each genus.
-    compounds_by_path = {}
-    show_compounds = total > 0 and total <= 50
-    if show_compounds:
-        sql_compounds = f"""
-            SELECT
-                c.comp_id,
-                COALESCE(c.name, '') AS name,
-                c.kingdom AS theobroma_kingdom,
-                COALESCE(ct.ncbi_lineage->>'phylum',  ct.worms_lineage->>'phylum',  ct.wcvp_lineage->>'phylum')  AS phylum,
-                COALESCE(ct.ncbi_lineage->>'class',   ct.worms_lineage->>'class',   ct.wcvp_lineage->>'class')   AS class,
-                COALESCE(ct.ncbi_lineage->>'order',   ct.worms_lineage->>'order',   ct.wcvp_lineage->>'order')   AS taxon_order,
-                COALESCE(ct.family, ct.ncbi_lineage->>'family', ct.worms_lineage->>'family') AS family,
-                COALESCE(ct.genus,  ct.ncbi_lineage->>'genus',  ct.worms_lineage->>'genus')  AS genus
-            FROM compounds c
-            LEFT JOIN compound_taxonomy ct ON c.comp_id = ct.comp_id
-            {where_sql}
-            ORDER BY c.comp_id
-        """
-        with get_db() as conn2:
-            with conn2.cursor() as cur2:
-                cur2.execute(sql_compounds, params)
-                seen_per_path = set()
-                for row in cur2.fetchall():
-                    cid, nm, tk, ph, cl, od, fa, gn = row
-                    if (cid, tk, ph, cl, od, fa, gn) in seen_per_path: continue
-                    seen_per_path.add((cid, tk, ph, cl, od, fa, gn))
-                    path = tuple(x or '(unresolved)' for x in (tk, ph, cl, od, fa, gn))
-                    compounds_by_path.setdefault(path, []).append({'comp_id': cid, 'name': nm})
-    def to_d3(node, path=()):
+    def to_d3(node):
         out = {'name': node['name'], 'value': node['value']}
         if 'children' in node:
-            ch = [to_d3(c, path + (node['name'],)) for c in node['children'].values()]
+            ch = [to_d3(c) for c in node['children'].values()]
             ch.sort(key=lambda x: -x['value'])
             out['children'] = ch
-        elif show_compounds:
-            # Leaf node (genus level) -- attach compound leaves if available.
-            # path is (root, kingdom, phylum, class, order, family); we are at genus.
-            leaf_path = path[1:] + (node['name'],)  # drop 'THEOBROMA'
-            comps = compounds_by_path.get(leaf_path, [])
-            if comps:
-                out['children'] = [
-                    {'name': (c['name'] or c['comp_id']),
-                     'value': 1,
-                     'comp_id': c['comp_id'],
-                     'is_compound': True}
-                    for c in comps
-                ]
         return out
-    return jsonify({"tree": to_d3(root), "total_compounds": total, "distinct_paths": len(rows), "show_compounds": show_compounds})
+    return jsonify({"tree": to_d3(root), "total_compounds": total, "distinct_paths": len(rows)})
 
 @app.route("/download")
 def download_page():
@@ -805,8 +708,7 @@ def download_page():
     for fn in ["theobroma_final.csv","theobroma_all.sdf"]:
         p = os.path.join(d, fn)
         if os.path.exists(p):
-            files.append({"name":fn, "fmt":fn.split(".")[-1].upper(), "size":f"{os.path.getsize(p)/1024/1024:.1f} MB", "url":f"/download/{fn}"})
-    files.append({"name":"theobroma_all.json", "fmt":"JSON", "size":"streamed", "url":"/api/bulk?format=json"})
+            files.append({"name":fn, "fmt":fn.split(".")[-1].upper(), "size":f"{os.path.getsize(p)/1024/1024:.1f} MB"})
     return render_template("download.html", files=files)
 
 @app.route("/download/<filename>")
@@ -879,9 +781,9 @@ def api_search():
               "kingdom":"LOWER(kingdom) = LOWER(%s)","organism": ("LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s"),
               "genus": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND LOWER(ct.genus) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.genus ILIKE %s)"),
               "family": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND LOWER(ct.family) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.family ILIKE %s)"),
-              "order": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'order') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s))"),
-              "tax_class": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s))"),
-              "phylum": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'phylum') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s))"),
+              "order": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s))"),
+              "tax_class": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s))"),
+              "phylum": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s))"),
               "region":"LOWER(region) = LOWER(%s)","source":"LOWER(source_db) = LOWER(%s)",
               "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s",
               "npclassifier_class":"np_class ILIKE %s OR inferred_class ILIKE %s",
@@ -897,7 +799,7 @@ def api_search():
         elif st == "classyfire_class":
             pm = (f"%{q}%",)
         elif st in ("tax_class", "order", "phylum"):
-            pm = (q, q, q) if exact else (f"%{q}%", f"%{q}%", f"%{q}%")
+            pm = (q, q) if exact else (f"%{q}%", f"%{q}%")
         else:
             pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (q if st in ("kingdom","region","source") else q)
         with get_db() as conn:
@@ -929,17 +831,12 @@ def api_search():
 
 @app.route("/api/compound/<comp_id>")
 def api_compound(comp_id):
-    """Get full compound details by comp_id, including ADMET predictions."""
+    """Get full compound details by comp_id."""
     with get_db() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM compounds WHERE comp_id=%s", (comp_id,))
             c = cur.fetchone()
-            if not c: return jsonify({"error":"compound not found"}), 404
-            cur.execute("SELECT * FROM admet WHERE comp_id=%s", (comp_id,))
-            a = cur.fetchone()
-            if a:
-                a.pop("comp_id", None)
-                c["admet"] = dict(a)
+    if not c: return jsonify({"error":"compound not found"}), 404
     return jsonify(c)
 
 @app.route("/api/autocomplete")

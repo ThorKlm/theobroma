@@ -173,6 +173,8 @@ def _exact_flag():
 def search():
     q = request.args.get("q","").strip()
     exact = _exact_flag()
+    if request.args.get("type","") in ("phylum", "tax_class", "order", "family", "genus", "kingdom"):
+        exact = True
     st_preview = request.args.get("type","name")
     if st_preview == "smiles" and q:
         try:
@@ -245,11 +247,11 @@ def search():
         "organism":((f"SELECT * FROM compounds WHERE LOWER(source_organism) = LOWER(%s) {oc if request.args.get('sort') else ''}", (q,)) if exact else (f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",))),
         "region":  (f"SELECT * FROM compounds WHERE LOWER(region) = LOWER(%s) {oc}", (q,)),
         "kingdom": (f"SELECT * FROM compounds WHERE LOWER(kingdom) = LOWER(%s) {oc}", (q,)),
-        "genus":   ((f"SELECT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.genus) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.genus ILIKE %s {oc}", (f"%{q}%",))),
-        "family":  ((f"SELECT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.family) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.family ILIKE %s {oc}", (f"%{q}%",))),
-        "order":   ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'order') = LOWER(%s) {oc}", (q, q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
-        "tax_class":   ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s) {oc}", (q, q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
-        "phylum":  ((f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'phylum') = LOWER(%s) {oc}", (q, q, q)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
+        "genus":   ((f"SELECT c.* FROM compounds c WHERE c.comp_id IN (SELECT comp_id FROM compound_taxonomy WHERE LOWER(genus) = LOWER(%s)) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.genus ILIKE %s {oc}", (f"%{q}%",))),
+        "family":  ((f"SELECT c.* FROM compounds c WHERE c.comp_id IN (SELECT comp_id FROM compound_taxonomy WHERE LOWER(family) = LOWER(%s)) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.family ILIKE %s {oc}", (f"%{q}%",))),
+        "order":   ((f"SELECT c.* FROM compounds c WHERE c.comp_id IN (SELECT comp_id FROM compound_taxonomy WHERE order_any = LOWER(%s)) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
+        "tax_class":   ((f"SELECT c.* FROM compounds c WHERE c.comp_id IN (SELECT comp_id FROM compound_taxonomy WHERE class_any = LOWER(%s)) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
+        "phylum":  ((f"SELECT c.* FROM compounds c WHERE c.comp_id IN (SELECT comp_id FROM compound_taxonomy WHERE phylum_any = LOWER(%s)) {oc}", (q,)) if exact else (f"SELECT DISTINCT c.* FROM compounds c JOIN compound_taxonomy ct ON ct.comp_id = c.comp_id WHERE ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%"))),
         "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%")),
         "npclassifier_class": (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%")),
         "classyfire_class":   (f"SELECT * FROM compounds WHERE classyfire_superclass ILIKE %s {oc}", (f"%{q}%",)),
@@ -269,18 +271,18 @@ def search():
         emap = {
             "name": "LOWER(name) = LOWER(%s)" if exact else "LOWER(name) LIKE %s",
             "organism": "LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s",
-            "kingdom": "LOWER(kingdom) = LOWER(%s)",
-            "region": "LOWER(region) = LOWER(%s)",
-            "source": "LOWER(source_db) = LOWER(%s)",
+            "kingdom": "LOWER(base.kingdom) = LOWER(%s)",
+            "region": "LOWER(base.region) = LOWER(%s)",
+            "source": "LOWER(base.source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
             "classyfire_class": "classyfire_superclass ILIKE %s",
             "pathway": "np_pathway ILIKE %s",
             "genus":  "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND LOWER(ct.genus) = LOWER(%s))",
             "family": "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND LOWER(ct.family) = LOWER(%s))",
-            "order":  "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND (LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'order') = LOWER(%s)))",
-            "tax_class": "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND (LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s)))",
-            "phylum": "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND (LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'phylum') = LOWER(%s)))",
+            "order":  "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND ct.order_any = LOWER(%s))",
+            "tax_class": "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND ct.class_any = LOWER(%s))",
+            "phylum": "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = base.comp_id AND ct.phylum_any = LOWER(%s))",
         }
         esql = emap.get(et)
         if esql:
@@ -336,8 +338,12 @@ def search():
         else:
             query = f"SELECT * FROM ({query}) AS base WHERE {extra_where}"
         params = params + tuple(extra_params)
+    import time as _time; _t = _time.time()
+    print(f"PROF query: {query[:200]}", flush=True)
+    print(f"PROF params: {params}", flush=True)
     with get_db() as conn:
         results, total, pages = paginate(query, params, page, per_page, conn)
+    print(f"PROF paginate {(_time.time()-_t)*1000:.0f}ms total={total}", flush=True); _t = _time.time()
     if st == "name" and results:
         seen = {}
         deduped = []
@@ -385,7 +391,7 @@ def search():
                 r["name"] = s[0].upper() + s[1:] if s else nm
     # Kingdom donut for the full search result set, by wrapping the search SQL as a subquery
     thumb = None
-    if total > 0:
+    if 0 < total <= 10000:
         try:
             kingdom_sql = f"SELECT kingdom, COUNT(*) AS cnt FROM ({query}) AS sub WHERE kingdom IS NOT NULL AND kingdom != '' GROUP BY kingdom ORDER BY cnt DESC"
             with get_db() as conn:
@@ -395,9 +401,12 @@ def search():
             thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=200, title="Result-set kingdoms")
         except Exception:
             thumb = None
-    return render_template("search.html", results=results, query=q, search_type=st,
+    print(f"PROF pre-render {(_time.time()-_t)*1000:.0f}ms", flush=True); _t = _time.time()
+    _r = render_template("search.html", results=results, query=q, search_type=st,
                            page=page, total=total, pages=pages, sort=sort, order=order, per_page=per_page,
                            thumb=thumb)
+    print(f"PROF render {(_time.time()-_t)*1000:.0f}ms", flush=True)
+    return _r
 
 @app.route("/browse")
 def browse():
@@ -626,6 +635,13 @@ def api_taxonomy_tree():
     filter_keys = ("kingdom", "source", "region", "license", "named", "type", "q",
                    "extra_type_1", "extra_type_2", "extra_type_3", "extra_type_4", "extra_type_5")
     has_filter = any(request.args.get(k) for k in filter_keys)
+    # Per-kingdom precomputed caches when only a kingdom filter is set
+    kingdom_arg = request.args.get("kingdom", "")
+    other_filters = any(request.args.get(k) for k in ("source", "region", "named", "license", "kingdom_only"))
+    if kingdom_arg and not other_filters:
+        per_k = os.path.join(app.static_folder, f"taxonomy_cache_{kingdom_arg.lower()}.json")
+        if os.path.exists(per_k):
+            return send_from_directory(app.static_folder, f"taxonomy_cache_{kingdom_arg.lower()}.json", mimetype="application/json")
     cache_path = os.path.join(app.static_folder, "taxonomy_cache.json")
     if not has_filter and os.path.exists(cache_path):
         return send_from_directory(app.static_folder, "taxonomy_cache.json", mimetype="application/json")
@@ -655,9 +671,9 @@ def api_taxonomy_tree():
             "region": ("LOWER(c.region) = LOWER(%s)", (eq,)),
             "genus": (("LOWER(ct.genus) = LOWER(%s)", (eq,)) if exact else ("ct.genus ILIKE %s", (f"%{eq}%",))),
             "family": (("LOWER(ct.family) = LOWER(%s)", (eq,)) if exact else ("ct.family ILIKE %s", (f"%{eq}%",))),
-            "order": (("(LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'order') = LOWER(%s))", (eq, eq, eq)) if exact else ("(ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
-            "tax_class": (("(LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s))", (eq, eq, eq)) if exact else ("(ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
-            "phylum": (("(LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'phylum') = LOWER(%s))", (eq, eq, eq)) if exact else ("(ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
+            "order": (("ct.order_any = LOWER(%s)", (eq,)) if exact else ("(ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
+            "tax_class": (("ct.class_any = LOWER(%s)", (eq,)) if exact else ("(ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
+            "phylum": (("ct.phylum_any = LOWER(%s)", (eq,)) if exact else ("(ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s)", (f"%{eq}%", f"%{eq}%", f"%{eq}%"))),
         }
         ec = extra_clauses.get(et)
         if ec:
@@ -674,9 +690,9 @@ def api_taxonomy_tree():
             "inchikey": ("c.inchikey = %s", (search_q,)),
             "genus": (("LOWER(ct.genus) = LOWER(%s)", (search_q,)) if exact else ("ct.genus ILIKE %s", (f"%{search_q}%",))),
             "family": (("LOWER(ct.family) = LOWER(%s)", (search_q,)) if exact else ("ct.family ILIKE %s", (f"%{search_q}%",))),
-            "order": (("(LOWER(ct.ncbi_lineage->>\'order\') = LOWER(%s) OR LOWER(ct.worms_lineage->>\'order\') = LOWER(%s))", (search_q, search_q)) if exact else ("(ct.ncbi_lineage->>\'order\' ILIKE %s OR ct.worms_lineage->>\'order\' ILIKE %s)", (f"%{search_q}%", f"%{search_q}%"))),
-            "tax_class": (("(LOWER(ct.ncbi_lineage->>\'class\') = LOWER(%s) OR LOWER(ct.worms_lineage->>\'class\') = LOWER(%s))", (search_q, search_q)) if exact else ("(ct.ncbi_lineage->>\'class\' ILIKE %s OR ct.worms_lineage->>\'class\' ILIKE %s)", (f"%{search_q}%", f"%{search_q}%"))),
-            "phylum": (("(LOWER(ct.ncbi_lineage->>\'phylum\') = LOWER(%s) OR LOWER(ct.worms_lineage->>\'phylum\') = LOWER(%s))", (search_q, search_q)) if exact else ("(ct.ncbi_lineage->>\'phylum\' ILIKE %s OR ct.worms_lineage->>\'phylum\' ILIKE %s)", (f"%{search_q}%", f"%{search_q}%"))),
+            "order": (("ct.order_any = LOWER(%s)", (search_q,)) if exact else ("(ct.ncbi_lineage->>\'order\' ILIKE %s OR ct.worms_lineage->>\'order\' ILIKE %s)", (f"%{search_q}%", f"%{search_q}%"))),
+            "tax_class": (("ct.class_any = LOWER(%s)", (search_q,)) if exact else ("(ct.ncbi_lineage->>\'class\' ILIKE %s OR ct.worms_lineage->>\'class\' ILIKE %s)", (f"%{search_q}%", f"%{search_q}%"))),
+            "phylum": (("ct.phylum_any = LOWER(%s)", (search_q,)) if exact else ("(ct.ncbi_lineage->>\'phylum\' ILIKE %s OR ct.worms_lineage->>\'phylum\' ILIKE %s)", (f"%{search_q}%", f"%{search_q}%"))),
             "class": ("(c.np_class ILIKE %s OR c.classyfire_superclass ILIKE %s OR c.inferred_class ILIKE %s)", (f"%{search_q}%", f"%{search_q}%", f"%{search_q}%")),
             "npclassifier_class": ("(c.np_class ILIKE %s OR c.inferred_class ILIKE %s)", (f"%{search_q}%", f"%{search_q}%")),
             "classyfire_class": ("c.classyfire_superclass ILIKE %s", (f"%{search_q}%",)),
@@ -707,14 +723,10 @@ def api_taxonomy_tree():
     sql = f"""
         SELECT
             c.kingdom AS theobroma_kingdom,
-            COALESCE(
-                CASE WHEN ct.ncbi_lineage->>'kingdom' = 'Metazoa' THEN 'Animalia'
-                     ELSE ct.ncbi_lineage->>'kingdom' END,
-                ct.worms_lineage->>'kingdom'
-            ) AS lineage_kingdom,
-            COALESCE(ct.ncbi_lineage->>'phylum',  ct.worms_lineage->>'phylum',  ct.wcvp_lineage->>'phylum')  AS phylum,
-            COALESCE(ct.ncbi_lineage->>'class',   ct.worms_lineage->>'class',   ct.wcvp_lineage->>'class')   AS class,
-            COALESCE(ct.ncbi_lineage->>'order',   ct.worms_lineage->>'order',   ct.wcvp_lineage->>'order')   AS taxon_order,
+            ct.kingdom_any AS lineage_kingdom,
+            ct.phylum_any AS phylum,
+            ct.class_any AS class,
+            ct.order_any AS taxon_order,
             COALESCE(ct.family, ct.ncbi_lineage->>'family', ct.worms_lineage->>'family') AS family,
             COALESCE(ct.genus,  ct.ncbi_lineage->>'genus',  ct.worms_lineage->>'genus')  AS genus,
             COUNT(DISTINCT c.comp_id) AS n
@@ -756,9 +768,9 @@ def api_taxonomy_tree():
                 c.comp_id,
                 COALESCE(c.name, '') AS name,
                 c.kingdom AS theobroma_kingdom,
-                COALESCE(ct.ncbi_lineage->>'phylum',  ct.worms_lineage->>'phylum',  ct.wcvp_lineage->>'phylum')  AS phylum,
-                COALESCE(ct.ncbi_lineage->>'class',   ct.worms_lineage->>'class',   ct.wcvp_lineage->>'class')   AS class,
-                COALESCE(ct.ncbi_lineage->>'order',   ct.worms_lineage->>'order',   ct.wcvp_lineage->>'order')   AS taxon_order,
+                ct.phylum_any AS phylum,
+                ct.class_any AS class,
+                ct.order_any AS taxon_order,
                 COALESCE(ct.family, ct.ncbi_lineage->>'family', ct.worms_lineage->>'family') AS family,
                 COALESCE(ct.genus,  ct.ncbi_lineage->>'genus',  ct.worms_lineage->>'genus')  AS genus
             FROM compounds c
@@ -879,9 +891,9 @@ def api_search():
               "kingdom":"LOWER(kingdom) = LOWER(%s)","organism": ("LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s"),
               "genus": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND LOWER(ct.genus) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.genus ILIKE %s)"),
               "family": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND LOWER(ct.family) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.family ILIKE %s)"),
-              "order": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'order') = LOWER(%s) OR LOWER(ct.worms_lineage->>'order') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'order') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s))"),
-              "tax_class": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s))"),
-              "phylum": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.worms_lineage->>'phylum') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'phylum') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s))"),
+              "order": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.order_any = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'order' ILIKE %s OR ct.worms_lineage->>'order' ILIKE %s OR ct.wcvp_lineage->>'order' ILIKE %s))"),
+              "tax_class": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.class_any = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s))"),
+              "phylum": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND ct.phylum_any = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'phylum' ILIKE %s OR ct.worms_lineage->>'phylum' ILIKE %s OR ct.wcvp_lineage->>'phylum' ILIKE %s))"),
               "region":"LOWER(region) = LOWER(%s)","source":"LOWER(source_db) = LOWER(%s)",
               "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s",
               "npclassifier_class":"np_class ILIKE %s OR inferred_class ILIKE %s",
@@ -897,7 +909,7 @@ def api_search():
         elif st == "classyfire_class":
             pm = (f"%{q}%",)
         elif st in ("tax_class", "order", "phylum"):
-            pm = (q, q, q) if exact else (f"%{q}%", f"%{q}%", f"%{q}%")
+            pm = (q,) if exact else (f"%{q}%", f"%{q}%", f"%{q}%")
         else:
             pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (q if st in ("kingdom","region","source") else q)
         with get_db() as conn:
