@@ -81,7 +81,7 @@
             {% for r in regions[:15] %}
             <div class="bar-row">
                 <span class="bar-label"><a href="/browse?region={{ r.region }}">{{ r.region }}</a></span>
-                <div class="bar-track"><div class="bar-fill" style="width:{{ (r.cnt/max_r*100)|round(1) }}%;background:{{ 'var(--text-muted)' if r.region == 'unresolved' else 'var(--kingdom-marine)' }}"></div></div>
+                <div class="bar-track"><div class="bar-fill" style="width:{{ (r.cnt/max_r*100)|round(1) }}%;background:{{ 'var(--text-muted)' if r.region == 'unresolved' else 'var(--kingdom-bacteria)' }}"></div></div>
                 <span class="bar-value">{{ "{:,}".format(r.cnt) }}</span>
             </div>
             {% endfor %}

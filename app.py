@@ -41,7 +41,7 @@ def _load_browse_options():
     """Populate _BROWSE_CACHE. Called once at import time after sim_engine.load()."""
     with get_db() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""SELECT kingdom, COUNT(*) AS cnt FROM compounds
+            cur.execute("""SELECT kingdom, COUNT(*) AS cnt FROM resolved_taxonomy
                            WHERE kingdom IS NOT NULL AND kingdom!=''
                            GROUP BY kingdom ORDER BY kingdom""")
             _BROWSE_CACHE["all_kingdoms"] = cur.fetchall()
@@ -191,7 +191,7 @@ def index():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT COUNT(*) AS cnt FROM compounds")
             total = cur.fetchone()["cnt"]
-            cur.execute("""SELECT kingdom, COUNT(*) AS cnt FROM compounds
+            cur.execute("""SELECT kingdom, COUNT(*) AS cnt FROM resolved_taxonomy
                           WHERE kingdom IS NOT NULL AND kingdom!='' GROUP BY kingdom ORDER BY cnt DESC""")
             kingdoms = cur.fetchall()
             cur.execute("SELECT COUNT(DISTINCT source_db) AS cnt FROM compounds")
@@ -300,7 +300,7 @@ def search():
         "source":  (f"SELECT * FROM compounds WHERE LOWER(source_db) = LOWER(%s) {oc}", (q,)),
         "organism":((f"SELECT * FROM compounds WHERE LOWER(source_organism) = LOWER(%s) {oc if request.args.get('sort') else ''}", (q,)) if exact else (f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",))),
         "region":  (f"SELECT * FROM compounds WHERE LOWER(region) = LOWER(%s) {oc}", (q,)),
-        "kingdom": (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.kingdom) = LOWER(%s) {oc}", (q,)),
+        "kingdom": (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE (LOWER(rt.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt.secondary_kingdoms)) {oc}", (q, q)),
         "genus":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.genus) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.genus ILIKE %s {oc}", (f"%{q}%",))),
         "family":  ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.family) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.family ILIKE %s {oc}", (f"%{q}%",))),
         "order":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.taxorder) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.taxorder ILIKE %s {oc}", (f"%{q}%",))),
@@ -325,7 +325,7 @@ def search():
         emap = {
             "name": "LOWER(name) = LOWER(%s)" if exact else "LOWER(name) LIKE %s",
             "organism": "LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s",
-            "kingdom": "EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = base.comp_id AND LOWER(rt2.kingdom) = LOWER(%s))",
+            "kingdom": "EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = base.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))",
             "region": "LOWER(region) = LOWER(%s)",
             "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
@@ -357,8 +357,11 @@ def search():
             elif exact and et in ("name", "organism"):
                 extra_clauses.append(esql)
                 extra_params.append(eq)
-            elif et in ("kingdom", "region", "source"):
-                # Controlled-vocabulary equality (LOWER = LOWER), no wildcards.
+            elif et == "kingdom":
+                # Kingdom uses primary OR secondary check; needs the value twice.
+                extra_clauses.append(esql)
+                extra_params.extend([eq, eq])
+            elif et in ("region", "source"):
                 extra_clauses.append(esql)
                 extra_params.append(eq)
             elif et in ("genus", "family"):
@@ -447,15 +450,23 @@ def search():
             if is_placeholder and ik in syn_map:
                 s = syn_map[ik]
                 r["name"] = s[0].upper() + s[1:] if s else nm
-    # Kingdom donut for the full search result set, by wrapping the search SQL as a subquery
+    # Kingdom donut for the full search result set.
+    # Special case: when the user filtered by kingdom, every returned compound
+    # IS that kingdom (whether primary or secondary). Show 100% of the queried
+    # kingdom rather than breaking down by primary attribution.
     thumb = None
     if total > 0:
         try:
-            kingdom_sql = f"SELECT COALESCE(rt.kingdom, sub.kingdom) AS kingdom, COUNT(*) AS cnt FROM ({query}) AS sub LEFT JOIN resolved_taxonomy rt ON rt.comp_id = sub.comp_id WHERE COALESCE(rt.kingdom, sub.kingdom) IS NOT NULL AND COALESCE(rt.kingdom, sub.kingdom) != '' GROUP BY 1 ORDER BY cnt DESC"
-            with get_db() as conn:
-                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                    cur.execute(kingdom_sql, params)
-                    thumb_kingdoms = cur.fetchall()
+            if st == "kingdom" and q:
+                thumb_kingdoms = [{"kingdom": q.lower(), "cnt": total}]
+            else:
+                # Primary-kingdom only (no secondary contribution): each compound
+                # counted exactly once, donut sums to 100% of the result set.
+                kingdom_sql = f"SELECT rt.kingdom AS kingdom, COUNT(DISTINCT sub.comp_id) AS cnt FROM ({query}) AS sub LEFT JOIN resolved_taxonomy rt ON rt.comp_id = sub.comp_id WHERE rt.kingdom IS NOT NULL AND rt.kingdom != '' GROUP BY 1 ORDER BY cnt DESC"
+                with get_db() as conn:
+                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                        cur.execute(kingdom_sql, params)
+                        thumb_kingdoms = cur.fetchall()
             thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=200, title="Result-set kingdoms")
         except Exception:
             thumb = None
@@ -475,7 +486,7 @@ def browse():
     sort, order, oc = get_sort()
     clauses, params = [], ()
     if kingdom:
-        clauses.append("EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND LOWER(rt2.kingdom) = LOWER(%s))"); params += (kingdom,)
+        clauses.append("EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))"); params += (kingdom, kingdom)
     if source:
         clauses.append("(LOWER(source_db) = LOWER(%s) OR all_sources LIKE %s)"); params += (source, f"%{source}%")
     if region:
@@ -615,7 +626,7 @@ def statistics():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT COUNT(*) AS cnt FROM compounds")
             total = cur.fetchone()["cnt"]
-            cur.execute("SELECT kingdom, COUNT(*) AS cnt FROM compounds WHERE kingdom IS NOT NULL AND kingdom!='' GROUP BY kingdom ORDER BY cnt DESC")
+            cur.execute("SELECT kingdom, COUNT(*) AS cnt FROM resolved_taxonomy WHERE kingdom IS NOT NULL AND kingdom!='' GROUP BY kingdom ORDER BY cnt DESC")
             kingdoms = cur.fetchall()
             cur.execute("SELECT source_db, COUNT(*) AS cnt FROM compounds GROUP BY source_db ORDER BY cnt DESC")
             sources = cur.fetchall()
@@ -642,18 +653,21 @@ def statistics():
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             key_admet = [
-                ("hERG_Karim-et-al", "hERG risk"),
-                ("AMES_Li-et-al", "AMES mutagenicity"),
-                ("BBB_Martins-et-al", "BBB penetration"),
-                ("HIA_Hou-et-al", "Intestinal absorption"),
-                ("Caco2_Wang-et-al", "Caco-2 perm."),
+                ("hERG", "hERG risk"),
+                ("AMES", "AMES mutagenicity"),
+                ("BBB_Martins", "BBB penetration"),
+                ("HIA_Hou", "Intestinal absorption"),
+                ("Caco2_Wang", "Caco-2 permeability"),
                 ("Solubility_AqSolDB", "Solubility"),
                 ("Lipophilicity_AstraZeneca", "Lipophilicity"),
-                ("CYP2D6_Inhibition_Veith-et-al", "CYP2D6 inhib."),
-                ("CYP3A4_Inhibition_Veith-et-al", "CYP3A4 inhib."),
-                ("CYP2C9_Inhibition_Veith-et-al", "CYP2C9 inhib."),
-                ("ClinTox_CT_TOX", "Clinical tox."),
+                ("CYP2D6_Veith", "CYP2D6 inhib."),
+                ("CYP3A4_Veith", "CYP3A4 inhib."),
+                ("CYP2C9_Veith", "CYP2C9 inhib."),
+                ("ClinTox", "Clinical tox."),
                 ("DILI", "DILI risk"),
+                ("Bioavailability_Ma", "Bioavailability"),
+                ("Pgp_Broccatelli", "P-gp inhibition"),
+                ("VDss_Lombardo", "Volume of distribution"),
             ]
             for col, label in key_admet:
                 try:
@@ -714,7 +728,7 @@ def api_taxonomy_tree():
         extra_clauses = {
             "name": (("LOWER(c.name) = LOWER(%s)", (eq,)) if exact else ("c.name ILIKE %s", (f"%{eq}%",))),
             "organism": (("LOWER(c.source_organism) = LOWER(%s)", (eq,)) if exact else ("c.source_organism ILIKE %s", (f"%{eq}%",))),
-            "kingdom": ("LOWER(rt.kingdom) = LOWER(%s)", (eq,)),
+            "kingdom": ("(LOWER(rt.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt.secondary_kingdoms))", (eq, eq)),
             "source": ("(LOWER(c.source_db) = LOWER(%s) OR c.all_sources LIKE %s)", (eq, f"%{eq}%")),
             "region": ("LOWER(c.region) = LOWER(%s)", (eq,)),
             "genus": (("LOWER(rt.genus) = LOWER(%s)", (eq,)) if exact else ("rt.genus ILIKE %s", (f"%{eq}%",))),
@@ -745,7 +759,7 @@ def api_taxonomy_tree():
         type_clauses = {
             "name": (("LOWER(c.name) = LOWER(%s)", (search_q,)) if exact else ("c.name ILIKE %s", (f"%{search_q}%",))),
             "organism": (("LOWER(c.source_organism) = LOWER(%s)", (search_q,)) if exact else ("c.source_organism ILIKE %s", (f"%{search_q}%",))),
-            "kingdom": ("LOWER(rt.kingdom) = LOWER(%s)", (search_q,)),
+            "kingdom": ("(LOWER(rt.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt.secondary_kingdoms))", (search_q, search_q)),
             "source": ("(LOWER(c.source_db) = LOWER(%s) OR c.all_sources LIKE %s)", (search_q, f"%{search_q}%")),
             "region": ("LOWER(c.region) = LOWER(%s)", (search_q,)),
             "smiles": ("c.smiles = %s", (search_q,)),
@@ -782,19 +796,40 @@ def api_taxonomy_tree():
     elif license_f == "academic":
         where.append("c.license_tier IN ('CC BY 4.0','CC0','CC BY-NC 4.0')")
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    # When the user filtered by kingdom, the tree should only show the queried
+    # kingdom slice for each matching compound (not their full multi-kingdom set).
+    if search_type == "kingdom" and search_q:
+        kingdom_filter = "WHERE LOWER(theobroma_kingdom) = LOWER(%s)"
+        params.append(search_q)
+    else:
+        kingdom_filter = ""
     sql = f"""
+        WITH base AS (
+            SELECT c.comp_id, rt.kingdom AS primary_k, rt.secondary_kingdoms,
+                   rt.phylum, rt.taxclass, rt.taxorder, rt.family, rt.genus
+            FROM compounds c
+            LEFT JOIN resolved_taxonomy rt ON c.comp_id = rt.comp_id
+            {where_sql}
+        ),
+        expanded AS (
+            SELECT comp_id, primary_k AS theobroma_kingdom, phylum, taxclass, taxorder, family, genus FROM base
+            UNION ALL
+            SELECT comp_id, unnest(secondary_kingdoms), phylum, taxclass, taxorder, family, genus
+            FROM base WHERE secondary_kingdoms IS NOT NULL AND secondary_kingdoms <> '{{}}'
+        ),
+        narrowed AS (
+            SELECT * FROM expanded {kingdom_filter}
+        )
         SELECT
-            rt.kingdom AS theobroma_kingdom,
+            theobroma_kingdom,
             NULL::text AS lineage_kingdom,
-            rt.phylum AS phylum,
-            rt.taxclass AS class,
-            rt.taxorder AS taxon_order,
-            rt.family AS family,
-            rt.genus AS genus,
-            COUNT(DISTINCT c.comp_id) AS n
-        FROM compounds c
-        LEFT JOIN resolved_taxonomy rt ON c.comp_id = rt.comp_id
-        {where_sql}
+            phylum AS phylum,
+            taxclass AS class,
+            taxorder AS taxon_order,
+            family AS family,
+            genus AS genus,
+            COUNT(DISTINCT comp_id) AS n
+        FROM narrowed
         GROUP BY 1,2,3,4,5,6,7
     """
     with get_db() as conn:

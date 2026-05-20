@@ -5,16 +5,16 @@ Sub-percent kingdoms remain visually invisible but listed in the legend.
 import math
 
 # Kingdom display order matching the home page chip row.
-KINGDOM_ORDER = ["plant", "fungi", "bacteria", "marine", "animal", "multi"]
+KINGDOM_ORDER = ["plant", "fungi", "bacteria", "animal", "multi", "unresolved"]
 
 # Fallback colour set if CSS variable resolution fails (renders inline-only SVG).
 KINGDOM_FALLBACK = {
-    "plant":    "#2d6a4f",
-    "fungi":    "#9d4edd",
-    "bacteria": "#0077b6",
-    "marine":   "#0096c7",
-    "animal":   "#bc4749",
-    "multi":    "#7d8597",
+    "plant":      "#2d6a4f",
+    "fungi":      "#9d4edd",
+    "bacteria":   "#0077b6",
+    "animal":     "#bc4749",
+    "multi":      "#7d8597",
+    "unresolved": "#aaaaaa",
 }
 
 def _polar(cx, cy, r, angle_rad):

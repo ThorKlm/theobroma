@@ -1,5 +1,5 @@
-"""Build the /taxonomy page cache. Aggregates compound_taxonomy lineages
-into a nested hierarchical structure for the d3 sunburst.
+"""Build the /taxonomy page cache from resolved_taxonomy with both primary and
+secondary kingdoms unioned, so cross-kingdom compounds appear in all their kingdoms.
 """
 import json, os, time, subprocess
 
@@ -12,36 +12,30 @@ def run_sql(q):
     )
     return [line.split('\t') for line in r.stdout.strip().split('\n') if line]
 
-# Normalize NCBI Metazoa to WoRMS Animalia so the kingdom layer collapses cleanly.
-# COALESCE order: WCVP genus/family preferred (richer plant resolution),
-# then NCBI lineage, then WoRMS lineage.
 LINEAGE_SQL = """
-SELECT
-    c.kingdom AS theobroma_kingdom,
-    COALESCE(
-        ct.kingdom_any,
-        ct.kingdom_any
-    ) AS lineage_kingdom,
-    ct.phylum_any AS phylum,
-    ct.class_any AS class,
-    ct.order_any AS taxon_order,
-    COALESCE(ct.family, ct.ncbi_lineage->>'family', ct.worms_lineage->>'family') AS family,
-    COALESCE(ct.genus,  ct.ncbi_lineage->>'genus',  ct.worms_lineage->>'genus')  AS genus,
-    COUNT(DISTINCT c.comp_id) AS n
-FROM compounds c
-LEFT JOIN compound_taxonomy ct ON c.comp_id = ct.comp_id
+WITH base AS (
+    SELECT comp_id, kingdom AS primary_k, secondary_kingdoms,
+           phylum, taxclass, taxorder, family, genus
+    FROM resolved_taxonomy
+),
+expanded AS (
+    SELECT comp_id, primary_k AS k, phylum, taxclass, taxorder, family, genus FROM base
+    UNION ALL
+    SELECT comp_id, unnest(secondary_kingdoms), phylum, taxclass, taxorder, family, genus
+    FROM base WHERE secondary_kingdoms IS NOT NULL AND secondary_kingdoms <> '{}'
+)
+SELECT k AS theobroma_kingdom, NULL AS lineage_kingdom, phylum, taxclass, taxorder, family, genus,
+       COUNT(DISTINCT comp_id) AS n
+FROM expanded
 GROUP BY 1,2,3,4,5,6,7
 """
 
 print("# building taxonomy cache...")
 t0 = time.time()
-
-# Resolved-lineage tree
 rows = run_sql(LINEAGE_SQL)
 print(f"# fetched {len(rows):,} distinct lineage paths")
 
 def insert(tree, path, count):
-    """Walk path into nested dict, accumulating count at every level."""
     node = tree
     for level in path:
         if level is None or level == '':
@@ -55,15 +49,12 @@ def insert(tree, path, count):
 
 root = {'name': 'THEOBROMA', 'value': 0}
 for row in rows:
-    theobroma_k, lineage_k, phylum, klass, order, family, genus, n = row
+    theobroma_k, _, phylum, klass, order_, family, genus, n = row
     n = int(n)
     root['value'] += n
-    # Always use theobroma_kingdom (lowercase) to avoid Fungi/fungi duplication
-    path = [theobroma_k, phylum, klass, order, family, genus]
-    insert(root, path, n)
+    insert(root, [theobroma_k, phylum, klass, order_, family, genus], n)
 
 def to_d3(node):
-    """Convert nested dict to d3 hierarchical format."""
     out = {'name': node['name'], 'value': node['value']}
     if 'children' in node:
         children = [to_d3(c) for c in node['children'].values()]
@@ -73,10 +64,15 @@ def to_d3(node):
 
 tree = to_d3(root)
 
-# Kingdom-only summary for the unresolved fallback note
-kingdom_totals = run_sql("SELECT kingdom, COUNT(*) FROM compounds WHERE kingdom IS NOT NULL AND kingdom != '' GROUP BY kingdom ORDER BY 2 DESC")
+true_total_rows = run_sql("SELECT COUNT(*) FROM resolved_taxonomy")
+total_compounds = int(true_total_rows[0][0])
+
+kingdom_totals = run_sql("""
+    SELECT kingdom, COUNT(*) FROM resolved_taxonomy
+    WHERE kingdom IS NOT NULL AND kingdom != ''
+    GROUP BY kingdom ORDER BY 2 DESC
+""")
 total_resolved = sum(int(r[7]) for r in rows if r[1] or r[2] or r[3] or r[4] or r[5] or r[6])
-total_compounds = sum(int(r[1]) for r in kingdom_totals)
 
 cache = {
     'tree': tree,
@@ -95,8 +91,8 @@ with open(OUT, 'w') as f:
     json.dump(cache, f, separators=(',', ':'))
 print(f"# wrote {OUT} ({os.path.getsize(OUT)/1024:.1f} KB)")
 print(f"# total compounds: {total_compounds:,}, resolved: {total_resolved:,}")
-# Per-kingdom precomputed caches: rebuild the tree filtered to one kingdom each
-KINGDOMS = ["plant", "fungi", "bacteria", "marine", "animal", "multi"]
+
+KINGDOMS = ["plant", "fungi", "bacteria", "animal", "unresolved"]
 for k in KINGDOMS:
     tk = time.time()
     krows = [r for r in rows if r[0] == k]
@@ -104,18 +100,16 @@ for k in KINGDOMS:
         continue
     kroot = {'name': 'THEOBROMA', 'value': 0}
     for row in krows:
-        theobroma_k, lineage_k, phylum, klass, order, family, genus, n = row
+        theobroma_k, _, phylum, klass, order_, family, genus, n = row
         n = int(n)
         kroot['value'] += n
-        insert(kroot, [theobroma_k, phylum, klass, order, family, genus], n)
+        insert(kroot, [theobroma_k, phylum, klass, order_, family, genus], n)
     ktree = to_d3(kroot)
     kresolved = sum(int(r[7]) for r in krows if r[1] or r[2] or r[3] or r[4] or r[5] or r[6])
     ktotal = sum(int(r[7]) for r in krows)
     kcache = {
-        'tree': ktree,
-        'kingdom_filter': k,
-        'total_compounds': ktotal,
-        'total_resolved': kresolved,
+        'tree': ktree, 'kingdom_filter': k,
+        'total_compounds': ktotal, 'total_resolved': kresolved,
         'distinct_paths': len(krows),
         '_meta': {
             'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
@@ -126,4 +120,11 @@ for k in KINGDOMS:
     with open(kpath, 'w') as f:
         json.dump(kcache, f, separators=(',', ':'))
     print(f"# wrote {kpath} ({os.path.getsize(kpath)/1024:.1f} KB, {ktotal:,} compounds)")
+
+for old_k in ["marine", "multi"]:
+    p = OUT.replace('.json', f'_{old_k}.json')
+    if os.path.exists(p):
+        os.remove(p)
+        print(f"# removed stale {p}")
+
 print(f"# generation time: {time.time()-t0:.1f}s")
