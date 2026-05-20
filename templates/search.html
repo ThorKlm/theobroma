@@ -24,18 +24,13 @@
     <form action="/search" method="get" class="search-form" id="search-form">
         <div class="search-row" id="search-row-0">
             <select name="type" id="search-type" onchange="onTypeChange(this, 0)">
-                {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Kingdom"),("property","Chemical property")] %}
+                {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Kingdom"),("genus","Genus"),("family","Family"),("order","Order"),("tax_class","Class"),("phylum","Phylum"),("property","Chemical property")] %}
                 <option value="{{ val }}" {{ 'selected' if search_type == val }}>{{ label }}</option>
                 {% endfor %}
             </select>
             <select name="prop_type" id="prop-type-0" class="prop-subselect" style="display:none;" onchange="onPropChange(this, 0)">
                 <option value="npclassifier_class">NPClassifier class</option>
                 <option value="classyfire_class">ClassyFire superclass</option>
-                <option value="genus">Genus</option>
-                <option value="family">Family</option>
-                <option value="order">Order</option>
-                <option value="tax_class">Class</option>
-                <option value="phylum">Phylum</option>
                 <option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>
                 <option value="logp">LogP (-33.97 - 47.20, mean: 2.6)</option>
                 <option value="tpsa">TPSA (0.0 - 1539.4, mean: 103.8)</option>

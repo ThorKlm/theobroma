@@ -304,6 +304,30 @@
       .style('font-size', '12px').style('fill', '#888')
       .text('THEOBROMA v33.x.1 (2026-05)');
 
+    // Kingdom legend for exports: positioned bottom-left, mirrors the small donut legend.
+    // Built from data.tree.children's top-level kingdoms with their counts and colors.
+    var legendG = svg.append('g').attr('class', 'tax-svg-legend tax-export-only');
+    var legendX = leftX;
+    var legendStartY = labelBotY - 14 * Math.max(1, (data.tree.children || []).length) - 18;
+    var totalForPct = data.total_compounds || (data.tree && data.tree.value) || 1;
+    legendG.append('text')
+      .attr('x', legendX).attr('y', legendStartY)
+      .style('font-size', '12px').style('font-weight', '600').style('fill', '#444')
+      .text('Kingdoms');
+    (data.tree.children || []).forEach(function(c, idx){
+      var rowY = legendStartY + 14 * (idx + 1);
+      var col = kingdomColors[c.name] || '#888';
+      legendG.append('rect')
+        .attr('x', legendX).attr('y', rowY - 9)
+        .attr('width', 10).attr('height', 10)
+        .attr('fill', col).attr('stroke', 'rgba(0,0,0,0.15)').attr('stroke-width', 0.5);
+      var pct = totalForPct > 0 ? (100 * c.value / totalForPct).toFixed(1) : '0.0';
+      legendG.append('text')
+        .attr('x', legendX + 14).attr('y', rowY)
+        .style('font-size', '11px').style('fill', '#444')
+        .text(c.name + ' ' + c.value.toLocaleString() + ' (' + pct + '%)');
+    });
+
     // Per-wedge clockwise alpha gradients live in <defs>.
     var defs = svg.append('defs');
 
@@ -502,35 +526,75 @@
         var rank = rings[d.depth - 1];
         var name = d.data.name;
         if (!name || name === '(unresolved)') return;
-        if (rank === 'kingdom') {
-          window.location.href = '/browse?kingdom=' + encodeURIComponent(name);
-        } else if (rank === 'family' || rank === 'genus' ||
-                   rank === 'order' || rank === 'class' || rank === 'phylum') {
-          // Walk ancestors to build a multi-filter URL: each ancestor (except root)
-          // adds a filter constraint, with the clicked node as primary type/q.
-          var rankToType = function(r){ return r === 'class' ? 'tax_class' : r; };
-          var trail = d.ancestors().reverse(); // root..clicked
-          // trail[0] is root, trail[1] is kingdom (depth=1), ..., trail[N] is clicked
-          var clicked = trail[trail.length - 1];
-          var clickedRank = rings[clicked.depth - 1];
-          var clickedType = rankToType(clickedRank);
-          var url = '/search?type=' + clickedType + '&q=' + encodeURIComponent(clicked.data.name);
-          var extraIdx = 1;
-          for (var i = 1; i < trail.length - 1; i++) {
-            var anc = trail[i];
-            if (!anc.data.name || anc.data.name === '(unresolved)') continue;
-            var ancRank = rings[anc.depth - 1];
-            if (!ancRank) continue;
-            var ancType = (ancRank === 'kingdom') ? 'kingdom' : rankToType(ancRank);
-            url += '&extra_type_' + extraIdx + '=' + ancType +
-                   '&extra_q_' + extraIdx + '=' + encodeURIComponent(anc.data.name);
-            extraIdx++;
-            if (extraIdx > 5) break; // /search supports extra_type_1..5
-          }
-          window.location.href = url;
-        } else {
-          window.location.href = '/search?type=organism&q=' + encodeURIComponent(name);
+        var rankToType = function(r){ return r === 'class' ? 'tax_class' : r; };
+        // Taxonomic ranks ordered coarse to fine. Position used to decide which
+        // existing filters survive when clicking on an inner ring.
+        var rankOrder = {'kingdom':0, 'phylum':1, 'tax_class':2, 'order':3, 'family':4, 'genus':5};
+        var clickedDepth = d.depth - 1;
+        var clickedRank = rings[clickedDepth];
+        var clickedType = rankToType(clickedRank);
+        var clickedRankPos = rankOrder[clickedType];
+        // Parse current URL filters.
+        var existing = {};
+        var existingOrder = [];
+        var curParams = new URLSearchParams(window.location.search);
+        if (curParams.get('type') && curParams.get('q')) {
+          existing[curParams.get('type')] = curParams.get('q');
+          existingOrder.push(curParams.get('type'));
         }
+        for (var i = 1; i <= 5; i++) {
+          var t = curParams.get('extra_type_' + i);
+          var v = curParams.get('extra_q_' + i);
+          if (t && v) { existing[t] = v; existingOrder.push(t); }
+        }
+        // Build new filter set from the clicked node + its ancestors.
+        var newFilters = {};
+        var newOrder = [];
+        var trail = d.ancestors().reverse();
+        var clicked = trail[trail.length - 1];
+        newFilters[clickedType] = clicked.data.name;
+        newOrder.push(clickedType);
+        for (var i = 1; i < trail.length - 1; i++) {
+          var anc = trail[i];
+          if (!anc.data.name || anc.data.name === '(unresolved)') continue;
+          var ancRank = rings[anc.depth - 1];
+          if (!ancRank) continue;
+          var ancType = (ancRank === 'kingdom') ? 'kingdom' : rankToType(ancRank);
+          newFilters[ancType] = anc.data.name;
+          newOrder.push(ancType);
+        }
+        // Merge existing URL filters: KEEP only those at coarser ranks than the
+        // clicked rank (or non-taxonomic). DROP existing filters at the clicked
+        // rank or any finer rank, since clicking on a coarser ring is a zoom-out.
+        existingOrder.forEach(function(t){
+          var pos = rankOrder[t];
+          // Non-taxonomic filter (not in rankOrder): always keep.
+          if (pos === undefined) {
+            if (!(t in newFilters)) { newFilters[t] = existing[t]; newOrder.push(t); }
+            return;
+          }
+          // Strictly coarser taxonomic filter than the click: keep if no collision.
+          if (pos < clickedRankPos) {
+            if (!(t in newFilters)) { newFilters[t] = existing[t]; newOrder.push(t); }
+          }
+          // At-or-finer rank: drop (already encoded by the lineage trail or being zoomed out).
+        });
+        if (newOrder.length === 0) return;
+        var first = newOrder[0];
+        var url = '/search?type=' + first + '&q=' + encodeURIComponent(newFilters[first]);
+        var extraIdx = 1;
+        for (var i = 1; i < newOrder.length; i++) {
+          var t = newOrder[i];
+          url += '&extra_type_' + extraIdx + '=' + t +
+                 '&extra_q_' + extraIdx + '=' + encodeURIComponent(newFilters[t]);
+          extraIdx++;
+          if (extraIdx > 5) break;
+        }
+        ['license', 'named', 'exact'].forEach(function(k){
+          var v = curParams.get(k);
+          if (v && v !== 'all') url += '&' + k + '=' + encodeURIComponent(v);
+        });
+        window.location.href = url;
       })
       .on('mousemove', function(event, d){
         var trail = d.ancestors().map(function(n){return n.data.name;}).reverse().join(' \u203a ');
@@ -551,7 +615,9 @@
       });
 
     // Labels: inner rings only (kingdom to family for normal mode, all but compound for compound mode).
-    var maxLabelDepth = rings.length - 1;  // skip outermost ring
+    // Include all rings up to and including genus. In compound mode, compound nodes
+    // are rendered separately and excluded via is_compound below.
+    var maxLabelDepth = 6;
     var labelNodes = nodes.filter(function(d){
       if (d.depth > maxLabelDepth) return false;
       if (d.data.name === '(unresolved)') return false;
@@ -589,6 +655,7 @@
       .style('paint-order', 'stroke')
       .style('stroke', 'white')
       .style('stroke-width', '3px')
+      .style('pointer-events', 'none')
       .text(function(d){ return d.data.name; });
 
     // Compound-name leaves: render as outermost ring along radial spokes.
@@ -624,15 +691,17 @@
           .style('fill', '#333')
           .text(truncated)
           .append('title').text(fullName + ' (' + d.data.comp_id + ')');
-        // Line 2: THEO id, slightly smaller.
-        a.append('text')
-          .attr('class', 'compound-label')
-          .attr('transform', transform)
-          .attr('text-anchor', anchor)
-          .attr('dy', '1.1em')
-          .style('font-size', '9px')
-          .style('fill', '#666')
-          .text(d.data.comp_id);
+        // Line 2: THEO id, only when result set is small enough to read both comfortably.
+        if (compoundLabels.length <= 100) {
+          a.append('text')
+            .attr('class', 'compound-label')
+            .attr('transform', transform)
+            .attr('text-anchor', anchor)
+            .attr('dy', '1.1em')
+            .style('font-size', '9px')
+            .style('fill', '#666')
+            .text(d.data.comp_id);
+        }
       });
     }
   }
