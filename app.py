@@ -1376,12 +1376,18 @@ def admet_browser():
     clauses = []
     params = []
     filter_defs = [
-        ("hERG_Karim-et-al", "hERG risk", 0, 1),
-        ("AMES_Li-et-al", "AMES mutagenicity", 0, 1),
-        ("BBB_Martins-et-al", "BBB penetration", 0, 1),
-        ("HIA_Hou-et-al", "Human intestinal absorption", 0, 1),
-        ("Caco2_Wang-et-al", "Caco-2 permeability", -8, -4),
+        ("hERG", "hERG cardiotoxicity", 0, 1),
+        ("AMES", "AMES mutagenicity", 0, 1),
+        ("BBB_Martins", "BBB penetration", 0, 1),
+        ("HIA_Hou", "Human intestinal absorption", 0, 1),
+        ("Caco2_Wang", "Caco-2 permeability", -8, -4),
         ("Solubility_AqSolDB", "Aqueous solubility", -10, 2),
+        ("DILI", "DILI risk", 0, 1),
+        ("Bioavailability_Ma", "Bioavailability", 0, 1),
+        ("Pgp_Broccatelli", "P-gp inhibition", 0, 1),
+        ("ClinTox", "Clinical toxicity", 0, 1),
+        ("Lipophilicity_AstraZeneca", "Lipophilicity", -5, 5),
+        ("VDss_Lombardo", "Volume of distribution", 0, 10),
     ]
     for col, label, default_min, default_max in filter_defs:
         lo = request.args.get(f"{col}_min", "")
