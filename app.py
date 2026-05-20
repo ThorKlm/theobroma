@@ -451,22 +451,39 @@ def search():
                 s = syn_map[ik]
                 r["name"] = s[0].upper() + s[1:] if s else nm
     # Kingdom donut for the full search result set.
-    # Special case: when the user filtered by kingdom, every returned compound
-    # IS that kingdom (whether primary or secondary). Show 100% of the queried
-    # kingdom rather than breaking down by primary attribution.
+    # Special case A: explicit kingdom filter (type=kingdom OR extra_*=kingdom).
+    # Special case B: taxonomic filter (genus/family/order/tax_class/phylum) where
+    # the result set has a clear majority kingdom (>=95%). In both cases show 100%
+    # of that kingdom to reflect that the query implies a single biological kingdom.
     thumb = None
     if total > 0:
         try:
+            extras_kingdom_q = None
+            for i in range(1, 6):
+                et = request.args.get(f"extra_type_{i}", "")
+                eq_v = request.args.get(f"extra_q_{i}", "").strip()
+                if et == "kingdom" and eq_v:
+                    extras_kingdom_q = eq_v
+                    break
+            kingdom_label_override = None
             if st == "kingdom" and q:
-                thumb_kingdoms = [{"kingdom": q.lower(), "cnt": total}]
-            else:
-                # Primary-kingdom only (no secondary contribution): each compound
-                # counted exactly once, donut sums to 100% of the result set.
-                kingdom_sql = f"SELECT rt.kingdom AS kingdom, COUNT(DISTINCT sub.comp_id) AS cnt FROM ({query}) AS sub LEFT JOIN resolved_taxonomy rt ON rt.comp_id = sub.comp_id WHERE rt.kingdom IS NOT NULL AND rt.kingdom != '' GROUP BY 1 ORDER BY cnt DESC"
-                with get_db() as conn:
-                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                        cur.execute(kingdom_sql, params)
-                        thumb_kingdoms = cur.fetchall()
+                kingdom_label_override = q.lower()
+            elif extras_kingdom_q:
+                kingdom_label_override = extras_kingdom_q.lower()
+            # Primary-kingdom breakdown SQL (used for inspection + fallback)
+            kingdom_sql = f"SELECT rt.kingdom AS kingdom, COUNT(DISTINCT sub.comp_id) AS cnt FROM ({query}) AS sub LEFT JOIN resolved_taxonomy rt ON rt.comp_id = sub.comp_id WHERE rt.kingdom IS NOT NULL AND rt.kingdom != '' GROUP BY 1 ORDER BY cnt DESC"
+            with get_db() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute(kingdom_sql, params)
+                    thumb_kingdoms = cur.fetchall()
+            # If no explicit kingdom override but the query is taxonomic and one
+            # kingdom dominates, treat that kingdom as implied.
+            if kingdom_label_override is None and st in ("genus", "family", "order", "tax_class", "phylum") and thumb_kingdoms:
+                top = thumb_kingdoms[0]
+                if top["cnt"] / total >= 0.95:
+                    kingdom_label_override = top["kingdom"]
+            if kingdom_label_override:
+                thumb_kingdoms = [{"kingdom": kingdom_label_override, "cnt": total}]
             thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=200, title="Result-set kingdoms")
         except Exception:
             thumb = None
@@ -796,11 +813,43 @@ def api_taxonomy_tree():
     elif license_f == "academic":
         where.append("c.license_tier IN ('CC BY 4.0','CC0','CC BY-NC 4.0')")
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
-    # When the user filtered by kingdom, the tree should only show the queried
-    # kingdom slice for each matching compound (not their full multi-kingdom set).
+    # When the user filtered by kingdom (directly via type=kingdom, an extra,
+    # or implicitly because a taxonomic filter dominates a single kingdom),
+    # the tree should only show that kingdom's slice. Detect:
+    #   (a) search_type == "kingdom"
+    #   (b) any extra_type_i == "kingdom"
+    #   (c) search_type is taxonomic AND base set is >=95% dominated by one kingdom
+    kingdom_override = None
     if search_type == "kingdom" and search_q:
+        kingdom_override = search_q
+    else:
+        for i in range(1, 6):
+            et = request.args.get(f"extra_type_{i}", "")
+            eq_v = request.args.get(f"extra_q_{i}", "").strip()
+            if et == "kingdom" and eq_v:
+                kingdom_override = eq_v
+                break
+    if kingdom_override is None and search_type in ("genus", "family", "order", "tax_class", "phylum") and search_q:
+        # Quick dominance check using the where_sql already built
+        try:
+            with get_db() as conn:
+                with conn.cursor() as cur:
+                    dom_sql = f"""SELECT rt.kingdom, COUNT(*) AS n
+                                   FROM compounds c LEFT JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id
+                                   {where_sql}
+                                   GROUP BY 1 ORDER BY 2 DESC LIMIT 1"""
+                    cur.execute(dom_sql, params)
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        cur.execute(f"SELECT COUNT(*) FROM compounds c LEFT JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id {where_sql}", params)
+                        total_for_dom = cur.fetchone()[0]
+                        if total_for_dom > 0 and row[1] / total_for_dom >= 0.95:
+                            kingdom_override = row[0]
+        except Exception:
+            kingdom_override = None
+    if kingdom_override:
         kingdom_filter = "WHERE LOWER(theobroma_kingdom) = LOWER(%s)"
-        params.append(search_q)
+        params.append(kingdom_override)
     else:
         kingdom_filter = ""
     sql = f"""
