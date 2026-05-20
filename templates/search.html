@@ -39,10 +39,53 @@
                 <option value="n_rings">Rings (0 - 32, mean: 3.5)</option>
                 <option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>
                 <optgroup label="ADMET predictions">
-                <option value="Solubility_AqSolDB">Solubility (-13.1 - 8.7, mean: -3.9)</option>
-                <option value="Lipophilicity_AstraZeneca">Lipophilicity (-22.2 - 9.7, mean: 2.1)</option>
-                <option value="DILI">DILI risk (0.0 - 1.0, mean: 0.5)</option>
-                <option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance (-341 - 514, mean: 71.4)</option>
+                <option value="Lipinski">Lipinski (alerts) (0.00 - 4.00, mean: 3.30)</option>
+                <option value="QED">QED (drug-likeness) (0.00 - 0.95, mean: 0.46)</option>
+                <option value="stereo_centers">Stereocenters (0.00 - 153.00, mean: 4.32)</option>
+                <option value="PAINS_alert">PAINS alerts (0.00 - 4.00, mean: 0.08)</option>
+                <option value="BRENK_alert">BRENK alerts (0.00 - 8.00, mean: 1.04)</option>
+                <option value="NIH_alert">NIH alerts (0.00 - 6.00, mean: 0.34)</option>
+                <option value="AMES">AMES mutagenicity (0.00 - 1.00, mean: 0.36)</option>
+                <option value="BBB_Martins">BBB penetration (0.00 - 1.00, mean: 0.58)</option>
+                <option value="Bioavailability_Ma">Bioavailability (0.00 - 0.99, mean: 0.63)</option>
+                <option value="CYP1A2_Veith">CYP1A2 inhibition (0.00 - 1.00, mean: 0.21)</option>
+                <option value="CYP2C19_Veith">CYP2C19 inhibition (0.00 - 1.00, mean: 0.26)</option>
+                <option value="CYP2C9_Substrate_CarbonMangels">CYP2C9 substrate (0.00 - 0.73, mean: 0.12)</option>
+                <option value="CYP2C9_Veith">CYP2C9 inhibition (0.00 - 1.00, mean: 0.21)</option>
+                <option value="CYP2D6_Substrate_CarbonMangels">CYP2D6 substrate (0.00 - 0.93, mean: 0.16)</option>
+                <option value="CYP2D6_Veith">CYP2D6 inhibition (0.00 - 1.00, mean: 0.13)</option>
+                <option value="CYP3A4_Substrate_CarbonMangels">CYP3A4 substrate (0.00 - 1.00, mean: 0.54)</option>
+                <option value="CYP3A4_Veith">CYP3A4 inhibition (0.00 - 1.00, mean: 0.33)</option>
+                <option value="Carcinogens_Lagunin">Carcinogenicity (0.00 - 0.97, mean: 0.11)</option>
+                <option value="ClinTox">Clinical toxicity (0.00 - 0.94, mean: 0.14)</option>
+                <option value="DILI">DILI risk (0.00 - 1.00, mean: 0.49)</option>
+                <option value="HIA_Hou">Intestinal absorption (0.00 - 1.00, mean: 0.86)</option>
+                <option value="NR_AR_LBD">AR ligand-binding (Tox21) (0.00 - 1.00, mean: 0.07)</option>
+                <option value="NR_AR">AR full (Tox21) (0.00 - 1.00, mean: 0.08)</option>
+                <option value="NR_AhR">AhR (Tox21) (0.00 - 1.00, mean: 0.15)</option>
+                <option value="NR_Aromatase">Aromatase (Tox21) (0.00 - 1.00, mean: 0.12)</option>
+                <option value="NR_ER_LBD">ER ligand-binding (Tox21) (0.00 - 0.99, mean: 0.08)</option>
+                <option value="NR_ER">ER full (Tox21) (0.00 - 1.00, mean: 0.17)</option>
+                <option value="NR_PPAR_gamma">PPAR-gamma (Tox21) (0.00 - 1.00, mean: 0.06)</option>
+                <option value="PAMPA_NCATS">PAMPA permeability (0.00 - 1.00, mean: 0.67)</option>
+                <option value="Pgp_Broccatelli">P-gp inhibition (0.00 - 1.00, mean: 0.41)</option>
+                <option value="SR_ARE">ARE (Tox21 stress) (0.00 - 1.00, mean: 0.33)</option>
+                <option value="SR_ATAD5">ATAD5 (Tox21 stress) (0.00 - 0.97, mean: 0.08)</option>
+                <option value="SR_HSE">HSE (Tox21 stress) (0.00 - 1.00, mean: 0.10)</option>
+                <option value="SR_MMP">MMP (Tox21 stress) (0.00 - 1.00, mean: 0.28)</option>
+                <option value="SR_p53">p53 (Tox21 stress) (0.00 - 0.99, mean: 0.16)</option>
+                <option value="Skin_Reaction">Skin reaction (0.00 - 1.00, mean: 0.52)</option>
+                <option value="hERG">hERG cardiotoxicity (0.00 - 1.00, mean: 0.51)</option>
+                <option value="Caco2_Wang">Caco-2 permeability (-53.24 - -3.15, mean: -5.14)</option>
+                <option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance (-577.75 - 514.43, mean: 70.26)</option>
+                <option value="Clearance_Microsome_AZ">Microsome clearance (-170.89 - 1130.07, mean: 67.58)</option>
+                <option value="Half_Life_Obach">Half-life (h) (-248.88 - 1026.17, mean: 27.51)</option>
+                <option value="HydrationFreeEnergy_FreeSolv">Hydration free energy (-502.49 - 9.25, mean: -14.32)</option>
+                <option value="LD50_Zhu">LD50 (oral, log) (-2.68 - 11.58, mean: 2.46)</option>
+                <option value="Lipophilicity_AstraZeneca">Lipophilicity (-38.75 - 9.73, mean: 2.08)</option>
+                <option value="PPBR_AZ">Plasma protein binding (%) (-473.40 - 189.18, mean: 81.25)</option>
+                <option value="Solubility_AqSolDB">Aqueous solubility (log) (-13.15 - 8.73, mean: -3.95)</option>
+                <option value="VDss_Lombardo">Volume of distribution (-80.98 - 69.37, mean: 2.99)</option>
                 </optgroup>
             </select>
             <div class="search-input-wrap" id="text-input-0">
@@ -202,10 +245,53 @@ var propRanges = {
     hbd: {min:0, max:40, mean:2.9},
     n_rings: {min:0, max:32, mean:3.5},
     rotatable_bonds: {min:0, max:117, mean:4.8},
-    Solubility_AqSolDB: {min:-13.1, max:8.7, mean:-3.9},
-    Lipophilicity_AstraZeneca: {min:-22.2, max:9.7, mean:2.1},
-    DILI: {min:0.0, max:1.0, mean:0.5},
-    Clearance_Hepatocyte_AZ: {min:-341, max:514, mean:71.4}
+    Lipinski: {min:0.00, max:4.00, mean:3.30},
+    QED: {min:0.00, max:0.95, mean:0.46},
+    stereo_centers: {min:0.00, max:153.00, mean:4.32},
+    PAINS_alert: {min:0.00, max:4.00, mean:0.08},
+    BRENK_alert: {min:0.00, max:8.00, mean:1.04},
+    NIH_alert: {min:0.00, max:6.00, mean:0.34},
+    AMES: {min:0.00, max:1.00, mean:0.36},
+    BBB_Martins: {min:0.00, max:1.00, mean:0.58},
+    Bioavailability_Ma: {min:0.00, max:0.99, mean:0.63},
+    CYP1A2_Veith: {min:0.00, max:1.00, mean:0.21},
+    CYP2C19_Veith: {min:0.00, max:1.00, mean:0.26},
+    CYP2C9_Substrate_CarbonMangels: {min:0.00, max:0.73, mean:0.12},
+    CYP2C9_Veith: {min:0.00, max:1.00, mean:0.21},
+    CYP2D6_Substrate_CarbonMangels: {min:0.00, max:0.93, mean:0.16},
+    CYP2D6_Veith: {min:0.00, max:1.00, mean:0.13},
+    CYP3A4_Substrate_CarbonMangels: {min:0.00, max:1.00, mean:0.54},
+    CYP3A4_Veith: {min:0.00, max:1.00, mean:0.33},
+    Carcinogens_Lagunin: {min:0.00, max:0.97, mean:0.11},
+    ClinTox: {min:0.00, max:0.94, mean:0.14},
+    DILI: {min:0.00, max:1.00, mean:0.49},
+    HIA_Hou: {min:0.00, max:1.00, mean:0.86},
+    NR_AR_LBD: {min:0.00, max:1.00, mean:0.07},
+    NR_AR: {min:0.00, max:1.00, mean:0.08},
+    NR_AhR: {min:0.00, max:1.00, mean:0.15},
+    NR_Aromatase: {min:0.00, max:1.00, mean:0.12},
+    NR_ER_LBD: {min:0.00, max:0.99, mean:0.08},
+    NR_ER: {min:0.00, max:1.00, mean:0.17},
+    NR_PPAR_gamma: {min:0.00, max:1.00, mean:0.06},
+    PAMPA_NCATS: {min:0.00, max:1.00, mean:0.67},
+    Pgp_Broccatelli: {min:0.00, max:1.00, mean:0.41},
+    SR_ARE: {min:0.00, max:1.00, mean:0.33},
+    SR_ATAD5: {min:0.00, max:0.97, mean:0.08},
+    SR_HSE: {min:0.00, max:1.00, mean:0.10},
+    SR_MMP: {min:0.00, max:1.00, mean:0.28},
+    SR_p53: {min:0.00, max:0.99, mean:0.16},
+    Skin_Reaction: {min:0.00, max:1.00, mean:0.52},
+    hERG: {min:0.00, max:1.00, mean:0.51},
+    Caco2_Wang: {min:-53.24, max:-3.15, mean:-5.14},
+    Clearance_Hepatocyte_AZ: {min:-577.75, max:514.43, mean:70.26},
+    Clearance_Microsome_AZ: {min:-170.89, max:1130.07, mean:67.58},
+    Half_Life_Obach: {min:-248.88, max:1026.17, mean:27.51},
+    HydrationFreeEnergy_FreeSolv: {min:-502.49, max:9.25, mean:-14.32},
+    LD50_Zhu: {min:-2.68, max:11.58, mean:2.46},
+    Lipophilicity_AstraZeneca: {min:-38.75, max:9.73, mean:2.08},
+    PPBR_AZ: {min:-473.40, max:189.18, mean:81.25},
+    Solubility_AqSolDB: {min:-13.15, max:8.73, mean:-3.95},
+    VDss_Lombardo: {min:-80.98, max:69.37, mean:2.99}
 };
 
 function loadOptions() {
@@ -357,8 +443,53 @@ function addFilter() {
         '<option value="n_rings">Rings (0 - 32, mean: 3.5)</option>' +
         '<option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>' +
         '<optgroup label="ADMET predictions">' +
-        '<option value="Solubility_AqSolDB">Solubility (-13.1 - 8.7)</option>' +
-        '<option value="Lipophilicity_AstraZeneca">Lipophilicity (-22.2 - 9.7)</option>' +
+        '<option value="Lipinski">Lipinski (alerts) (0.00 - 4.00)</option>' +
+        '<option value="QED">QED (drug-likeness) (0.00 - 0.95)</option>' +
+        '<option value="stereo_centers">Stereocenters (0.00 - 153.00)</option>' +
+        '<option value="PAINS_alert">PAINS alerts (0.00 - 4.00)</option>' +
+        '<option value="BRENK_alert">BRENK alerts (0.00 - 8.00)</option>' +
+        '<option value="NIH_alert">NIH alerts (0.00 - 6.00)</option>' +
+        '<option value="AMES">AMES mutagenicity (0.00 - 1.00)</option>' +
+        '<option value="BBB_Martins">BBB penetration (0.00 - 1.00)</option>' +
+        '<option value="Bioavailability_Ma">Bioavailability (0.00 - 0.99)</option>' +
+        '<option value="CYP1A2_Veith">CYP1A2 inhibition (0.00 - 1.00)</option>' +
+        '<option value="CYP2C19_Veith">CYP2C19 inhibition (0.00 - 1.00)</option>' +
+        '<option value="CYP2C9_Substrate_CarbonMangels">CYP2C9 substrate (0.00 - 0.73)</option>' +
+        '<option value="CYP2C9_Veith">CYP2C9 inhibition (0.00 - 1.00)</option>' +
+        '<option value="CYP2D6_Substrate_CarbonMangels">CYP2D6 substrate (0.00 - 0.93)</option>' +
+        '<option value="CYP2D6_Veith">CYP2D6 inhibition (0.00 - 1.00)</option>' +
+        '<option value="CYP3A4_Substrate_CarbonMangels">CYP3A4 substrate (0.00 - 1.00)</option>' +
+        '<option value="CYP3A4_Veith">CYP3A4 inhibition (0.00 - 1.00)</option>' +
+        '<option value="Carcinogens_Lagunin">Carcinogenicity (0.00 - 0.97)</option>' +
+        '<option value="ClinTox">Clinical toxicity (0.00 - 0.94)</option>' +
+        '<option value="DILI">DILI risk (0.00 - 1.00)</option>' +
+        '<option value="HIA_Hou">Intestinal absorption (0.00 - 1.00)</option>' +
+        '<option value="NR_AR_LBD">AR ligand-binding (Tox21) (0.00 - 1.00)</option>' +
+        '<option value="NR_AR">AR full (Tox21) (0.00 - 1.00)</option>' +
+        '<option value="NR_AhR">AhR (Tox21) (0.00 - 1.00)</option>' +
+        '<option value="NR_Aromatase">Aromatase (Tox21) (0.00 - 1.00)</option>' +
+        '<option value="NR_ER_LBD">ER ligand-binding (Tox21) (0.00 - 0.99)</option>' +
+        '<option value="NR_ER">ER full (Tox21) (0.00 - 1.00)</option>' +
+        '<option value="NR_PPAR_gamma">PPAR-gamma (Tox21) (0.00 - 1.00)</option>' +
+        '<option value="PAMPA_NCATS">PAMPA permeability (0.00 - 1.00)</option>' +
+        '<option value="Pgp_Broccatelli">P-gp inhibition (0.00 - 1.00)</option>' +
+        '<option value="SR_ARE">ARE (Tox21 stress) (0.00 - 1.00)</option>' +
+        '<option value="SR_ATAD5">ATAD5 (Tox21 stress) (0.00 - 0.97)</option>' +
+        '<option value="SR_HSE">HSE (Tox21 stress) (0.00 - 1.00)</option>' +
+        '<option value="SR_MMP">MMP (Tox21 stress) (0.00 - 1.00)</option>' +
+        '<option value="SR_p53">p53 (Tox21 stress) (0.00 - 0.99)</option>' +
+        '<option value="Skin_Reaction">Skin reaction (0.00 - 1.00)</option>' +
+        '<option value="hERG">hERG cardiotoxicity (0.00 - 1.00)</option>' +
+        '<option value="Caco2_Wang">Caco-2 permeability (-53.24 - -3.15)</option>' +
+        '<option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance (-577.75 - 514.43)</option>' +
+        '<option value="Clearance_Microsome_AZ">Microsome clearance (-170.89 - 1130.07)</option>' +
+        '<option value="Half_Life_Obach">Half-life (h) (-248.88 - 1026.17)</option>' +
+        '<option value="HydrationFreeEnergy_FreeSolv">Hydration free energy (-502.49 - 9.25)</option>' +
+        '<option value="LD50_Zhu">LD50 (oral, log) (-2.68 - 11.58)</option>' +
+        '<option value="Lipophilicity_AstraZeneca">Lipophilicity (-38.75 - 9.73)</option>' +
+        '<option value="PPBR_AZ">Plasma protein binding (%) (-473.40 - 189.18)</option>' +
+        '<option value="Solubility_AqSolDB">Aqueous solubility (log) (-13.15 - 8.73)</option>' +
+        '<option value="VDss_Lombardo">Volume of distribution (-80.98 - 69.37)</option>' +
         '<option value="DILI">DILI risk (0.0 - 1.0)</option>' +
         '<option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance (-341 - 514)</option>' +
         '</optgroup>' +
