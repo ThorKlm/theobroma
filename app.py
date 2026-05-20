@@ -847,11 +847,15 @@ def api_taxonomy_tree():
                             kingdom_override = row[0]
         except Exception:
             kingdom_override = None
+    # Snapshot params BEFORE appending kingdom_override; sql_compounds (below)
+    # uses only the base where_sql and must NOT see the extra placeholder.
+    params_base = list(params)
     if kingdom_override:
         kingdom_filter = "WHERE LOWER(theobroma_kingdom) = LOWER(%s)"
         params.append(kingdom_override)
     else:
         kingdom_filter = ""
+
     sql = f"""
         WITH base AS (
             SELECT c.comp_id, rt.kingdom AS primary_k, rt.secondary_kingdoms,
@@ -930,7 +934,7 @@ def api_taxonomy_tree():
         """
         with get_db() as conn2:
             with conn2.cursor() as cur2:
-                cur2.execute(sql_compounds, params)
+                cur2.execute(sql_compounds, params_base)
                 seen_per_path = set()
                 for row in cur2.fetchall():
                     cid, nm, tk, ph, cl, od, fa, gn = row
