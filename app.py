@@ -814,7 +814,11 @@ def api_taxonomy_tree():
         expanded AS (
             SELECT comp_id, primary_k AS theobroma_kingdom, phylum, taxclass, taxorder, family, genus FROM base
             UNION ALL
-            SELECT comp_id, unnest(secondary_kingdoms), phylum, taxclass, taxorder, family, genus
+            -- Secondary kingdoms get the kingdom-level count only; downstream lineage
+            -- (phylum/class/order/family/genus) is the primary's lineage, not the
+            -- secondary's. Emit NULLs so the secondary slice shows only as a kingdom
+            -- wedge without duplicating the primary's full taxonomic path under it.
+            SELECT comp_id, unnest(secondary_kingdoms), NULL, NULL, NULL, NULL, NULL
             FROM base WHERE secondary_kingdoms IS NOT NULL AND secondary_kingdoms <> '{{}}'
         ),
         narrowed AS (

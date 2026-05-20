@@ -21,7 +21,7 @@ WITH base AS (
 expanded AS (
     SELECT comp_id, primary_k AS k, phylum, taxclass, taxorder, family, genus FROM base
     UNION ALL
-    SELECT comp_id, unnest(secondary_kingdoms), phylum, taxclass, taxorder, family, genus
+    SELECT comp_id, unnest(secondary_kingdoms), NULL, NULL, NULL, NULL, NULL
     FROM base WHERE secondary_kingdoms IS NOT NULL AND secondary_kingdoms <> '{}'
 )
 SELECT k AS theobroma_kingdom, NULL AS lineage_kingdom, phylum, taxclass, taxorder, family, genus,
