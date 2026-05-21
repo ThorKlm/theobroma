@@ -594,6 +594,17 @@
           var v = curParams.get(k);
           if (v && v !== 'all') url += '&' + k + '=' + encodeURIComponent(v);
         });
+        // /browse-style URL params (region, source, kingdom) get folded into the
+        // /search query as additional extras so the filter survives the click.
+        ['kingdom', 'region', 'source'].forEach(function(k){
+          var v = curParams.get(k);
+          if (v && !(k in newFilters)) {
+            if (extraIdx > 5) return;
+            url += '&extra_type_' + extraIdx + '=' + k +
+                   '&extra_q_' + extraIdx + '=' + encodeURIComponent(v);
+            extraIdx++;
+          }
+        });
         window.location.href = url;
       })
       .on('mousemove', function(event, d){
@@ -681,23 +692,28 @@
           .style('cursor', 'pointer');
         var fullName = d.data.name || d.data.comp_id || '';
         var truncated = fullName.length > 15 ? fullName.substring(0, 15) + '...' : fullName;
+        // Center the label block on the radial axis instead of letting it grow
+        // downward only (which causes top-arc labels to crash into the inner ring
+        // and bottom-arc labels to drift away from their wedge).
+        var twoLine = compoundLabels.length <= 100;
+        var dyLine1 = twoLine ? '-0.4em' : '0.35em';
         // Line 1: compound name (truncated).
         a.append('text')
           .attr('class', 'compound-label')
           .attr('transform', transform)
           .attr('text-anchor', anchor)
-          .attr('dy', '-0.1em')
+          .attr('dy', dyLine1)
           .style('font-size', '11px')
           .style('fill', '#333')
           .text(truncated)
           .append('title').text(fullName + ' (' + d.data.comp_id + ')');
         // Line 2: THEO id, only when result set is small enough to read both comfortably.
-        if (compoundLabels.length <= 100) {
+        if (twoLine) {
           a.append('text')
             .attr('class', 'compound-label')
             .attr('transform', transform)
             .attr('text-anchor', anchor)
-            .attr('dy', '1.1em')
+            .attr('dy', '0.8em')
             .style('font-size', '9px')
             .style('fill', '#666')
             .text(d.data.comp_id);

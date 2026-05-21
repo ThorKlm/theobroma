@@ -525,8 +525,13 @@ def browse():
     query = f"SELECT * FROM compounds {where} {oc}"
     with get_db() as conn:
         results, total, pages = paginate(query, params, page, per_page, conn)
-        if kingdom or source or region or named or chem_class or license_filter != "all":
-            count_query = f"SELECT COALESCE(rt.kingdom, compounds.kingdom) AS kingdom, COUNT(*) AS cnt FROM compounds LEFT JOIN resolved_taxonomy rt ON rt.comp_id = compounds.comp_id {where} GROUP BY 1"
+        if kingdom:
+            # User explicitly filtered by kingdom: every returned compound IS
+            # that kingdom (primary or secondary). Show 100% queried kingdom.
+            thumb_kingdoms = [{"kingdom": kingdom.lower(), "cnt": total}]
+        elif source or region or named or chem_class or license_filter != "all":
+            # Other filter active: show primary-kingdom breakdown of result set.
+            count_query = f"SELECT rt.kingdom AS kingdom, COUNT(DISTINCT compounds.comp_id) AS cnt FROM compounds LEFT JOIN resolved_taxonomy rt ON rt.comp_id = compounds.comp_id {where} AND rt.kingdom IS NOT NULL AND rt.kingdom != '' GROUP BY 1 ORDER BY cnt DESC"
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(count_query, params)
                 thumb_kingdoms = cur.fetchall()
@@ -822,6 +827,9 @@ def api_taxonomy_tree():
     kingdom_override = None
     if search_type == "kingdom" and search_q:
         kingdom_override = search_q
+    elif kingdom:
+        # /browse-style URL param ?kingdom=X (no type=kingdom involved)
+        kingdom_override = kingdom
     else:
         for i in range(1, 6):
             et = request.args.get(f"extra_type_{i}", "")
