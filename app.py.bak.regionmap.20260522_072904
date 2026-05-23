@@ -216,22 +216,8 @@ def index():
             cur.execute(f"SELECT {REGION_SQL} AS reg, COUNT(*) AS cnt FROM compounds GROUP BY 1 ORDER BY cnt DESC")
             regions = cur.fetchall()
             n_regions = len([r for r in regions if r["reg"]!="unresolved"])
-    home_thumb = kingdom_thumbnail_svg(kingdoms, total=total, size=180, title="Corpus kingdoms")
-    home_region_counts = []
-    try:
-        import json as _json
-        with open("/home/thorben.klamt/theobroma/static/compounds_by_country.json") as _f:
-            _data = _json.load(_f)
-            home_region_counts = _data.get("region_counts", [])
-    except Exception:
-        home_region_counts = []
-    home_region_css, home_region_titles = build_region_color_css(home_region_counts, mode="light")
     return render_template("index.html", total=total, kingdoms=kingdoms,
-                           n_sources=n_sources, n_regions=n_regions, regions=regions,
-                           home_thumb=home_thumb,
-                           home_region_css=home_region_css,
-                           home_region_counts=home_region_counts,
-                           home_region_titles=home_region_titles)
+                           n_sources=n_sources, n_regions=n_regions, regions=regions)
 
 def _exact_flag():
     """Return True if the request asks for exact-match semantics."""
@@ -502,19 +488,7 @@ def search():
             elif extras_kingdom_q:
                 kingdom_label_override = extras_kingdom_q.lower()
             # Primary-kingdom breakdown SQL (used for inspection + fallback)
-            kingdom_sql = f"""
-                WITH result_set AS ({query}),
-                expanded AS (
-                    SELECT rs.comp_id, rt.kingdom AS kingdom
-                    FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
-                    WHERE rt.kingdom IS NOT NULL AND rt.kingdom != ''
-                    UNION ALL
-                    SELECT rs.comp_id, unnest(rt.secondary_kingdoms) AS kingdom
-                    FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
-                    WHERE rt.secondary_kingdoms IS NOT NULL AND array_length(rt.secondary_kingdoms, 1) > 0
-                )
-                SELECT kingdom, COUNT(DISTINCT comp_id) AS cnt FROM expanded
-                GROUP BY 1 ORDER BY cnt DESC"""
+            kingdom_sql = f"SELECT rt.kingdom AS kingdom, COUNT(DISTINCT sub.comp_id) AS cnt FROM ({query}) AS sub LEFT JOIN resolved_taxonomy rt ON rt.comp_id = sub.comp_id WHERE rt.kingdom IS NOT NULL AND rt.kingdom != '' GROUP BY 1 ORDER BY cnt DESC"
             with get_db() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute(kingdom_sql, params)
@@ -530,112 +504,12 @@ def search():
             thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=200, title="Result-set kingdoms")
         except Exception:
             thumb = None
-    # Region distribution for the world-map (same subquery pattern as kingdom thumb)
-    region_counts_filtered = []
-    region_css = ""
-    region_titles = {}
-    if total > 0:
-        try:
-            region_sql = f"SELECT region, COUNT(*) AS count FROM ({query}) AS sub WHERE region IS NOT NULL AND region != '' GROUP BY region ORDER BY count DESC"
-            with get_db() as conn_rs:
-                with conn_rs.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur_rs:
-                    cur_rs.execute(region_sql, params)
-                    region_counts_filtered = cur_rs.fetchall()
-            region_css, region_titles = build_region_color_css(region_counts_filtered)
-        except Exception:
-            region_counts_filtered = []
-            region_css = ""
-            region_titles = {}
     return render_template("search.html", results=results, query=q, search_type=st,
                            page=page, total=total, pages=pages, sort=sort, order=order, per_page=per_page,
-                           thumb=thumb,
-                           region_css=region_css, region_counts_filtered=region_counts_filtered, region_titles=region_titles)
-
-
-# Region-to-ISO2 mapping (mirrors scripts/build_compound_region_map.py)
-_REGION_TO_ISO2 = {
-    "East Asia":      ["cn","jp","kr","kp","tw","mn","hk","mo"],
-    "South Asia":     ["in","pk","bd","np","lk","bt","mv","af"],
-    "Southeast Asia": ["id","th","vn","my","ph","sg","kh","la","mm","bn","tl"],
-    "Europe":         ["de","fr","gb","it","es","nl","be","ch","at","se","no","dk","fi","is","pt","gr","pl","cz","sk","hu","ro","bg","hr","si","rs","ba","me","mk","al","xk","ua","by","md","lt","lv","ee","ie","lu","mt","cy","gl"],
-    "North America":  ["us","ca","mx"],
-    "Latin America":  ["br","ar","co","cl","pe","ve","ec","bo","py","uy","gy","sr","gf","cu","do","ht","jm","tt","pr","bs","bb","bz","cr","gt","hn","ni","pa","sv"],
-    "Africa":         ["ng","et","eg","cd","tz","ke","za","ug","dz","sd","ma","ao","mz","gh","mg","cm","ci","ne","bf","ml","mw","zm","sn","so","td","zw","gn","rw","bj","tn","bi","ss","tg","sl","ly","cf","cg","lr","mr","er","na","bw","gm","ls","gw","gq","mu","dj","km","cv","st","sc"],
-    "Middle East":    ["sa","ir","iq","il","jo","ae","kw","lb","om","qa","sy","ye","bh","ps","tr"],
-    "Russia/CIS":     ["ru","kz","uz","tm","kg","tj","am","az","ge"],
-    "Central Asia":   ["kz","uz","tm","kg","tj"],
-    "Australia":      ["au"],
-    "New Zealand":    ["nz"],
-    "Oceania":        ["pg","fj","sb","vu","nc","pf","ws","to","ki","mh","fm","pw","nr","tv","ck","as","gu","mp"],
-}
-
-def build_region_color_css(region_counts, mode="dark"):
-    """Given a list of {region, count} dicts, return CSS style rules for the world-map SVG.
-    Sqrt scale of share-of-max. Bacteria-blue (#0077b6) ramp.
-    mode="dark": low=black; mode="light": low=light blue (legacy index-page look).
-    Hover lightens 25% toward white."""
-    counts_by_iso2 = {}
-    region_by_iso2 = {}
-    for entry in region_counts:
-        region = entry.get("region") or entry.get("kingdom")
-        count = entry.get("count") or entry.get("cnt") or entry.get("n") or 0
-        iso2_list = _REGION_TO_ISO2.get(region, [])
-        for iso2 in iso2_list:
-            counts_by_iso2[iso2] = counts_by_iso2.get(iso2, 0) + count
-            region_by_iso2[iso2] = region
-    if not counts_by_iso2:
-        return "", {}
-    max_count = max(counts_by_iso2.values())
-    import math
-    end_color = (0, 119, 182)  # bacteria-blue
-    if mode == "light":
-        start_color = (232, 241, 248)
-        zero_color = "#f0f0f0"
-    else:
-        start_color = (180, 188, 196)
-        zero_color = "#b0b8c0"
-    def color(c):
-        if c <= 0: return zero_color
-        t = math.sqrt(c / max_count)  # sqrt for better low-count contrast
-        return f"#{int(start_color[0]+(end_color[0]-start_color[0])*t):02x}{int(start_color[1]+(end_color[1]-start_color[1])*t):02x}{int(start_color[2]+(end_color[2]-start_color[2])*t):02x}"
-    def hover(c):
-        if c <= 0: return "#bfbfbf" if mode == "light" else "#c8d0d8"
-        t = math.sqrt(c / max_count)
-        r0 = start_color[0]+(end_color[0]-start_color[0])*t
-        g0 = start_color[1]+(end_color[1]-start_color[1])*t
-        b0 = start_color[2]+(end_color[2]-start_color[2])*t
-        r = int(0.75*r0 + 0.25*255); g = int(0.75*g0 + 0.25*255); b = int(0.75*b0 + 0.25*255)
-        return f"#{r:02x}{g:02x}{b:02x}"
-    rules = []
-    titles = {}
-    for iso2, count in counts_by_iso2.items():
-        rules.append(f"a#a_{iso2} path, a#a_{iso2} g path {{ fill: {color(count)}; }}")
-        rules.append(f"a#a_{iso2}:hover path, a#a_{iso2}:hover g path {{ fill: {hover(count)}; }}")
-        titles[iso2] = f"{region_by_iso2[iso2]}: {count:,} compounds"
-    rules.append("path { stroke: #fff; stroke-width: 0.3; transition: fill 0.15s; }")
-    rules.append("a:hover { cursor: pointer; }")
-    return "\n".join(rules), titles
-
+                           thumb=thumb)
 
 @app.route("/browse")
 def browse():
-    # If the URL uses /search-style params (type=, q=, extra_*), redirect there
-    # so the user gets the result they expected. Preserves all current params.
-    has_search_params = (
-        request.args.get("type") or request.args.get("q") or
-        any(request.args.get(f"extra_type_{i}") or request.args.get(f"extra_q_{i}") for i in range(1, 6))
-    )
-    if has_search_params:
-        # Translate region=X into extra_type_N=region&extra_q_N=X for /search
-        args = dict(request.args)
-        region_val = args.pop("region", None)
-        if region_val:
-            for i in range(1, 6):
-                if not args.get(f"extra_type_{i}"):
-                    args[f"extra_type_{i}"] = "region"
-                    args[f"extra_q_{i}"] = region_val
-                    break
-        return redirect(url_for("search", **args))
     page = max(1, int(request.args.get("page",1)))
     per_page = get_per_page()
     kingdom = request.args.get("kingdom","")
@@ -674,42 +548,13 @@ def browse():
             thumb_kingdoms = [{"kingdom": kingdom.lower(), "cnt": total}]
         elif source or region or named or chem_class or license_filter != "all":
             # Other filter active: show primary-kingdom breakdown of result set.
-            count_query = f"""
-                WITH result_set AS (SELECT compounds.comp_id FROM compounds {where}),
-                expanded AS (
-                    SELECT rs.comp_id, rt.kingdom AS kingdom
-                    FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
-                    WHERE rt.kingdom IS NOT NULL AND rt.kingdom != ''
-                    UNION ALL
-                    SELECT rs.comp_id, unnest(rt.secondary_kingdoms) AS kingdom
-                    FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
-                    WHERE rt.secondary_kingdoms IS NOT NULL AND array_length(rt.secondary_kingdoms, 1) > 0
-                )
-                SELECT kingdom, COUNT(DISTINCT comp_id) AS cnt FROM expanded
-                GROUP BY 1 ORDER BY cnt DESC"""
+            count_query = f"SELECT rt.kingdom AS kingdom, COUNT(DISTINCT compounds.comp_id) AS cnt FROM compounds LEFT JOIN resolved_taxonomy rt ON rt.comp_id = compounds.comp_id {where} AND rt.kingdom IS NOT NULL AND rt.kingdom != '' GROUP BY 1 ORDER BY cnt DESC"
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(count_query, params)
                 thumb_kingdoms = cur.fetchall()
         else:
             thumb_kingdoms = _BROWSE_CACHE["all_kingdoms"]
     thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=200, title="Result-set kingdoms")
-    compounds_by_country = []
-    region_counts_filtered = []
-    try:
-        any_filter = bool(kingdom or source or region or named or chem_class or license_filter != "all")
-        if any_filter:
-            with get_db() as conn_rm:
-                with conn_rm.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur_rm:
-                    region_q = f"SELECT region, COUNT(*) AS count FROM compounds {where} AND region IS NOT NULL AND region != '' GROUP BY region ORDER BY count DESC" if where else "SELECT region, COUNT(*) AS count FROM compounds WHERE region IS NOT NULL AND region != '' GROUP BY region ORDER BY count DESC"
-                    cur_rm.execute(region_q, params)
-                    region_counts_filtered = cur_rm.fetchall()
-        else:
-            with open("/home/thorben.klamt/theobroma/static/compounds_by_country.json") as _f:
-                _data = json.load(_f)
-                region_counts_filtered = _data.get("region_counts", [])
-    except Exception:
-        region_counts_filtered = []
-    region_css, region_titles = build_region_color_css(region_counts_filtered)
     return render_template("browse.html", results=results, page=page, total=total,
                            pages=pages, kingdom=kingdom, source=source, region=region,
                            all_kingdoms=_BROWSE_CACHE["all_kingdoms"],
@@ -717,9 +562,7 @@ def browse():
                            thumb=thumb,
                            all_regions=_BROWSE_CACHE["all_regions"],
                            sort=sort, order=order,
-                           named=named, per_page=per_page, chem_class=chem_class,
-                           compounds_by_country=compounds_by_country,
-                           region_css=region_css, region_counts_filtered=region_counts_filtered, region_titles=region_titles)
+                           named=named, per_page=per_page, chem_class=chem_class)
 
 @app.route("/compound/<comp_id>")
 def compound_detail(comp_id):

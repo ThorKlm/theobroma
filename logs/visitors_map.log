@@ -42,3 +42,25 @@ unresolved: 0
 top 10:
 
 wrote /home/thorben.klamt/theobroma/static/visitors_by_country.json and /home/thorben.klamt/theobroma/static/visitors_meta.json
+fetching IPs from access_log...
+  distinct non-bot IPs: 0
+  cache hits so far: 0
+  needs lookup: 0
+  cache size: 189
+
+resolved 0 countries, 0 IPs
+unresolved: 0
+top 10:
+
+wrote /home/thorben.klamt/theobroma/static/visitors_by_country.json and /home/thorben.klamt/theobroma/static/visitors_meta.json
+fetching IPs from access_log...
+  distinct non-bot IPs: 0
+  cache hits so far: 0
+  needs lookup: 0
+  cache size: 212
+
+resolved 0 countries, 0 IPs
+unresolved: 0
+top 10:
+
+wrote /home/thorben.klamt/theobroma/static/visitors_by_country.json and /home/thorben.klamt/theobroma/static/visitors_meta.json

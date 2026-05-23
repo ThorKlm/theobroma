@@ -39,8 +39,8 @@ def fetch_ips():
     q = f"""SELECT ip, COUNT(*) AS hits FROM access_log
             WHERE ip IS NOT NULL AND ip != ''
               AND COALESCE(user_agent, '') !~* '({bot_pattern})'
-              AND path NOT LIKE '/static/%%'
-              AND path NOT LIKE '/api/depict%%'
+              AND path NOT LIKE '/static/%'
+              AND path NOT LIKE '/api/depict%'
             GROUP BY ip ORDER BY 2 DESC"""
     r = subprocess.run(['sudo','-u','postgres','psql','-d','theobroma','-At','-F','\t','-c',q],
                        capture_output=True, text=True)

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="back-link"><a href="javascript:history.back();">&larr; Back to results</a></div>
 <div class="compound-header">
-    <h1>{{ (c.name or 'Unnamed compound')|normalize_name }}</h1>
+    <h1>{{ c.name or 'Unnamed compound' }}</h1>
 {% if synonyms %}
     <p style="font-size:0.82rem;color:var(--text-muted);margin:0.25rem 0 0.5rem;"><strong>Synonyms:</strong> {% for s in synonyms %}{{ s[0]|upper }}{{ s[1:] }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
     {% else %}
@@ -137,182 +137,14 @@
         </div>
         {% endif %}
     </div>
-    {% if stereoisomers and stereoisomers|length > 1 %}
-    <div class="card">
-        <h3 class="card-title">Stereoisomer family overview</h3>
-        <div id="radial-family-container" style="position:relative;width:100%;height:380px;display:flex;align-items:center;justify-content:center;">
-            <div id="radial-family-canvas-wrap" style="position:relative;width:360px;height:360px;">
-            </div>
-        </div>
-        <p style="font-size:0.78rem;color:var(--text-muted);margin:0;text-align:center;">
-            {{ stereoisomers|length }} family members; click any structure to navigate.
-            &nbsp;|&nbsp;
-            <a href="/api/family_figure/{{ c.comp_id }}?download=svg" style="color:var(--accent);text-decoration:underline;">Download SVG</a>
-        </p>
-    </div>
-    <script>
-    (function(){
-        var unspecified_ids = [{% for si in stereoisomer_groups['unspecified'] %}{{ si.comp_id|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
-        var protonation_ids = [{% for si in stereoisomer_groups['protonation'] %}{{ si.comp_id|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
-        var members = [
-        {% for si in stereoisomers %}
-            {comp_id: {{ si.comp_id|tojson }}, name: {{ (si.name or si.comp_id)|normalize_name|tojson }}, smiles: {{ si.smiles|tojson }}, is_ref: {{ 'true' if si.comp_id == c.comp_id else 'false' }}, inchikey: {{ si.inchikey|tojson }}}{% if not loop.last %},{% endif %}
-        {% endfor %}
-        ];
-        members.forEach(function(m){
-            if (unspecified_ids.indexOf(m.comp_id) >= 0) m.category = 'unspecified';
-            else if (protonation_ids.indexOf(m.comp_id) >= 0) m.category = 'protonation';
-            else m.category = null;
-        });
-        members.sort(function(a, b){ return (b.is_ref ? 1 : 0) - (a.is_ref ? 1 : 0); });
-
-        var container = document.getElementById('radial-family-canvas-wrap');
-        if (!container) return;
-
-        var W = 360, H = 360, cx = W/2, cy = H/2;
-        var ref = members[0];
-        var sats = members.slice(1);
-        var N = sats.length;
-
-        var satW = Math.max(48, Math.min(72, 88 - N*3));
-        var satH = Math.max(38, Math.min(58, 70 - N*2));
-        var refW = satW, refH = satH;
-
-        // Background SVG for radial connectors
-        var svgNS = 'http://www.w3.org/2000/svg';
-        var svg = document.createElementNS(svgNS, 'svg');
-        svg.setAttribute('width', W); svg.setAttribute('height', H);
-        svg.style.position = 'absolute';
-        svg.style.left = '0'; svg.style.top = '0';
-        svg.style.pointerEvents = 'none';
-        container.appendChild(svg);
-
-        var radius = (W/2) - Math.max(satW, satH)/2 - 10;
-        // Connectors span 1/3 to 2/3 of the center-to-center distance
-        var line_start_radius = radius / 3;
-        var line_end_radius = 2 * radius / 3;
-
-        addCell(ref, cx - refW/2, cy - refH/2, refW, refH, true);
-
-        for (var i = 0; i < N; i++) {
-            var angle = (2*Math.PI*i/N) - Math.PI/2;
-            // Draw radial line
-            var line = document.createElementNS(svgNS, 'line');
-            line.setAttribute('x1', cx + line_start_radius * Math.cos(angle));
-            line.setAttribute('y1', cy + line_start_radius * Math.sin(angle));
-            line.setAttribute('x2', cx + line_end_radius * Math.cos(angle));
-            line.setAttribute('y2', cy + line_end_radius * Math.sin(angle));
-            line.setAttribute('stroke', 'var(--text-muted)');
-            line.setAttribute('stroke-width', '1');
-            line.setAttribute('opacity', '0.4');
-            svg.appendChild(line);
-
-            var x = cx + radius * Math.cos(angle) - satW/2;
-            var y = cy + radius * Math.sin(angle) - satH/2;
-            addCell(sats[i], x, y, satW, satH, false);
-        }
-
-        function addCell(m, x, y, w, h, is_ref) {
-            var cell = document.createElement(is_ref ? 'div' : 'a');
-            if (!is_ref) cell.href = '/compound/' + m.comp_id;
-            cell.title = m.name + (m.inchikey ? '  ' + m.inchikey : '');
-            cell.style.position = 'absolute';
-            cell.style.left = x + 'px';
-            cell.style.top = y + 'px';
-            cell.style.width = w + 'px';
-            cell.style.height = h + 'px';
-            cell.style.display = 'flex';
-            cell.style.flexDirection = 'column';
-            cell.style.alignItems = 'center';
-            cell.style.justifyContent = 'center';
-            cell.style.padding = '0';
-            cell.style.textDecoration = 'none';
-            cell.style.color = 'var(--text)';
-            if (!is_ref) cell.style.transition = 'transform 0.12s, border-color 0.12s';
-
-            var canvas = document.createElement('canvas');
-            canvas.width = w - 8;
-            canvas.height = h - 14;
-            cell.appendChild(canvas);
-
-            var labelWrap = document.createElement('div');
-            labelWrap.style.textAlign = 'center';
-            labelWrap.style.maxWidth = (w + 30) + 'px';
-            labelWrap.style.marginTop = '1px';
-
-            var label = document.createElement('div');
-            label.style.fontSize = '0.6rem';
-            label.style.lineHeight = '1';
-            label.style.overflow = 'hidden';
-            label.style.textOverflow = 'ellipsis';
-            label.style.whiteSpace = 'nowrap';
-            label.textContent = m.name.length > 25 ? m.name.substring(0, 23) + '...' : m.name;
-            labelWrap.appendChild(label);
-
-            if (m.category) {
-                var sub = document.createElement('div');
-                sub.style.fontSize = '0.52rem';
-                sub.style.lineHeight = '1';
-                sub.style.color = 'var(--text-muted)';
-                sub.style.marginTop = '1px';
-                sub.textContent = m.category === 'unspecified' ? '(stereo unspecified)' : '(protonation state)';
-                labelWrap.appendChild(sub);
-            }
-
-            cell.appendChild(labelWrap);
-
-            if (!is_ref) {
-                cell.addEventListener('mouseenter', function(){ this.style.transform = 'scale(1.1)'; });
-                cell.addEventListener('mouseleave', function(){ this.style.transform = 'scale(1.0)'; });
-            }
-
-            container.appendChild(cell);
-
-            (function(c, smi, cw, ch){
-                function fallback(){
-                    fetch('/api/depict?smiles=' + encodeURIComponent(smi) + '&w=' + cw + '&h=' + ch)
-                        .then(function(r){ return r.text(); })
-                        .then(function(svg){
-                            if (!c.parentNode) return;
-                            var div = document.createElement('div');
-                            div.innerHTML = svg;
-                            div.style.width = cw + 'px';
-                            div.style.height = ch + 'px';
-                            div.style.display = 'flex';
-                            div.style.alignItems = 'center';
-                            div.style.justifyContent = 'center';
-                            var inner = div.querySelector('svg');
-                            if (inner) { inner.setAttribute('width', cw); inner.setAttribute('height', ch); inner.style.maxWidth = cw + 'px'; inner.style.maxHeight = ch + 'px'; }
-                            c.parentNode.replaceChild(div, c);
-                        }).catch(function(){});
-                }
-                try {
-                    var drawer = new SmilesDrawer.Drawer({width: cw, height: ch, padding: 2, bondLength: 12, bondThickness: 0.7, fontSizeLarge: 5, fontSizeSmall: 3});
-                    SmilesDrawer.parse(smi, function(tree){
-                        drawer.draw(tree, c, 'light');
-                        setTimeout(function(){
-                            try {
-                                var pixels = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-                                var hasContent = false;
-                                for (var k = 3; k < pixels.length; k += 40) { if (pixels[k] > 0) { hasContent = true; break; } }
-                                if (!hasContent) fallback();
-                            } catch (e) { fallback(); }
-                        }, 400);
-                    }, function(){ fallback(); });
-                } catch (e) { fallback(); }
-            })(canvas, m.smiles, canvas.width, canvas.height);
-        }
-    })();
-    </script>
-    {% endif %}
     {% if stereoisomer_groups and stereoisomers|length > 1 %}
     {% macro render_si_row(si, is_ref) %}
         <tr{% if is_ref %} style="background:rgba(102,153,102,0.08);"{% endif %}>
             <td>
                 {% if is_ref %}
-                    <strong>{{ (si.name or si.comp_id)|normalize_name }}</strong> <span style="font-size:0.72rem;color:var(--text-muted);">(this compound)</span>
+                    <strong>{{ si.name or si.comp_id }}</strong> <span style="font-size:0.72rem;color:var(--text-muted);">(this compound)</span>
                 {% else %}
-                    <a href="/compound/{{ si.comp_id }}">{{ (si.name or si.comp_id)|normalize_name }}</a>
+                    <a href="/compound/{{ si.comp_id }}">{{ si.name or si.comp_id }}</a>
                 {% endif %}
             </td>
             <td style="font-family:monospace;font-size:0.78rem;">

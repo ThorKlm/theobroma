@@ -25,7 +25,7 @@
       </div>
       <div id="tax-detail" style="min-height:1.4em;color:var(--text-strong);text-align:right;"></div>
     </div>
-    <div style="display:flex;justify-content:flex-end;font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;">THEOBROMA v33.x.1 (2026-05)</div>
+    <div style="display:flex;justify-content:flex-end;font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;">THEOBROMA {{ theobroma_version }}</div>
 
     <div id="tax-floating-tip" style="position:fixed;display:none;background:white;border:1px solid var(--border);padding:0.3rem 0.5rem;font-size:0.85rem;pointer-events:none;z-index:1000;box-shadow:0 2px 6px rgba(0,0,0,0.1);border-radius:3px;"></div>
     <div id="tax-loading" style="text-align:center;padding:2rem;color:var(--text-muted);display:none;">Loading taxonomy data...</div>
@@ -37,6 +37,7 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/d3@7" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.4/dist/svg2pdf.umd.min.js" defer></script>
 <script>
 (function(){
   var loaded = false, data = null, expanded = false;
@@ -110,9 +111,10 @@
       function getSvg(){ return document.querySelector('#tax-container svg'); }
       function adjustFont(delta){
         var svg = getSvg(); if (!svg) return;
-        // Each text element has its own inline font-size that overrides the SVG.
-        // Scale all <text> elements by adding delta to their current size.
-        var texts = svg.querySelectorAll('text');
+        // Scale only the inner-ring wedge labels (taxonomic ranks), not the outer
+        // compound-name ring. The compound-name ring is sized separately to fit the
+        // radial spokes and should not change with the font-size buttons.
+        var texts = svg.querySelectorAll('text.wedge-label');
         for (var i = 0; i < texts.length; i++) {
           var t = texts[i];
           var cs = window.getComputedStyle(t);
@@ -302,7 +304,7 @@
       .attr('x', rightX).attr('y', labelBotY)
       .attr('text-anchor', 'end')
       .style('font-size', '12px').style('fill', '#888')
-      .text('THEOBROMA v33.x.1 (2026-05)');
+      .text('THEOBROMA {{ theobroma_version }}');
 
     // Kingdom legend for exports: positioned bottom-left, mirrors the small donut legend.
     // Built from data.tree.children's top-level kingdoms with their counts and colors.
@@ -756,32 +758,76 @@
   function exportPDF(){
     var container = document.getElementById('tax-container');
     container.classList.add('tax-exporting');
-    // Rasterize SVG to a PNG at the same dimensions as exportPNG, then embed
-    // via jsPDF and trigger direct file download (no print dialog).
-    var svg = document.querySelector('#tax-container svg'); if (!svg) return;
-    if (!window.jspdf) { alert('PDF library not loaded yet, please try again.'); return; }
-    var ser = new XMLSerializer().serializeToString(svg);
-    var blob = new Blob([ser], {type:'image/svg+xml;charset=utf-8'});
-    var url = URL.createObjectURL(blob);
-    var img = new Image();
-    img.onload = function(){
-      var W = 2000, H = 2000;
-      var canvas = document.createElement('canvas');
-      canvas.width = W; canvas.height = H;
-      var ctx = canvas.getContext('2d');
-      ctx.fillStyle = 'white'; ctx.fillRect(0,0,W,H);
-      ctx.drawImage(img, 0, 0, W, H);
-      var pngData = canvas.toDataURL('image/png');
-      URL.revokeObjectURL(url);
-      var jsPDF = window.jspdf.jsPDF;
-      // Use a custom PDF page size matching the image dimensions (in points).
-      // 1 point = 1/72 inch. 2000 px at 72 dpi = 2000 points.
-      var pdf = new jsPDF({orientation:'portrait', unit:'pt', format:[W, H]});
-      pdf.addImage(pngData, 'PNG', 0, 0, W, H);
-      pdf.save('theobroma_taxonomy_' + Date.now() + '.pdf');
+    var svg = document.querySelector('#tax-container svg');
+    if (!svg) { container.classList.remove('tax-exporting'); return; }
+    if (!window.jspdf) {
+      alert('PDF library not loaded yet, please try again.');
       container.classList.remove('tax-exporting');
-    };
-    img.src = url;
+      return;
+    }
+    var jsPDF = window.jspdf.jsPDF;
+    var vb = svg.viewBox && svg.viewBox.baseVal;
+    var W = (vb && vb.width)  ? vb.width  : (svg.clientWidth || 2000);
+    var H = (vb && vb.height) ? vb.height : (svg.clientHeight || 2000);
+    var pdf = new jsPDF({orientation: W > H ? 'landscape' : 'portrait', unit: 'pt', format: [W, H]});
+    // svg2pdf.js (umd build) extends jsPDF prototype with pdf.svg() method
+    if (typeof pdf.svg !== 'function') {
+      alert('SVG-to-PDF library not loaded yet, please try again. Check the browser console for errors.');
+      console.error('pdf.svg is not a function. Available pdf methods:', Object.keys(pdf).filter(function(k){return typeof pdf[k] === "function"}).slice(0,20));
+      container.classList.remove('tax-exporting');
+      return;
+    }
+    // Clone the SVG, then ensure every text and shape has explicit fill/stroke attributes.
+    // svg2pdf does not always inherit fills correctly from parent groups; setting explicit
+    // attributes on each leaf element resolves the white-text-on-white-bg invisibility issue.
+    var clone = svg.cloneNode(true);
+    // Pair original and cloned text elements for computed-style reading
+    var origTexts = svg.querySelectorAll('text');
+    var cloneTexts = clone.querySelectorAll('text');
+    for (var i = 0; i < origTexts.length; i++) {
+      var c = window.getComputedStyle(origTexts[i]);
+      var fill = c.getPropertyValue('fill');
+      if (!fill || fill === 'none' || fill === '' || fill === 'currentcolor') fill = '#000000';
+      cloneTexts[i].setAttribute('fill', fill);
+      // Remove text-stroke entirely from the PDF clone. The live SVG uses
+      // paint-order:stroke with white stroke for legibility against gradient wedges,
+      // but svg2pdf does not respect paint-order and paints stroke ON TOP of fill,
+      // making the text appear white-on-white in the exported PDF.
+      cloneTexts[i].setAttribute('stroke', 'none');
+      cloneTexts[i].style.stroke = 'none';
+      cloneTexts[i].style.strokeWidth = '0';
+      var fs = c.getPropertyValue('font-size');
+      if (fs) cloneTexts[i].setAttribute('font-size', fs);
+      var ff = c.getPropertyValue('font-family');
+      if (ff) cloneTexts[i].setAttribute('font-family', ff);
+      var fw = c.getPropertyValue('font-weight');
+      if (fw) cloneTexts[i].setAttribute('font-weight', fw);
+    }
+    // Same for paths/lines/circles (preserve stroke colors)
+    var origShapes = svg.querySelectorAll('path, line, circle, rect, polygon');
+    var cloneShapes = clone.querySelectorAll('path, line, circle, rect, polygon');
+    for (var i = 0; i < origShapes.length; i++) {
+      var c = window.getComputedStyle(origShapes[i]);
+      var fill = c.getPropertyValue('fill');
+      var stroke = c.getPropertyValue('stroke');
+      var sw = c.getPropertyValue('stroke-width');
+      if (fill && fill !== '') cloneShapes[i].setAttribute('fill', fill);
+      if (stroke && stroke !== '' && stroke !== 'none') cloneShapes[i].setAttribute('stroke', stroke);
+      if (sw && sw !== '') cloneShapes[i].setAttribute('stroke-width', sw);
+    }
+    // Temporarily attach the clone so svg2pdf can measure it; render off-screen.
+    clone.style.position = 'absolute'; clone.style.left = '-10000px';
+    document.body.appendChild(clone);
+    pdf.svg(clone, {x: 0, y: 0, width: W, height: H}).then(function(){
+      pdf.save('theobroma_taxonomy_' + Date.now() + '.pdf');
+      document.body.removeChild(clone);
+      container.classList.remove('tax-exporting');
+    }).catch(function(err){
+      console.error('svg2pdf failed:', err);
+      alert('PDF export failed: ' + (err && err.message ? err.message : err));
+      if (clone.parentNode) document.body.removeChild(clone);
+      container.classList.remove('tax-exporting');
+    });
   }
 })();
 </script>

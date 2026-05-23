@@ -216,22 +216,8 @@ def index():
             cur.execute(f"SELECT {REGION_SQL} AS reg, COUNT(*) AS cnt FROM compounds GROUP BY 1 ORDER BY cnt DESC")
             regions = cur.fetchall()
             n_regions = len([r for r in regions if r["reg"]!="unresolved"])
-    home_thumb = kingdom_thumbnail_svg(kingdoms, total=total, size=180, title="Corpus kingdoms")
-    home_region_counts = []
-    try:
-        import json as _json
-        with open("/home/thorben.klamt/theobroma/static/compounds_by_country.json") as _f:
-            _data = _json.load(_f)
-            home_region_counts = _data.get("region_counts", [])
-    except Exception:
-        home_region_counts = []
-    home_region_css, home_region_titles = build_region_color_css(home_region_counts, mode="light")
     return render_template("index.html", total=total, kingdoms=kingdoms,
-                           n_sources=n_sources, n_regions=n_regions, regions=regions,
-                           home_thumb=home_thumb,
-                           home_region_css=home_region_css,
-                           home_region_counts=home_region_counts,
-                           home_region_titles=home_region_titles)
+                           n_sources=n_sources, n_regions=n_regions, regions=regions)
 
 def _exact_flag():
     """Return True if the request asks for exact-match semantics."""
@@ -569,11 +555,9 @@ _REGION_TO_ISO2 = {
     "Oceania":        ["pg","fj","sb","vu","nc","pf","ws","to","ki","mh","fm","pw","nr","tv","ck","as","gu","mp"],
 }
 
-def build_region_color_css(region_counts, mode="dark"):
+def build_region_color_css(region_counts):
     """Given a list of {region, count} dicts, return CSS style rules for the world-map SVG.
-    Sqrt scale of share-of-max. Bacteria-blue (#0077b6) ramp.
-    mode="dark": low=black; mode="light": low=light blue (legacy index-page look).
-    Hover lightens 25% toward white."""
+    Linear scale to max count. Bacteria-blue (#0077b6) ramp. Hover lightens 25%."""
     counts_by_iso2 = {}
     region_by_iso2 = {}
     for entry in region_counts:
@@ -586,24 +570,16 @@ def build_region_color_css(region_counts, mode="dark"):
     if not counts_by_iso2:
         return "", {}
     max_count = max(counts_by_iso2.values())
-    import math
-    end_color = (0, 119, 182)  # bacteria-blue
-    if mode == "light":
-        start_color = (232, 241, 248)
-        zero_color = "#f0f0f0"
-    else:
-        start_color = (180, 188, 196)
-        zero_color = "#b0b8c0"
     def color(c):
-        if c <= 0: return zero_color
-        t = math.sqrt(c / max_count)  # sqrt for better low-count contrast
-        return f"#{int(start_color[0]+(end_color[0]-start_color[0])*t):02x}{int(start_color[1]+(end_color[1]-start_color[1])*t):02x}{int(start_color[2]+(end_color[2]-start_color[2])*t):02x}"
+        if c <= 0: return "#f0f0f0"
+        t = c / max_count
+        start = (232, 241, 248); end = (0, 119, 182)
+        return f"#{int(start[0]+(end[0]-start[0])*t):02x}{int(start[1]+(end[1]-start[1])*t):02x}{int(start[2]+(end[2]-start[2])*t):02x}"
     def hover(c):
-        if c <= 0: return "#bfbfbf" if mode == "light" else "#c8d0d8"
-        t = math.sqrt(c / max_count)
-        r0 = start_color[0]+(end_color[0]-start_color[0])*t
-        g0 = start_color[1]+(end_color[1]-start_color[1])*t
-        b0 = start_color[2]+(end_color[2]-start_color[2])*t
+        if c <= 0: return "#f0f0f0"
+        t = c / max_count
+        start = (232, 241, 248); end = (0, 119, 182)
+        r0 = start[0]+(end[0]-start[0])*t; g0 = start[1]+(end[1]-start[1])*t; b0 = start[2]+(end[2]-start[2])*t
         r = int(0.75*r0 + 0.25*255); g = int(0.75*g0 + 0.25*255); b = int(0.75*b0 + 0.25*255)
         return f"#{r:02x}{g:02x}{b:02x}"
     rules = []

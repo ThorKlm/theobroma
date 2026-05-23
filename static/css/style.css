@@ -72,7 +72,6 @@ a.stat-item:hover { transform: translateY(-2px); text-decoration: none; }
 .badge-plant { background: var(--kingdom-plant); }
 .badge-fungi { background: var(--kingdom-fungi); }
 .badge-bacteria { background: var(--kingdom-bacteria); }
-.badge-marine { background: var(--kingdom-marine); }
 .badge-food { background: var(--kingdom-food); }
 .badge-animal { background: var(--kingdom-animal); }
 .badge-multi { background: var(--kingdom-multi); }
@@ -155,10 +154,12 @@ a.stat-item:hover { transform: translateY(-2px); text-decoration: none; }
 /* Buttons */
 .btn { display: inline-block; padding: 0.5rem 1.5rem; background: var(--accent); color: #fff; border-radius: var(--radius); font-weight: 600; font-size: 0.87rem; transition: background 0.15s; margin-right: 0.5rem; margin-bottom: 0.4rem; }
 .btn:hover { background: var(--accent-light); text-decoration: none; }
-.btn-pubchem { background: var(--kingdom-marine); }
+.btn-pubchem { background: #0077b6; }
 .btn-pubchem:hover { background: #005f8a; }
 .btn-coconut { background: var(--kingdom-plant); }
 .btn-api { background: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; }
+.btn-chebi { background: #3a5a80; }
+.btn-chebi:hover { background: #2a4560; }
 
 /* Help */
 .help-content { max-width: 800px; }

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="back-link"><a href="javascript:history.back();">&larr; Back to results</a></div>
 <div class="compound-header">
-    <h1>{{ (c.name or 'Unnamed compound')|normalize_name }}</h1>
+    <h1>{{ c.name or 'Unnamed compound' }}</h1>
 {% if synonyms %}
     <p style="font-size:0.82rem;color:var(--text-muted);margin:0.25rem 0 0.5rem;"><strong>Synonyms:</strong> {% for s in synonyms %}{{ s[0]|upper }}{{ s[1:] }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
     {% else %}
@@ -146,8 +146,6 @@
         </div>
         <p style="font-size:0.78rem;color:var(--text-muted);margin:0;text-align:center;">
             {{ stereoisomers|length }} family members; click any structure to navigate.
-            &nbsp;|&nbsp;
-            <a href="/api/family_figure/{{ c.comp_id }}?download=svg" style="color:var(--accent);text-decoration:underline;">Download SVG</a>
         </p>
     </div>
     <script>
@@ -156,7 +154,7 @@
         var protonation_ids = [{% for si in stereoisomer_groups['protonation'] %}{{ si.comp_id|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
         var members = [
         {% for si in stereoisomers %}
-            {comp_id: {{ si.comp_id|tojson }}, name: {{ (si.name or si.comp_id)|normalize_name|tojson }}, smiles: {{ si.smiles|tojson }}, is_ref: {{ 'true' if si.comp_id == c.comp_id else 'false' }}, inchikey: {{ si.inchikey|tojson }}}{% if not loop.last %},{% endif %}
+            {comp_id: {{ si.comp_id|tojson }}, name: {{ (si.name or si.comp_id)|tojson }}, smiles: {{ si.smiles|tojson }}, is_ref: {{ 'true' if si.comp_id == c.comp_id else 'false' }}, inchikey: {{ si.inchikey|tojson }}}{% if not loop.last %},{% endif %}
         {% endfor %}
         ];
         members.forEach(function(m){
@@ -310,9 +308,9 @@
         <tr{% if is_ref %} style="background:rgba(102,153,102,0.08);"{% endif %}>
             <td>
                 {% if is_ref %}
-                    <strong>{{ (si.name or si.comp_id)|normalize_name }}</strong> <span style="font-size:0.72rem;color:var(--text-muted);">(this compound)</span>
+                    <strong>{{ si.name or si.comp_id }}</strong> <span style="font-size:0.72rem;color:var(--text-muted);">(this compound)</span>
                 {% else %}
-                    <a href="/compound/{{ si.comp_id }}">{{ (si.name or si.comp_id)|normalize_name }}</a>
+                    <a href="/compound/{{ si.comp_id }}">{{ si.name or si.comp_id }}</a>
                 {% endif %}
             </td>
             <td style="font-family:monospace;font-size:0.78rem;">
