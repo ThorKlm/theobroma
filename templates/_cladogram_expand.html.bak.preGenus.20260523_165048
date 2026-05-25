@@ -1,0 +1,243 @@
+<div id="cladogram-panel" style="display:none;margin:1rem 0 1.5rem 0;">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem;">
+      <div>
+        <div style="font-size:0.85rem;color:var(--text-muted);">Linear cladogram</div>
+        <div style="font-size:1.1rem;font-weight:600;color:var(--text-strong);margin-top:0.1rem;">Compounds by taxonomic hierarchy</div>
+      </div>
+      <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;">
+        <a href="#" id="cladogram-close" style="font-size:0.8rem;color:var(--accent);text-decoration:none;">[ close ]</a>
+        <div id="cladogram-query-list" style="font-size:0.78rem;color:var(--text-muted);font-family:monospace;line-height:1.35;text-align:right;"></div>
+      </div>
+    </div>
+    <div id="cladogram-container" style="width:100%;overflow-x:auto;overflow-y:visible;"></div>
+    <div id="cladogram-loading" style="text-align:center;padding:2rem;color:var(--text-muted);display:none;">Loading cladogram...</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:var(--text-muted);margin-top:0.6rem;">
+      <div>Hover any node for detail. Click a family name to search compounds in that taxon.</div>
+      <div>THEOBROMA {{ theobroma_version }}</div>
+    </div>
+    <div id="cladogram-tip" style="position:fixed;display:none;background:white;border:1px solid var(--border);padding:0.3rem 0.5rem;font-size:0.85rem;pointer-events:none;z-index:1000;box-shadow:0 2px 6px rgba(0,0,0,0.1);border-radius:3px;"></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/d3@7" defer></script>
+<script>
+(function(){
+  var loaded = false, data = null, expanded = false;
+  var wrap = document.querySelector('.linear-tree-thumb-wrap');
+  var panel = document.getElementById('cladogram-panel');
+  var closeBtn = document.getElementById('cladogram-close');
+  if (!wrap || !panel) return;
+
+  function toggle(e){
+    if (e) e.preventDefault();
+    expanded = !expanded;
+    panel.style.display = expanded ? '' : 'none';
+    if (expanded && !loaded) loadAndRender();
+  }
+  wrap.addEventListener('click', toggle);
+  closeBtn.addEventListener('click', toggle);
+
+  // Populate query-list (mirrors taxonomy_expand)
+  var qs = window.location.search.replace(/^\?/, '');
+  var ql = document.getElementById('cladogram-query-list');
+  if (qs && ql) {
+    var parts = qs.split('&').filter(function(p){
+      var k = p.split('=')[0];
+      return p && k !== 'page' && k !== 'sort' && k !== 'order' && k !== 'per_page';
+    });
+    if (parts.length > 0) {
+      ql.innerHTML = parts.map(function(p){
+        var kv = p.split('=');
+        return kv[0] + ': ' + decodeURIComponent((kv[1] || '').replace(/\+/g, ' '));
+      }).join('<br>');
+    }
+  }
+
+  function loadAndRender(){
+    document.getElementById('cladogram-loading').style.display = '';
+    fetch('/api/taxonomy_tree' + window.location.search)
+      .then(function(r){return r.json();})
+      .then(function(d){
+        data = d;
+        loaded = true;
+        document.getElementById('cladogram-loading').style.display = 'none';
+        render();
+      })
+      .catch(function(err){
+        document.getElementById('cladogram-loading').textContent = 'Failed: ' + err;
+      });
+  }
+
+  // Rank order from kingdom (root) outward
+  var RANK_DEPTH = ['kingdom','phylum','class','order','family','genus'];
+  var KINGDOM_COLORS = {
+    'plant':'#2e7d32','fungi':'#9b59b6','bacteria':'#3498db',
+    'animal':'#e67e22','unresolved':'#7f8c8d','marine':'#16a085'
+  };
+
+  function kingdomOf(node){
+    // walk up to depth 1 (the kingdom-level child of root)
+    var n = node;
+    while (n.depth > 1 && n.parent) n = n.parent;
+    return (n.data && n.data.name) || 'plant';
+  }
+
+  // Prune unresolved branches and limit family-fan width
+  function prune(node){
+    if (!node.children) return;
+    // Remove "(unresolved)" branches at every level so the topology stays clean
+    node.children = node.children.filter(function(c){ return c.name !== '(unresolved)'; });
+    // Cap top fan-out per parent for readability: keep top-30 by value at each level
+    if (node.children.length > 30){
+      node.children.sort(function(a,b){return b.value - a.value;});
+      node.children = node.children.slice(0, 30);
+    }
+    node.children.forEach(prune);
+  }
+
+  function render(){
+    var c = document.getElementById('cladogram-container');
+    c.innerHTML = '';
+    if (!data || !data.tree || !data.tree.children || data.tree.children.length === 0){
+      c.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">No taxonomic data to display for this filter.</div>';
+      return;
+    }
+
+    // Deep-clone the tree before pruning so we don't mutate the fetched data
+    var treeData = JSON.parse(JSON.stringify(data.tree));
+    prune(treeData);
+
+    // Cut at family rank (depth 5: root=0, kingdom=1, phylum=2, class=3, order=4, family=5)
+    function cutAtFamily(node, depth){
+      if (depth >= 5 && node.children) {
+        // Roll up genus counts into family but drop the genus tier from rendering
+        delete node.children;
+      } else if (node.children) {
+        node.children.forEach(function(c){ cutAtFamily(c, depth+1); });
+      }
+    }
+    cutAtFamily(treeData, 0);
+
+    var root = d3.hierarchy(treeData);
+
+    // Pre-compute terminal (leaf) count to size the SVG height
+    var nLeaves = root.leaves().length;
+    var rowHeight = 18;
+    var height = Math.max(400, nLeaves * rowHeight + 80);
+
+    // Fixed x positions per rank, with extra width for terminal labels
+    var rankX = [40, 140, 280, 420, 560, 720];
+    var width = rankX[5] + 240;
+
+    var treeLayout = d3.tree().size([height - 80, rankX[5] - rankX[0]])
+      .separation(function(a,b){ return a.parent === b.parent ? 1 : 1.2; });
+    treeLayout(root);
+
+    // Override x positions to fix them to rank depth
+    root.descendants().forEach(function(d){
+      d.x_orig = d.x; // tree-assigned (vertical position)
+      d.fixed_x = rankX[Math.min(d.depth, 5)];
+    });
+
+    var svg = d3.select(c).append('svg')
+      .attr('width', width).attr('height', height)
+      .style('font','12px sans-serif')
+      .style('background','transparent');
+
+    var g = svg.append('g').attr('transform', 'translate(0, 40)');
+
+    // Draw connectors (curved)
+    var diagonal = function(s, t){
+      var midX = (s.fixed_x + t.fixed_x) / 2;
+      return 'M ' + s.fixed_x + ',' + s.x_orig +
+             ' C ' + midX + ',' + s.x_orig +
+             '   ' + midX + ',' + t.x_orig +
+             '   ' + t.fixed_x + ',' + t.x_orig;
+    };
+
+    g.selectAll('path.cladogram-link')
+      .data(root.links())
+      .enter().append('path')
+        .attr('class','cladogram-link')
+        .attr('d', function(d){ return diagonal(d.source, d.target); })
+        .attr('fill','none')
+        .attr('stroke', function(d){
+          var k = kingdomOf(d.target);
+          return KINGDOM_COLORS[k] || '#888';
+        })
+        .attr('stroke-opacity', 0.55)
+        .attr('stroke-width', 1.6);
+
+    // Nodes
+    var node = g.selectAll('g.cladogram-node')
+      .data(root.descendants())
+      .enter().append('g')
+        .attr('class','cladogram-node')
+        .attr('transform', function(d){ return 'translate(' + d.fixed_x + ',' + d.x_orig + ')'; });
+
+    // Circle at each node
+    node.append('circle')
+      .attr('r', function(d){ return d.depth === 0 ? 0 : (d.children ? 3 : 4); })
+      .attr('fill', function(d){
+        if (d.depth === 0) return 'transparent';
+        var k = kingdomOf(d);
+        return KINGDOM_COLORS[k] || '#888';
+      })
+      .attr('stroke','white')
+      .attr('stroke-width', 1);
+
+    // Labels: internal nodes get label above the link to parent, leaves get label to the right
+    node.filter(function(d){return d.depth > 0;})
+      .append('text')
+        .attr('x', function(d){ return d.children ? -5 : 8; })
+        .attr('y', function(d){ return d.children ? -6 : 4; })
+        .attr('text-anchor', function(d){ return d.children ? 'end' : 'start'; })
+        .attr('font-size', function(d){
+          // Smaller font for deeper levels to fit
+          return Math.max(9.5, 13 - d.depth * 0.5) + 'px';
+        })
+        .attr('fill','#2c3e50')
+        .text(function(d){ return d.data.name; });
+
+    // Leaf count badge (next to family-rank leaves)
+    node.filter(function(d){ return !d.children && d.depth >= 4; })
+      .append('text')
+        .attr('x', function(d){
+          var text = d.data.name || '';
+          return 8 + text.length * 6 + 6;
+        })
+        .attr('y', 4)
+        .attr('font-size','10px')
+        .attr('fill','var(--text-muted)')
+        .attr('font-variant-numeric','tabular-nums')
+        .text(function(d){ return d.value ? d.value.toLocaleString() : ''; });
+
+    // Click handler on leaf family rows -> redirect to /search filtered by family
+    node.filter(function(d){ return !d.children && d.depth === 5; })
+      .style('cursor','pointer')
+      .on('click', function(event, d){
+        var fam = d.data.name;
+        if (!fam || fam === '(unresolved)') return;
+        var params = new URLSearchParams(window.location.search);
+        params.set('type', 'family');
+        params.set('q', fam);
+        window.location.href = '/search?' + params.toString();
+      });
+
+    // Hover tooltip
+    var tip = document.getElementById('cladogram-tip');
+    node.on('mouseenter', function(event, d){
+      if (d.depth === 0) return;
+      var rankName = RANK_DEPTH[d.depth] || ('depth ' + d.depth);
+      tip.style.display = '';
+      tip.innerHTML = '<strong>' + d.data.name + '</strong> (' + rankName + ', ' +
+                      (d.value ? d.value.toLocaleString() : 0) + ' compounds)';
+    }).on('mousemove', function(event){
+      tip.style.left = (event.clientX + 12) + 'px';
+      tip.style.top  = (event.clientY + 12) + 'px';
+    }).on('mouseleave', function(){
+      tip.style.display = 'none';
+    });
+  }
+})();
+</script>

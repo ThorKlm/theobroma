@@ -424,7 +424,7 @@
         // /search uses extra_type_N / extra_q_N pairs for filters.
         // Find an existing region slot, or use the first empty one.
         var slotFound = false;
-        for (var i = 1; i <= 5; i++) {
+        for (var i = 1; i <= 10; i++) {
           if (params.get('extra_type_' + i) === 'region') {
             params.set('extra_q_' + i, region);
             slotFound = true;
@@ -432,7 +432,7 @@
           }
         }
         if (!slotFound) {
-          for (var i = 1; i <= 5; i++) {
+          for (var i = 1; i <= 10; i++) {
             if (!params.get('extra_type_' + i)) {
               params.set('extra_type_' + i, 'region');
               params.set('extra_q_' + i, region);
@@ -441,10 +441,12 @@
             }
           }
         }
+        var ov = document.getElementById('page-loading-overlay'); if (ov) ov.style.display = 'flex';
         window.location.href = '/search?' + params.toString();
       } else {
         // /browse and other pages: use plain region= param
         params.set('region', region);
+        var ov = document.getElementById('page-loading-overlay'); if (ov) ov.style.display = 'flex';
         window.location.href = '/browse?' + params.toString();
       }
     });

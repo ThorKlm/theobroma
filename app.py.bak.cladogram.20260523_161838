@@ -266,7 +266,7 @@ def search():
             st = prop_type
         else:
             st = "mw"  # handled by range filters (numeric props)
-    has_extra = any(request.args.get(f"extra_type_{i}") and request.args.get(f"extra_q_{i}") for i in range(1, 11))
+    has_extra = any(request.args.get(f"extra_type_{i}") and request.args.get(f"extra_q_{i}") for i in range(1,6))
     has_range = any(request.args.get(f"{p}_min") or request.args.get(f"{p}_max")
                     for p in ["mw","logp","tpsa","hba","hbd","n_rings","rotatable_bonds",
                               "Lipinski","QED","stereo_centers","PAINS_alert","BRENK_alert","NIH_alert",
@@ -355,7 +355,7 @@ def search():
     # Handle extra AND filters
     extra_clauses = []
     extra_params = []
-    for i in range(1, 11):
+    for i in range(1, 6):
         et = request.args.get(f"extra_type_{i}", "")
         eq = request.args.get(f"extra_q_{i}", "").strip()
         if not et or not eq:
@@ -497,7 +497,7 @@ def search():
     if total > 0:
         try:
             extras_kingdom_q = None
-            for i in range(1, 11):
+            for i in range(1, 6):
                 et = request.args.get(f"extra_type_{i}", "")
                 eq_v = request.args.get(f"extra_q_{i}", "").strip()
                 if et == "kingdom" and eq_v:
@@ -517,7 +517,7 @@ def search():
             tax_filter_active = (
                 st in ('genus','family','order','tax_class','phylum') or
                 any(request.args.get(f'extra_type_{i}','') in ('genus','family','order','tax_class','phylum')
-                    for i in range(1, 11))
+                    for i in range(1,6))
             )
             if tax_filter_active:
                 kingdom_sql = f"""
@@ -552,7 +552,7 @@ def search():
                     kingdom_label_override = top["kingdom"]
             if kingdom_label_override:
                 thumb_kingdoms = [{"kingdom": kingdom_label_override, "cnt": total}]
-            thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=150, title="Result-set kingdoms")
+            thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=200, title="Result-set kingdoms")
         except Exception:
             thumb = None
     # Region distribution for the world-map (same subquery pattern as kingdom thumb)
@@ -679,10 +679,7 @@ def compute_linear_tree(where_sql=None, where_params=None, limit=15):
     """
     params = list(where_params or [])
     if where_sql:
-        # Rewrite unqualified `compounds.` references (from /browse and /search clause
-        # builders that assume table name) to the local alias `c.`
-        where_sql_local = where_sql.replace('compounds.', 'c.')
-        sql += " AND " + where_sql_local
+        sql += " AND " + where_sql
     sql += """ GROUP BY rt.taxorder, rt.kingdom ORDER BY count DESC LIMIT %s"""
     params.append(limit)
     with get_db() as conn:
@@ -691,27 +688,20 @@ def compute_linear_tree(where_sql=None, where_params=None, limit=15):
             return [{"name": r[0], "kingdom": r[1], "count": r[2]} for r in cur.fetchall()]
 
 
-@app.route("/tree")
-def tree_page():
-    """Dedicated cladogram page with all the search/browse filter context."""
-    linear_tree = compute_linear_tree()
-    return render_template("tree.html", linear_tree=linear_tree)
-
-
 @app.route("/browse")
 def browse():
     # If the URL uses /search-style params (type=, q=, extra_*), redirect there
     # so the user gets the result they expected. Preserves all current params.
     has_search_params = (
         request.args.get("type") or request.args.get("q") or
-        any(request.args.get(f"extra_type_{i}") or request.args.get(f"extra_q_{i}") for i in range(1, 11))
+        any(request.args.get(f"extra_type_{i}") or request.args.get(f"extra_q_{i}") for i in range(1, 6))
     )
     if has_search_params:
         # Translate region=X into extra_type_N=region&extra_q_N=X for /search
         args = dict(request.args)
         region_val = args.pop("region", None)
         if region_val:
-            for i in range(1, 11):
+            for i in range(1, 6):
                 if not args.get(f"extra_type_{i}"):
                     args[f"extra_type_{i}"] = "region"
                     args[f"extra_q_{i}"] = region_val
@@ -773,7 +763,7 @@ def browse():
                 thumb_kingdoms = cur.fetchall()
         else:
             thumb_kingdoms = _BROWSE_CACHE["all_kingdoms"]
-    thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=150, title="Result-set kingdoms")
+    thumb = kingdom_thumbnail_svg(thumb_kingdoms, total=total, size=200, title="Result-set kingdoms")
     compounds_by_country = []
     region_counts_filtered = []
     try:
@@ -1035,57 +1025,6 @@ def api_cladogram():
         where_clauses.append("c.license_tier IN ('CC BY 4.0','CC0','CC BY-NC 4.0')")
     if named:
         where_clauses.append("c.name IS NOT NULL AND c.name != ''")
-    # Search-page filters: type/q + extra_type_N/extra_q_N
-    search_type = request.args.get("type", "").strip()
-    search_q = request.args.get("q", "").strip()
-    exact = request.args.get("exact", "false").lower() == "true"
-
-    def _add_search_clause(t, qval):
-        """Append a WHERE clause for a search-type/value pair using same patterns as /search."""
-        if not t or not qval:
-            return
-        # Fuzzy taxonomic resolution
-        local_q = qval
-        if t in ("genus", "family", "order", "tax_class", "phylum"):
-            try:
-                resolved = resolve_taxon(t, qval)
-                if resolved is not None and resolved != qval:
-                    local_q = resolved
-                elif resolved is None:
-                    local_q = "__no_such_taxon__"
-            except Exception:
-                pass
-        clauses = {
-            "name": (("LOWER(c.name) = LOWER(%s)", [local_q]) if exact else
-                     ("c.name ILIKE %s", ["%"+local_q+"%"])),
-            "organism": (("LOWER(c.source_organism) = LOWER(%s)", [local_q]) if exact else
-                         ("c.source_organism ILIKE %s", ["%"+local_q+"%"])),
-            "kingdom": ("(LOWER(rt.kingdom)=LOWER(%s) OR LOWER(%s)=ANY(rt.secondary_kingdoms))", [local_q, local_q]),
-            "source": ("(LOWER(c.source_db)=LOWER(%s) OR c.all_sources ILIKE %s)", [local_q, "%"+local_q+"%"]),
-            "region": ("LOWER(c.region)=LOWER(%s)", [local_q]),
-            "genus": (("LOWER(rt.genus)=LOWER(%s)", [local_q]) if exact else
-                      ("rt.genus ILIKE %s", ["%"+local_q+"%"])),
-            "family": (("LOWER(rt.family)=LOWER(%s)", [local_q]) if exact else
-                       ("rt.family ILIKE %s", ["%"+local_q+"%"])),
-            "order": (("LOWER(rt.taxorder)=LOWER(%s)", [local_q]) if exact else
-                      ("rt.taxorder ILIKE %s", ["%"+local_q+"%"])),
-            "tax_class": (("LOWER(rt.taxclass)=LOWER(%s)", [local_q]) if exact else
-                          ("rt.taxclass ILIKE %s", ["%"+local_q+"%"])),
-            "phylum": (("LOWER(rt.phylum)=LOWER(%s)", [local_q]) if exact else
-                       ("rt.phylum ILIKE %s", ["%"+local_q+"%"])),
-            "inchikey": ("c.inchikey = %s", [local_q]),
-            "smiles": ("c.smiles = %s", [local_q]),
-        }
-        c = clauses.get(t)
-        if c:
-            where_clauses.append(c[0])
-            where_params.extend(c[1])
-
-    _add_search_clause(search_type, search_q)
-    for i in range(1, 11):
-        _add_search_clause(request.args.get(f"extra_type_{i}", "").strip(),
-                           request.args.get(f"extra_q_{i}", "").strip())
-
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
     conn_join = ("AND" if where_sql else "WHERE")
     order_sql = (
@@ -1140,7 +1079,7 @@ def api_taxonomy_tree():
     exact = request.args.get("exact", "false").lower() == "true"
     # Apply search-page "extra_type_N / extra_q_N" filters (1..5) by reusing
     # the same per-rank SQL patterns we use for the primary search clause.
-    for i in range(1, 11):
+    for i in range(1, 6):
         et = request.args.get(f"extra_type_{i}", "").strip()
         eq = request.args.get(f"extra_q_{i}", "").strip()
         if not et or not eq:
@@ -1199,24 +1138,14 @@ def api_taxonomy_tree():
             clause_sql, clause_params = clause_pair
             where.append(clause_sql)
             params.extend(clause_params)
-    # Detect if extras already provide kingdom/source/region; if so, skip the
-    # legacy single-param to avoid AND-combining the same dimension twice
-    # (which leads to empty results when values differ, e.g. region=East+Asia
-    # alongside extra_q_1=Australia).
-    extras_have = set()
-    for ii in range(1, 11):
-        et_chk = request.args.get(f"extra_type_{ii}", "").strip()
-        eq_chk = request.args.get(f"extra_q_{ii}", "").strip()
-        if et_chk and eq_chk:
-            extras_have.add(et_chk)
-    if kingdom and "kingdom" not in extras_have:
+    if kingdom:
         where.append("rt.kingdom = %s")
         params.append(kingdom)
-    if source and "source" not in extras_have:
+    if source:
         where.append("(LOWER(c.source_db) = LOWER(%s) OR c.all_sources LIKE %s)")
         params.append(source)
         params.append(f"%{source}%")
-    if region and "region" not in extras_have:
+    if region:
         where.append("c.region = %s")
         params.append(region)
     if named:
@@ -1259,7 +1188,7 @@ def api_taxonomy_tree():
         # /browse-style URL param ?kingdom=X (no type=kingdom involved)
         kingdom_override = kingdom
     else:
-        for i in range(1, 11):
+        for i in range(1, 6):
             et = request.args.get(f"extra_type_{i}", "")
             eq_v = request.args.get(f"extra_q_{i}", "").strip()
             if et == "kingdom" and eq_v:
@@ -1296,7 +1225,7 @@ def api_taxonomy_tree():
     api_tax_filter_active = (
         search_type in ('genus','family','order','tax_class','phylum') or
         any(request.args.get(f'extra_type_{i}','') in ('genus','family','order','tax_class','phylum')
-            for i in range(1, 11))
+            for i in range(1,6))
     )
     secondary_union = '' if api_tax_filter_active else (
         "UNION ALL SELECT comp_id, unnest(secondary_kingdoms), NULL, NULL, NULL, NULL, NULL "

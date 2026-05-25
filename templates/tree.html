@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Tree &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<div class="hero-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+    <h1 class="section-title" style="margin:0;flex-shrink:0;">Phylogenetic tree</h1>
+    <div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.8rem;color:var(--text-muted);text-align:right;margin-left:auto;max-width:55%;">
+      <div>Click any clade to filter to that taxon. The view auto-sizes based on result-set complexity.</div>
+    </div>
+    {% include "_linear_tree_thumb.html" %}
+</div>
+{% if linear_tree %}{% include "_cladogram_expand.html" %}{% endif %}
+<script>
+// Auto-open the cladogram panel on page load. d3 is loaded via a deferred script,
+// so the cladogram_expand listener attaches once d3 finishes loading. Poll for it.
+window.addEventListener('load', function(){
+  var attempts = 0;
+  var iv = setInterval(function(){
+    attempts++;
+    var thumb = document.querySelector('.linear-tree-thumb-wrap');
+    var panel = document.getElementById('cladogram-panel');
+    if (thumb && panel){
+      thumb.click();
+      clearInterval(iv);
+    }
+    if (attempts > 50) clearInterval(iv);  // 5s max wait
+  }, 100);
+});
+</script>
+{% endblock %}

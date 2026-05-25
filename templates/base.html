@@ -12,6 +12,59 @@
     <script src="https://unpkg.com/smiles-drawer@1.2.0/dist/smiles-drawer.min.js"></script>
 </head>
 <body>
+<div id="page-loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,0.55);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(1px);transition:opacity 0.15s;">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:0.8rem;padding:1.5rem 2rem;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.08);">
+    <div style="width:32px;height:32px;border:3px solid #ddd;border-top-color:#2c3e50;border-radius:50%;animation:cladogram-spin 0.8s linear infinite;"></div>
+    <div style="font-size:0.85rem;color:#444;">Loading...</div>
+  </div>
+</div>
+<style>
+@keyframes cladogram-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function(){
+  var overlay = document.getElementById('page-loading-overlay');
+  if (!overlay) return;
+  function show(){ overlay.style.display = 'flex'; }
+  // Show on any link click that navigates away (excludes anchors with target=_blank,
+  // download attribute, # fragments, and modifier keys). Defer the show by one
+  // event-loop tick so that other listeners' preventDefault() calls (e.g. the
+  // kingdom-thumb expand handler) win and we don't show the overlay for
+  // non-navigating clicks.
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a');
+    if (!a) return;
+    if (a.target === '_blank') return;
+    if (a.hasAttribute('download')) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var href = a.getAttribute('href');
+    if (!href) return;
+    if (href.startsWith('#')) return;
+    if (href.startsWith('javascript:')) return;
+    if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
+    // Hash-only navigation on same page
+    var sameHost = a.host === window.location.host;
+    if (sameHost && a.pathname === window.location.pathname && a.search === window.location.search) return;
+    // Defer: if any other handler called preventDefault(), skip the overlay.
+    setTimeout(function(){
+      if (e.defaultPrevented) return;
+      show();
+    }, 0);
+  });
+  // Show on form submits (search box)
+  document.addEventListener('submit', function(){ show(); });
+  // Show on programmatic navigation (e.g. cladogram click handlers using window.location.href = ...)
+  // by intercepting beforeunload
+  window.addEventListener('beforeunload', function(){
+    show();
+    // BFCache may show the previous overlay state; hide on pageshow below
+  });
+  // If user navigates back (BFCache), hide the overlay
+  window.addEventListener('pageshow', function(e){
+    if (e.persisted) overlay.style.display = 'none';
+  });
+})();
+</script>
 <header>
     <div class="header-inner">
         <a href="/" class="logo"><img src="{{ url_for('static', filename='favicon.svg') }}" alt="THEOBROMA" class="logo-icon-img"><span class="logo-text">THEOBROMA</span></a>
@@ -19,6 +72,7 @@
             <a href="/">Home</a>
             <a href="/search">Search</a>
             <a href="/browse">Browse</a>
+            <a href="/tree">Tree</a>
             <a href="/similarity">Similarity</a>
             <a href="/scaffolds">Scaffolds</a>
             <a href="/statistics">Statistics</a>

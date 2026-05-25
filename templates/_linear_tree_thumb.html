@@ -1,0 +1,28 @@
+{# Abstract cladogram preview thumbnail.
+   4 columns of nodes (1, 1, 2, 3) connected by smooth lines, all dark gray.
+   No labels on the figure itself. Title above, hint below.
+   The `linear_tree` context var is no longer used for rendering but kept as a
+   presence flag (server populates it whenever cladogram data is available). #}
+{% if linear_tree %}
+<a href="#cladogram-panel" class="linear-tree-thumb-wrap" style="display:flex;flex-direction:column;align-items:center;gap:0.15rem;font-size:0.72rem;line-height:1.1;text-decoration:none;color:inherit;width:156px;flex-shrink:0;{% if right_gravitate %}margin-left:auto;{% endif %}">
+  
+  <svg viewBox="0 0 156 100" xmlns="http://www.w3.org/2000/svg" style="width:156px;height:100px;">
+    <path d="M 14,50 C 30,50 30,50 46,50" style="stroke:#4a4a4a;stroke-width:1.6px;fill:none;" />
+    <path d="M 46,50 C 60,50 60,30 74,30" style="stroke:#4a4a4a;stroke-width:1.6px;fill:none;" />
+    <path d="M 46,50 C 60,50 60,70 74,70" style="stroke:#4a4a4a;stroke-width:1.6px;fill:none;" />
+    <path d="M 74,30 C 90,30 90,18 108,18" style="stroke:#4a4a4a;stroke-width:1.6px;fill:none;" />
+    <path d="M 74,30 C 90,30 90,42 108,42" style="stroke:#4a4a4a;stroke-width:1.6px;fill:none;" />
+    <path d="M 74,70 C 90,70 90,70 108,70" style="stroke:#4a4a4a;stroke-width:1.6px;fill:none;" />
+    <g fill="#4a4a4a">
+      <circle cx="14" cy="50" r="4" />
+      <circle cx="46" cy="50" r="4" />
+      <circle cx="74" cy="30" r="4" />
+      <circle cx="74" cy="70" r="4" />
+      <circle cx="108" cy="18" r="4" />
+      <circle cx="108" cy="42" r="4" />
+      <circle cx="108" cy="70" r="4" />
+    </g>
+  </svg>
+  <div style="font-size:0.78rem;color:var(--accent);font-style:italic;text-align:center;line-height:1.15;">(click to generate cladogram/<br>corresponding linear tree)</div>
+</a>
+{% endif %}

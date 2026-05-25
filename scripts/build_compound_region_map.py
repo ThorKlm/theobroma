@@ -25,7 +25,7 @@ REGION_TO_ISO3 = {
 }
 
 q = "SELECT region, COUNT(*) FROM compounds WHERE region IS NOT NULL AND region != '' GROUP BY region ORDER BY 2 DESC"
-r = subprocess.run(['sudo','-u','postgres','psql','-d','theobroma','-At','-F','\t','-c',q],
+r = subprocess.run(['psql','-d','theobroma','-U','theobroma','-h','localhost','-At','-F','\t','-c',q],
                    capture_output=True, text=True)
 
 region_counts = {}

@@ -41,6 +41,11 @@
 <script>
 (function(){
   var loaded = false, data = null, expanded = false;
+  function _displayName(d){
+    var nm = d.data && d.data.name ? d.data.name : '';
+    if (d.depth === 1 && nm.length > 0) nm = nm.charAt(0).toUpperCase() + nm.slice(1);
+    return nm;
+  }
   var wrap = document.querySelector('.kingdom-thumb-wrap');
   var panel = document.getElementById('taxonomy-expand');
   var closeBtn = document.getElementById('tax-close');
@@ -613,10 +618,10 @@
         var trail = d.ancestors().map(function(n){return n.data.name;}).reverse().join(' \u203a ');
         document.getElementById('tax-breadcrumb').textContent = trail;
         document.getElementById('tax-detail').innerHTML =
-          '<strong>' + d.data.name + '</strong> (' + rings[d.depth - 1] + '): ' +
+          '<strong>' + _displayName(d) + '</strong> (' + rings[d.depth - 1] + '): ' +
           d.value.toLocaleString() + ' compound-organism associations';
         var tip = document.getElementById('tax-floating-tip');
-        tip.textContent = d.data.name + ' (' + rings[d.depth - 1] + ', ' + d.value.toLocaleString() + ') \u2014 click to search';
+        tip.textContent = _displayName(d) + ' (' + rings[d.depth - 1] + ', ' + d.value.toLocaleString() + ') \u2014 click to search';
         tip.style.display = '';
         tip.style.left = (event.clientX + 12) + 'px';
         tip.style.top = (event.clientY + 12) + 'px';
@@ -669,7 +674,14 @@
       .style('stroke', 'white')
       .style('stroke-width', '3px')
       .style('pointer-events', 'none')
-      .text(function(d){ return d.data.name; });
+      .text(function(d){
+        var nm = d.data.name || '';
+        // Kingdom names stored lowercase in DB; capitalize at depth 1 for display
+        if (d.depth === 1 && nm.length > 0){
+          nm = nm.charAt(0).toUpperCase() + nm.slice(1);
+        }
+        return nm;
+      });
 
     // Compound-name leaves: render as outermost ring along radial spokes.
     // Each compound gets a clickable <a> with two lines: truncated name + THEO id.
