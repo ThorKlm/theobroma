@@ -257,15 +257,40 @@ def search():
     page = max(1, int(request.args.get("page",1)))
     per_page = get_per_page()
     sort, order, oc = get_sort()
-    # Resolve "property" type to actual search type
-    if st == "property":
-        prop_type = request.args.get("prop_type", "class")
-        if prop_type == "class":
-            st = "class"
-        elif prop_type in ("genus", "family"):
-            st = prop_type
-        else:
-            st = "mw"  # handled by range filters (numeric props)
+    # Resolve "property" type to actual search type.
+    # Accepts common aliases case-insensitively; unknown values fall back to
+    # npclassifier_class rather than silently returning the unfiltered corpus.
+    if st in ("property", "classification"):
+        raw_prop_type = request.args.get("prop_type", "").strip().lower()
+        prop_type_aliases = {
+            "class": "npclassifier_class",
+            "chemical_class": "npclassifier_class",
+            "chem_class": "npclassifier_class",
+            "npclassifier_class": "npclassifier_class",
+            "npc_class": "npclassifier_class",
+            "np_class": "npclassifier_class",
+            "superclass": "npclassifier_superclass",
+            "np_superclass": "npclassifier_superclass",
+            "npclassifier_superclass": "npclassifier_superclass",
+            "classyfire_class": "classyfire_class",
+            "cf_class": "classyfire_class",
+            "classyfire_superclass": "classyfire_class",
+            "pathway": "pathway",
+            "np_pathway": "pathway",
+            "genus": "genus",
+            "family": "family",
+            "order": "order",
+            "tax_class": "tax_class",
+            "phylum": "phylum",
+            "mw": "mw",
+            "logp": "mw",
+            "tpsa": "mw",
+            "hba": "mw",
+            "hbd": "mw",
+            "n_rings": "mw",
+            "rotatable_bonds": "mw",
+        }
+        st = prop_type_aliases.get(raw_prop_type, "npclassifier_class")
     has_extra = any(request.args.get(f"extra_type_{i}") and request.args.get(f"extra_q_{i}") for i in range(1, 11))
     has_range = any(request.args.get(f"{p}_min") or request.args.get(f"{p}_max")
                     for p in ["mw","logp","tpsa","hba","hbd","n_rings","rotatable_bonds",
@@ -344,8 +369,9 @@ def search():
         "order":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.taxorder) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.taxorder ILIKE %s {oc}", (f"%{q}%",))),
         "tax_class":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.taxclass) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.taxclass ILIKE %s {oc}", (f"%{q}%",))),
         "phylum":  ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.phylum) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.phylum ILIKE %s {oc}", (f"%{q}%",))),
-        "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%")),
+        "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR np_superclass ILIKE %s OR np_pathway ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%")),
         "npclassifier_class": (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%")),
+        "npclassifier_superclass": (f"SELECT * FROM compounds WHERE np_superclass ILIKE %s {oc}", (f"%{q}%",)),
         "classyfire_class":   (f"SELECT * FROM compounds WHERE classyfire_superclass ILIKE %s {oc}", (f"%{q}%",)),
         "pathway": (f"SELECT * FROM compounds WHERE np_pathway ILIKE %s {oc}", (f"%{q}%",)),
         "mw":      (f"SELECT * FROM compounds WHERE 1=1 {oc}", ()),
@@ -430,6 +456,13 @@ def search():
             if pmax:
                 extra_clauses.append(f"{col} <= %s")
                 extra_params.append(float(pmax))
+    # License-tier filter applied alongside typed-search extras. Mirrors the
+    # basic-browse license logic at the /search route's lower branch (line ~764).
+    license_filter = request.args.get("license", "all")
+    if license_filter == "commercial":
+        extra_clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
+    elif license_filter == "academic":
+        extra_clauses.append("license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')")
     # Named-only toggle: filter to compounds with non-empty name
     named_only = request.args.get("named", "")
     if named_only:
@@ -896,7 +929,21 @@ def compound_detail(comp_id):
                 stereoisomer_groups['protonation'].append(si)
             else:
                 stereoisomer_groups['stereo'].append(si)
-    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, class_hierarchy=class_hierarchy, stereoisomers=stereoisomers, stereoisomer_groups=stereoisomer_groups)
+    # License provenance: per-source attestation chain to display alongside
+    # the resolved license tier. Lets users audit the resolution decision
+    # without leaving the compound detail page.
+    license_attestations = []
+    with get_db() as conn_lic:
+        with conn_lic.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur_lic:
+            try:
+                cur_lic.execute("""SELECT source, license_tier, attested_at
+                                   FROM per_source_license_attestation
+                                   WHERE comp_id = %s
+                                   ORDER BY source""", (c["comp_id"],))
+                license_attestations = cur_lic.fetchall()
+            except Exception:
+                conn_lic.rollback()
+    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, class_hierarchy=class_hierarchy, stereoisomers=stereoisomers, stereoisomer_groups=stereoisomer_groups, license_attestations=license_attestations)
 
 @app.route("/statistics")
 def statistics():
@@ -1115,6 +1162,26 @@ def api_cladogram():
             o["families"] = families_by_order[o["name"]][:25]
             o["has_families"] = len(o["families"]) > 0
     return jsonify({"orders": orders, "total": total, "n_orders": len(orders)})
+
+
+
+@app.route("/api/cladogram/export_pdf", methods=["POST"])
+def api_cladogram_export_pdf():
+    """Receive serialized SVG markup, return rendered PDF via cairosvg."""
+    import cairosvg
+    from io import BytesIO
+    svg_markup = request.get_data(as_text=True)
+    if not svg_markup or "<svg" not in svg_markup:
+        return jsonify({"error": "invalid or empty SVG payload"}), 400
+    buf = BytesIO()
+    try:
+        cairosvg.svg2pdf(bytestring=svg_markup.encode("utf-8"), write_to=buf)
+    except Exception as e:
+        return jsonify({"error": "PDF conversion failed: " + str(e)}), 500
+    pdf_bytes = buf.getvalue()
+    resp = Response(pdf_bytes, mimetype="application/pdf")
+    resp.headers["Content-Disposition"] = 'attachment; filename="theobroma_cladogram.pdf"'
+    return resp
 
 
 @app.route("/api/taxonomy_tree")
@@ -1488,10 +1555,10 @@ def api_search():
               "genus": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.genus) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.genus ILIKE %s)"),
               "family": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.family) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.family ILIKE %s)"),
               "order": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxorder) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.taxorder ILIKE %s)"),
-              "tax_class": ("EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (LOWER(ct.ncbi_lineage->>'class') = LOWER(%s) OR LOWER(ct.worms_lineage->>'class') = LOWER(%s) OR LOWER(ct.wcvp_lineage->>'class') = LOWER(%s)))" if exact else "EXISTS(SELECT 1 FROM compound_taxonomy ct WHERE ct.comp_id = compounds.comp_id AND (ct.ncbi_lineage->>'class' ILIKE %s OR ct.worms_lineage->>'class' ILIKE %s OR ct.wcvp_lineage->>'class' ILIKE %s))"),
+              "tax_class": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.taxclass ILIKE %s)"),
               "phylum": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.phylum) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.phylum ILIKE %s)"),
               "region":"LOWER(region) = LOWER(%s)","source":"LOWER(source_db) = LOWER(%s)",
-              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s",
+              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR np_superclass ILIKE %s OR np_pathway ILIKE %s",
               "npclassifier_class":"np_class ILIKE %s OR inferred_class ILIKE %s",
               "classyfire_class":"classyfire_superclass ILIKE %s",
               "pathway":"np_pathway ILIKE %s"}
@@ -1499,13 +1566,13 @@ def api_search():
         if st == "pathway":
             pm = (f"%{q}%",)
         elif st == "class":
-            pm = (f"%{q}%", f"%{q}%", f"%{q}%")
+            pm = (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%")
         elif st == "npclassifier_class":
             pm = (f"%{q}%", f"%{q}%")
         elif st == "classyfire_class":
             pm = (f"%{q}%",)
         elif st in ("tax_class", "order", "phylum"):
-            pm = (q, q, q) if exact else (f"%{q}%", f"%{q}%", f"%{q}%")
+            pm = (q,) if exact else (f"%{q}%",)
         else:
             pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (q if st in ("kingdom","region","source") else q)
         with get_db() as conn:
@@ -1548,7 +1615,62 @@ def api_compound(comp_id):
             if a:
                 a.pop("comp_id", None)
                 c["admet"] = dict(a)
+            # License provenance: per-source attestation list plus resolution
+            # metadata. Returned alongside the main compound payload so a
+            # downstream user can audit the resolved tier against the
+            # underlying source attestations without a separate API call.
+            cur.execute("""
+                SELECT source, license_tier, attested_at
+                FROM per_source_license_attestation
+                WHERE comp_id = %s
+                ORDER BY source
+            """, (comp_id,))
+            attestations = [
+                {"source": r["source"],
+                 "license_tier": r["license_tier"],
+                 "attested_at": r["attested_at"].isoformat() if r["attested_at"] else None}
+                for r in cur.fetchall()
+            ]
+            c["license_provenance"] = {
+                "resolved_tier": c.get("license_tier"),
+                "resolution_rule": "most-restrictive-wins",
+                "precedence_order": ["copyleft", "Unspecified", "CC BY-NC 4.0", "CC0", "CC BY 4.0"],
+                "attestations": attestations,
+            }
     return jsonify(c)
+
+@app.route("/api/compound/<comp_id>/license-provenance")
+def api_license_provenance(comp_id):
+    """Per-compound license provenance for compliance auditing.
+    Returns only the per-source attestation list and resolution metadata
+    without the full compound payload, suitable for bulk audit workflows
+    that do not need ADMET, taxonomy, or structural data per compound.
+    """
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT comp_id, license_tier FROM compounds WHERE comp_id=%s", (comp_id,))
+            c = cur.fetchone()
+            if not c:
+                return jsonify({"error": "compound not found"}), 404
+            cur.execute("""
+                SELECT source, license_tier, attested_at
+                FROM per_source_license_attestation
+                WHERE comp_id = %s
+                ORDER BY source
+            """, (comp_id,))
+            attestations = [
+                {"source": r["source"],
+                 "license_tier": r["license_tier"],
+                 "attested_at": r["attested_at"].isoformat() if r["attested_at"] else None}
+                for r in cur.fetchall()
+            ]
+    return jsonify({
+        "comp_id": comp_id,
+        "resolved_tier": c["license_tier"],
+        "resolution_rule": "most-restrictive-wins",
+        "precedence_order": ["copyleft", "Unspecified", "CC BY-NC 4.0", "CC0", "CC BY 4.0"],
+        "attestations": attestations,
+    })
 
 @app.route("/api/autocomplete")
 def api_autocomplete():
@@ -1593,7 +1715,10 @@ def api_stats():
             sources = cur.fetchall()
             cur.execute("SELECT COUNT(DISTINCT source_db) AS n_sources FROM compounds")
             n_sources = cur.fetchone()["n_sources"]
-    return jsonify({"total":total, "n_sources":n_sources, "kingdoms":kingdoms, "sources":sources})
+            # License-tier breakdown from the resolver-applied compounds table.
+            cur.execute("SELECT license_tier, COUNT(*) AS cnt FROM compounds GROUP BY license_tier ORDER BY cnt DESC")
+            licenses = cur.fetchall()
+    return jsonify({"total":total, "n_sources":n_sources, "kingdoms":kingdoms, "sources":sources, "licenses":licenses})
 
 @app.route("/export")
 def export_results():
@@ -2015,12 +2140,17 @@ def advanced_search():
 
 
 
+_filter_options_cache = {}
+
 @app.route("/api/filter_options")
 def api_filter_options():
     """Return available values for each filter type. Class values are split
     by ontology: npclassifier_class (NPClassifier-derived, atomic class names
     from np_class and inferred_class), classyfire_class (ClassyFire
-    superclass), plus a unified 'class' for backward compatibility."""
+    superclass), plus a unified 'class' for backward compatibility.
+    Cached in module-level dict; restart service to refresh."""
+    if _filter_options_cache:
+        return jsonify(_filter_options_cache)
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT DISTINCT kingdom FROM compounds WHERE kingdom IS NOT NULL AND kingdom != '' ORDER BY kingdom")
@@ -2039,13 +2169,28 @@ def api_filter_options():
             genera = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT family FROM compound_taxonomy WHERE family IS NOT NULL ORDER BY family")
             families = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT taxorder FROM resolved_taxonomy WHERE taxorder IS NOT NULL AND taxorder != '' ORDER BY taxorder")
+            orders = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT taxclass FROM resolved_taxonomy WHERE taxclass IS NOT NULL AND taxclass != '' ORDER BY taxclass")
+            tax_classes = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT phylum FROM resolved_taxonomy WHERE phylum IS NOT NULL AND phylum != '' ORDER BY phylum")
+            phyla = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT np_superclass FROM compounds WHERE np_superclass IS NOT NULL AND np_superclass != '' ORDER BY np_superclass")
+            npc_superclasses = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT np_pathway FROM compounds WHERE np_pathway IS NOT NULL AND np_pathway != '' ORDER BY np_pathway")
+            np_pathways = [r[0] for r in cur.fetchall()]
     # Union of both for backward-compatible 'class' key (deduplicated).
     classes = sorted(set(npc_classes) | set(cf_classes))
-    return jsonify({"kingdom": kingdoms, "region": regions, "source": sources,
-                    "class": classes,
-                    "npclassifier_class": npc_classes,
-                    "classyfire_class": cf_classes,
-                    "genus": genera, "family": families})
+    result = {"kingdom": kingdoms, "region": regions, "source": sources,
+              "class": classes,
+              "npclassifier_class": npc_classes,
+              "npclassifier_superclass": npc_superclasses,
+              "classyfire_class": cf_classes,
+              "pathway": np_pathways,
+              "genus": genera, "family": families,
+              "order": orders, "tax_class": tax_classes, "phylum": phyla}
+    _filter_options_cache.update(result)
+    return jsonify(result)
 
 
 
@@ -2081,10 +2226,57 @@ def api_depict():
 
 @app.route("/api/family_figure/<comp_id>")
 def api_family_figure(comp_id):
-    """Compose all stereoisomer family members for a compound into one SVG."""
+    """Compose all stereoisomer family members for a compound into one SVG/PDF/PNG.
+
+    Query params:
+      scale  : float, 0.5-3.0 (default 1.0), scales all dimensions and font sizes
+      format : svg | pdf | png (default svg)
+      download : if truthy, set Content-Disposition: attachment
+    """
     import math, re
     from rdkit import Chem
     from rdkit.Chem.Draw import rdMolDraw2D
+
+    def _get_scale(name, default=1.0, lo=0.5, hi=3.0):
+        try:
+            v = float(request.args.get(name, str(default)))
+        except (TypeError, ValueError):
+            v = default
+        return max(lo, min(hi, v))
+    legacy = request.args.get("scale")
+    if legacy is not None:
+        try:
+            legacy_v = max(0.5, min(3.0, float(legacy)))
+        except (TypeError, ValueError):
+            legacy_v = 1.0
+        font_scale = legacy_v
+        cell_scale = legacy_v
+    else:
+        font_scale = _get_scale("font_scale")
+        cell_scale = _get_scale("cell_scale")
+    scale = 1.0
+    fmt = (request.args.get("format") or "svg").lower()
+    if fmt not in ("svg", "pdf", "png"):
+        fmt = "svg"
+    embed = request.args.get("embed", "").lower() in ("1", "true", "yes")
+    if embed:
+        # Embed defaults: larger fonts, wider side margin so labels don't truncate
+        if request.args.get("font_scale") is None and legacy is None:
+            font_scale = 1.6
+        if request.args.get("cell_scale") is None and legacy is None:
+            cell_scale = 1.0
+    try:
+        name_chars = int(request.args.get("name_chars", "30"))
+    except (TypeError, ValueError):
+        name_chars = 30
+    name_chars = max(8, min(80, name_chars))
+    title_case = request.args.get("title_case", "").lower() in ("1", "true", "yes")
+    try:
+        mol_font_scale = float(request.args.get("mol_font_scale", str(font_scale)))
+    except (TypeError, ValueError):
+        mol_font_scale = font_scale
+    mol_font_scale = max(0.3, min(3.0, mol_font_scale))
+
     with get_db() as conn_ff:
         with conn_ff.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur_ff:
             cur_ff.execute("SELECT inchikey FROM compounds WHERE comp_id=%s", (comp_id,))
@@ -2102,15 +2294,18 @@ def api_family_figure(comp_id):
     ref = members[0]
     sats = members[1:]
     N = len(sats)
+
+    # apply scale uniformly to every geometric/typographic constant
     W = 800
     H = 880
     title_h = 80
     cx = W / 2
     cy = title_h + (W / 2)
-    sat_w = max(100, min(160, 200 - N * 6))
-    sat_h = max(80, min(130, 165 - N * 5))
+    sat_w = max(100 * cell_scale, min(160 * cell_scale, (200 - N * 6) * cell_scale))
+    sat_h = max(80 * cell_scale, min(130 * cell_scale, (165 - N * 5) * cell_scale))
     ref_w, ref_h = sat_w, sat_h
-    radius = (W / 2) - max(sat_w, sat_h) / 2 - 30
+    radius = (W / 2) - max(160, 130) / 2 - (90 if embed else 30)
+
     def render_mol(smiles, mw, mh):
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
@@ -2118,8 +2313,8 @@ def api_family_figure(comp_id):
         drawer = rdMolDraw2D.MolDraw2DSVG(int(mw), int(mh))
         opts = drawer.drawOptions()
         opts.bondLineWidth = 1.6
-        opts.minFontSize = 10
-        opts.maxFontSize = 16
+        opts.minFontSize = int(10 * mol_font_scale)
+        opts.maxFontSize = int(16 * mol_font_scale)
         opts.padding = 0.04
         drawer.DrawMolecule(mol)
         drawer.FinishDrawing()
@@ -2128,15 +2323,27 @@ def api_family_figure(comp_id):
         svg = re.sub(r"<rect[^>]*fill:#FFFFFF[^/]*/>", "", svg)
         m_inner = re.search(r"<svg[^>]*>(.*)</svg>", svg, flags=re.DOTALL)
         return m_inner.group(1) if m_inner else None
+
     ref_name = ref["name"] or ref["comp_id"]
     if len(ref_name) > 60:
         ref_name = ref_name[:58] + "..."
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="sans-serif">',
-        f'<text x="32" y="36" text-anchor="start" font-size="22" font-weight="600" fill="#222">Stereoisomer family</text>',
-        f'<text x="32" y="62" text-anchor="start" font-size="18" fill="#444">{ref_name}</text>',
-        f'<text x="{W-12:.0f}" y="{H-10:.0f}" text-anchor="end" font-size="9" fill="#aaa">THEOBROMA {VERSION_DISPLAY}</text>'
-    ]
+
+    fs_title = 22 * font_scale
+    fs_subtitle = 18 * font_scale
+    fs_footer = 9 * font_scale
+    fs_label = 11 * font_scale
+
+    if embed:
+        parts = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:.1f} {H:.1f}" width="{W:.1f}" height="{H:.1f}" font-family="sans-serif">',
+        ]
+    else:
+        parts = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:.1f} {H:.1f}" width="{W:.1f}" height="{H:.1f}" font-family="sans-serif">',
+            f'<text x="32" y="36" text-anchor="start" font-size="{fs_title:.1f}" font-weight="600" fill="#222">Stereoisomer family</text>',
+            f'<text x="32" y="62" text-anchor="start" font-size="{fs_subtitle:.1f}" fill="#444">{ref_name}</text>',
+            f'<text x="{W-12:.0f}" y="{H-10:.0f}" text-anchor="end" font-size="{fs_footer:.1f}" fill="#aaa">THEOBROMA {VERSION_DISPLAY}</text>'
+        ]
     line_start = radius / 3
     line_end = 2 * radius / 3
     for i, sat in enumerate(sats):
@@ -2147,15 +2354,17 @@ def api_family_figure(comp_id):
         y2 = cy + line_end * math.sin(ang)
         parts.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#888" stroke-width="1" opacity="0.5"/>')
     def emit_cell(m, x, y, w, h):
-        inner = render_mol(m["smiles"], w, h - 20) or ""
-        parts.append(f'<g transform="translate({x:.1f},{y:.1f})">')
-        parts.append(f'<svg viewBox="0 0 {int(w)} {int(h-20)}" width="{int(w)}" height="{int(h-20)}">{inner}</svg>')
+        inner = render_mol(m["smiles"], w, h - 20 * font_scale) or ""
+        parts.append(f'<g data-comp-id="{m["comp_id"]}" transform="translate({x:.1f},{y:.1f})">')
+        parts.append(f'<svg viewBox="0 0 {int(w)} {int(h-20*font_scale)}" width="{int(w)}" height="{int(h-20*font_scale)}">{inner}</svg>')
         name = m["name"] or m["comp_id"]
         if name and not any(c.islower() for c in name):
             name = name[0].upper() + name[1:].lower()
-        if len(name) > 30:
-            name = name[:28] + "..."
-        parts.append(f'<text x="{w/2:.1f}" y="{h-5:.1f}" text-anchor="middle" font-size="11" fill="#222">{name}</text>')
+        if title_case and name and name[0].islower():
+            name = name[0].upper() + name[1:]
+        if len(name) > name_chars:
+            name = name[:name_chars-2] + "..."
+        parts.append(f'<text x="{w/2:.1f}" y="{h-5*font_scale:.1f}" text-anchor="middle" font-size="{fs_label:.1f}" fill="#222">{name}</text>')
         parts.append('</g>')
     emit_cell(ref, cx - ref_w / 2, cy - ref_h / 2, ref_w, ref_h)
     for i, sat in enumerate(sats):
@@ -2164,11 +2373,41 @@ def api_family_figure(comp_id):
         y = cy + radius * math.sin(ang) - sat_h / 2
         emit_cell(sat, x, y, sat_w, sat_h)
     parts.append("</svg>")
+    svg_text = "".join(parts)
+
     download = request.args.get("download")
-    headers = {"Content-Type": "image/svg+xml"}
-    if download:
-        headers["Content-Disposition"] = f'attachment; filename="theobroma_family_{comp_id}.svg"'
-    return "".join(parts), 200, headers
+
+    if fmt == "svg":
+        headers = {"Content-Type": "image/svg+xml"}
+        if download:
+            headers["Content-Disposition"] = f'attachment; filename="theobroma_family_{comp_id}.svg"'
+        return svg_text, 200, headers
+
+    if fmt == "pdf":
+        import cairosvg
+        from io import BytesIO
+        buf = BytesIO()
+        try:
+            cairosvg.svg2pdf(bytestring=svg_text.encode("utf-8"), write_to=buf)
+        except Exception as e:
+            return jsonify({"error": "PDF conversion failed: " + str(e)}), 500
+        resp = Response(buf.getvalue(), mimetype="application/pdf")
+        resp.headers["Content-Disposition"] = f'attachment; filename="theobroma_family_{comp_id}.pdf"'
+        return resp
+
+    # png
+    import cairosvg
+    from io import BytesIO
+    buf = BytesIO()
+    try:
+        cairosvg.svg2png(bytestring=svg_text.encode("utf-8"),
+                         write_to=buf, output_width=int(W * 3))
+    except Exception as e:
+        return jsonify({"error": "PNG conversion failed: " + str(e)}), 500
+    resp = Response(buf.getvalue(), mimetype="image/png")
+    resp.headers["Content-Disposition"] = f'attachment; filename="theobroma_family_{comp_id}.png"'
+    return resp
+
 
 @app.route("/api/bulk")
 def api_bulk():
@@ -2177,8 +2416,17 @@ def api_bulk():
     Params: cols (comma-separated), tier (open/nc/all), limit (default unlimited)
     Example: /api/bulk?cols=comp_id,smiles
     """
-    cols_param = request.args.get("cols", "comp_id,smiles")
-    tier = request.args.get("tier", "all")
+    # Default to a richer field set when cols is unspecified, matching the
+    # manuscript Section 5 description of "full annotation payloads."
+    default_cols = "comp_id,name,smiles,inchikey,kingdom,source_db,all_sources,source_organism,region,license_tier,np_class,classyfire_superclass,mw,logp"
+    cols_param = request.args.get("cols", default_cols)
+    # Accept both 'tier' and 'license' as parameter names. 'license' matches
+    # the /search and /api/search convention; 'tier' is the original /api/bulk
+    # parameter. Map the /search-style values (commercial, academic) to the
+    # /api/bulk-style values (open, nc) for consistency.
+    license_param = request.args.get("license", "")
+    license_to_tier = {"commercial": "open", "academic": "nc", "all": "all"}
+    tier = license_to_tier.get(license_param, request.args.get("tier", "all"))
     limit = request.args.get("limit", "")
 
     allowed_cols = {
@@ -2278,6 +2526,93 @@ def api_stereoisomers(comp_id):
     cols = [d[0] for d in cur.description]
     results = [dict(zip(cols, r)) for r in cur.fetchall()]
     return jsonify({"inchikey_prefix": ik_prefix, "count": len(results), "stereoisomers": results})
+
+
+@app.route("/annotate")
+def annotate_page():
+    return render_template("annotate.html")
+
+@app.route("/api/annotate", methods=["POST"])
+def api_annotate():
+    """Batch lookup of SMILES/InChIKey inputs against the corpus. Returns matched
+    rows with full annotation and an unmatched list. Cap 1000 inputs per call;
+    larger batches are chunked client-side."""
+    data = request.get_json(force=True, silent=True) or {}
+    inputs = data.get("inputs", [])
+    if not isinstance(inputs, list) or not inputs:
+        return jsonify({"error": "inputs must be a non-empty list"}), 400
+    if len(inputs) > 1000:
+        return jsonify({"error": "max 1000 inputs per call"}), 400
+    from rdkit import Chem
+    IK_RE = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
+    resolved = []
+    for i, item in enumerate(inputs):
+        rid = item.get("id", i)
+        ik = (item.get("inchikey") or "").strip().upper()
+        smi = (item.get("smiles") or "").strip()
+        if ik and IK_RE.match(ik):
+            resolved.append({"id": rid, "in_smi": smi, "in_ik": ik, "prefix": ik[:14], "err": None})
+        elif smi:
+            mol = Chem.MolFromSmiles(smi)
+            if mol is None:
+                resolved.append({"id": rid, "in_smi": smi, "in_ik": "", "prefix": None, "err": "invalid SMILES"})
+                continue
+            ik_c = Chem.MolToInchiKey(mol)
+            resolved.append({"id": rid, "in_smi": smi, "in_ik": ik_c, "prefix": ik_c[:14], "err": None})
+        else:
+            resolved.append({"id": rid, "in_smi": "", "in_ik": "", "prefix": None, "err": "no smiles or inchikey"})
+    prefixes = sorted({r["prefix"] for r in resolved if r["prefix"]})
+    by_prefix, tax_map = {}, {}
+    if prefixes:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""SELECT comp_id, name, smiles, inchikey, source_db, all_sources,
+                                      kingdom, region, source_organism, mw, logp, tpsa, hba, hbd,
+                                      n_rings, rotatable_bonds, license_tier, np_class, np_superclass,
+                                      np_pathway, classyfire_superclass, inferred_class,
+                                      inferred_confidence, trad_medicine, trust_score,
+                                      novelty_morgan, novelty_maccs, sa_score
+                               FROM compounds
+                               WHERE SUBSTRING(inchikey,1,14) = ANY(%s::text[])""", (prefixes,))
+                for row in cur:
+                    by_prefix.setdefault(row["inchikey"][:14], []).append(dict(row))
+                comp_ids = [c["comp_id"] for fam in by_prefix.values() for c in fam]
+                if comp_ids:
+                    cur.execute("""SELECT ct.comp_id,
+                                          string_agg(DISTINCT rt.phylum, ', ') AS phyla,
+                                          string_agg(DISTINCT rt.taxclass, ', ') AS tax_classes,
+                                          string_agg(DISTINCT rt.taxorder, ', ') AS orders,
+                                          string_agg(DISTINCT ct.family, ', ') AS families,
+                                          string_agg(DISTINCT ct.genus, ', ') AS genera
+                                   FROM compound_taxonomy ct
+                                   LEFT JOIN resolved_taxonomy rt ON rt.comp_id = ct.comp_id
+                                   WHERE ct.comp_id = ANY(%s::text[])
+                                   GROUP BY ct.comp_id""", (comp_ids,))
+                    for row in cur:
+                        tax_map[row["comp_id"]] = {k: row[k] for k in
+                                                    ("phyla","tax_classes","orders","families","genera")}
+    matched, unmatched = [], []
+    for r in resolved:
+        if not r["prefix"]:
+            unmatched.append({"id": r["id"], "input_smiles": r["in_smi"],
+                              "input_inchikey": r["in_ik"], "reason": r["err"]})
+            continue
+        fam = by_prefix.get(r["prefix"], [])
+        if not fam:
+            unmatched.append({"id": r["id"], "input_smiles": r["in_smi"],
+                              "input_inchikey": r["in_ik"], "reason": "no match in corpus"})
+            continue
+        exact = next((c for c in fam if c["inchikey"] == r["in_ik"]), None)
+        chosen = exact if exact else fam[0]
+        out = {"id": r["id"], "input_smiles": r["in_smi"], "input_inchikey": r["in_ik"],
+               "match_type": "exact" if exact else "family",
+               "family_size": len(fam),
+               "family_members": [{"comp_id": c["comp_id"], "name": c["name"], "inchikey": c["inchikey"]}
+                                  for c in fam if c["comp_id"] != chosen["comp_id"]]}
+        out.update(chosen)
+        out.update(tax_map.get(chosen["comp_id"], {}))
+        matched.append(out)
+    return jsonify({"matched": matched, "unmatched": unmatched})
 
 
 @app.route("/sources")

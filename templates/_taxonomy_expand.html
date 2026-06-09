@@ -274,19 +274,24 @@
     var svg = d3.select(container).append('svg')
       .attr('viewBox', [-width/2, -height/2, width, height])
       .style('width', '100%').style('height', 'auto').style('max-width', width + 'px')
-      .style('font-family', 'sans-serif').style('font-size', '11px');
+      .style('font-family', "'IBM Plex Sans', -apple-system, 'Liberation Sans', Arial, sans-serif").style('font-size', '11px');
 
     // SVG-embedded labels: title (top-left), query (top-right), version (bottom-left).
     // Positioned in the viewBox's coordinate system: [-width/2, -height/2] is top-left.
     var labelTopY = -height/2 + 18;
     var labelBotY = height/2 - 8;
     var leftX = -width/2 + 8;
-    var rightX = width/2 - 8;
+    var rightX = width/2 - 30;
     svg.append('text').attr('class', 'tax-svg-title tax-export-only')
       .attr('x', leftX).attr('y', labelTopY)
       .attr('text-anchor', 'start')
-      .style('font-size', '20px').style('font-weight', '600').style('fill', '#222')
-      .text('Taxonomic distribution');
+      .style('font-size', '12px').style('fill', '#888')
+      .text('Circular cladogram');
+    svg.append('text').attr('class', 'tax-svg-title tax-export-only')
+      .attr('x', leftX).attr('y', labelTopY + 18)
+      .attr('text-anchor', 'start')
+      .style('font-size', '16px').style('font-weight', '600').style('fill', '#2c3e50')
+      .text('Compounds by taxonomic hierarchy');
     var qs = window.location.search;
     var qsPretty = '(no filters)';
     if (qs && qs.length > 1) {
@@ -305,8 +310,12 @@
         .style('font-size', '13px').style('font-family', 'monospace').style('fill', '#666')
         .text(line);
     });
+    var versionY = (-height/2 + 8) - 18 - 14 * 0;  // placeholder, recomputed below
+    var versionX = width/2 - 14;
+    var nKingdoms = Math.max(1, (data.tree.children || []).length);
+    versionY = labelBotY;
     svg.append('text').attr('class', 'tax-svg-version tax-export-only')
-      .attr('x', rightX).attr('y', labelBotY)
+      .attr('x', versionX).attr('y', versionY)
       .attr('text-anchor', 'end')
       .style('font-size', '12px').style('fill', '#888')
       .text('THEOBROMA {{ theobroma_version }}');
@@ -429,7 +438,7 @@
       var y_start = -midR * Math.cos(d.x0);
       var x_end = midR * Math.sin(d.x1);
       var y_end = -midR * Math.cos(d.x1);
-      var layerAlpha = (d.depth === 1 ? 0.95 : 0.7 - 0.1*d.depth) * 0.5;
+      var layerAlpha = (d.depth === 1 ? 0.95 : 0.7 - 0.05*d.depth) * 0.5;
       // Smooth blend: tiny wedges (<5% of full circle) render uniform at layerAlpha,
       // wedges >=10% get the full gradient, in between is linear blend.
       var spanFrac = (d.x1 - d.x0) / (2 * Math.PI);
@@ -457,7 +466,7 @@
       .attr('opacity', function(d){
         // Partial wedges have alpha baked into their gradient; keep their wedge opacity at 1.
         if (d._partialGradId) return 1;
-        return (d.depth === 1 ? 0.95 : 0.7 - 0.1*d.depth) * 0.5;
+        return (d.depth === 1 ? 0.95 : 0.7 - 0.05*d.depth) * 0.5;
       })
       .style('pointer-events', 'none');
 
@@ -501,7 +510,7 @@
       var nSlots = Math.max(2, Math.min(40, Math.floor(span * 40)));
       var slotW = span / nSlots;       // 1/4 spoke, 3/4 gap
       var spokeW = slotW / 4;
-      var op = (d.depth === 1 ? 0.95 : 0.7 - 0.1*d.depth) * 0.5;
+      var op = (d.depth === 1 ? 0.95 : 0.7 - 0.05*d.depth) * 0.5;
       for (var i = 0; i < nSlots; i++) {
         var a0 = d.x0 + i * slotW;
         spokes.push({a0: a0, a1: a0 + spokeW, r0: r0, r1: r1, opacity: op});

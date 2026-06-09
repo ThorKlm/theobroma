@@ -31,11 +31,12 @@
   // event-loop tick so that other listeners' preventDefault() calls (e.g. the
   // kingdom-thumb expand handler) win and we don't show the overlay for
   // non-navigating clicks.
+  var __lastDownloadClickTs = 0;
   document.addEventListener('click', function(e){
     var a = e.target.closest('a');
     if (!a) return;
+    if (a.hasAttribute('download')) { __lastDownloadClickTs = Date.now(); return; }
     if (a.target === '_blank') return;
-    if (a.hasAttribute('download')) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     var href = a.getAttribute('href');
     if (!href) return;
@@ -56,6 +57,7 @@
   // Show on programmatic navigation (e.g. cladogram click handlers using window.location.href = ...)
   // by intercepting beforeunload
   window.addEventListener('beforeunload', function(){
+    if (Date.now() - __lastDownloadClickTs < 2000) return;
     show();
     // BFCache may show the previous overlay state; hide on pageshow below
   });
@@ -73,6 +75,7 @@
             <a href="/search">Search</a>
             <a href="/browse">Browse</a>
             <a href="/tree">Tree</a>
+            <a href="/annotate">Annotate</a>
             <a href="/similarity">Similarity</a>
             <a href="/scaffolds">Scaffolds</a>
             <a href="/statistics">Statistics</a>

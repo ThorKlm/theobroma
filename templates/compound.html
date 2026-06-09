@@ -2,6 +2,7 @@
 {% block title %}{{ c.name or c.comp_id }} &mdash; THEOBROMA{% endblock %}
 {% block content %}
 <div class="back-link"><a href="javascript:history.back();">&larr; Back to results</a></div>
+<p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 0.5rem 0;line-height:1.35;">Per-compound provenance: structure, identifiers, taxonomy, license tier, ChemBERTa-similar neighbors, ADMET predictions, and external cross-references.</p>
 <div class="compound-header">
     <h1>{{ (c.name or 'Unnamed compound')|normalize_name }}</h1>
 {% if synonyms %}
@@ -66,6 +67,19 @@
             <tr><th>License</th><td>
                 <span class="license-badge license-{{ 'open' if c.license_tier == 'CC BY 4.0' or c.license_tier == 'CC0' else 'nc' }}">{{ c.license_tier or 'CC BY 4.0' }}</span>
             </td></tr>
+            {% if license_attestations %}
+            <tr><th>License provenance</th><td>
+                <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.35rem;">
+                    Resolved via most-restrictive-wins across {{ license_attestations|length }} attesting source{{ 's' if license_attestations|length > 1 else '' }}.
+                </div>
+                {% for att in license_attestations %}
+                <span style="display:inline-block;margin:0.1rem 0.35rem 0.1rem 0;padding:0.15rem 0.45rem;background:var(--bg-muted, #f5f5f5);border-radius:3px;font-size:0.8rem;border:1px solid var(--border, #e0e0e0);">
+                    <strong>{{ att.source }}</strong>:
+                    <span class="license-badge license-{{ 'open' if att.license_tier == 'CC BY 4.0' or att.license_tier == 'CC0' else 'nc' }}" style="font-size:0.72rem;padding:0.05rem 0.3rem;margin-left:0.2rem;">{{ att.license_tier }}</span>
+                </span>
+                {% endfor %}
+            </td></tr>
+            {% endif %}
         </table>
     </div>
     <div class="card">
@@ -144,11 +158,61 @@
             <div id="radial-family-canvas-wrap" style="position:relative;width:360px;height:360px;">
             </div>
         </div>
-        <p style="font-size:0.78rem;color:var(--text-muted);margin:0;text-align:center;">
+        <p style="font-size:0.78rem;color:var(--text-muted);margin:0.8rem 0 0;text-align:center;">
             {{ stereoisomers|length }} family members; click any structure to navigate.
-            &nbsp;|&nbsp;
-            <a href="/api/family_figure/{{ c.comp_id }}?download=svg" style="color:var(--accent);text-decoration:underline;">Download SVG</a>
         </p>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0.5rem 0.75rem;margin-top:3rem;font-size:0.85rem;position:relative;z-index:10;clear:both;">
+            <span style="color:var(--text-muted);">Label font</span>
+            <button type="button" id="famFontMinus" style="width:1.8rem;height:1.8rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:0.25rem;cursor:pointer;line-height:1;">&minus;</button>
+            <button type="button" id="famFontPlus"  style="width:1.8rem;height:1.8rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:0.25rem;cursor:pointer;line-height:1;">+</button>
+            <span style="color:var(--text-muted);">|</span>
+            <span style="color:var(--text-muted);">Subfigure size</span>
+            <button type="button" id="famCellMinus" style="width:1.8rem;height:1.8rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:0.25rem;cursor:pointer;line-height:1;">&minus;</button>
+            <button type="button" id="famCellPlus"  style="width:1.8rem;height:1.8rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:0.25rem;cursor:pointer;line-height:1;">+</button>
+            <span style="color:var(--text-muted);">|</span>
+            <a id="famDlSvg" download target="_blank" href="#" style="color:var(--accent);text-decoration:underline;">SVG</a>
+            <a id="famDlPdf" download target="_blank" href="#" style="color:var(--accent);text-decoration:underline;">PDF</a>
+            <a id="famDlPng" download target="_blank" href="#" style="color:var(--accent);text-decoration:underline;">PNG</a>
+        </div>
+        <script>
+        window.__famState = window.__famState || {fontS: 1.0, cellS: 1.0};
+        (function(){
+            var compId = {{ c.comp_id|tojson }};
+            var step = 0.1, lo = 0.5, hi = 3.0;
+            function updateLinks(){
+                var s = window.__famState;
+                var f = s.fontS.toFixed(2), c = s.cellS.toFixed(2);
+                var qs = '?download=1&font_scale=' + f + '&cell_scale=' + c + '&format=';
+                document.getElementById('famDlSvg').href = '/api/family_figure/' + compId + qs + 'svg';
+                document.getElementById('famDlPdf').href = '/api/family_figure/' + compId + qs + 'pdf';
+                document.getElementById('famDlPng').href = '/api/family_figure/' + compId + qs + 'png';
+            }
+            function refresh(){
+                updateLinks();
+                if (typeof window.applyFamScales === 'function'){
+                    window.applyFamScales(window.__famState.fontS, window.__famState.cellS);
+                }
+            }
+            function bind(id, dir, which){
+                document.getElementById(id).addEventListener('click', function(){
+                    var s = window.__famState;
+                    if (which === 'font'){
+                        s.fontS = (dir > 0) ? Math.min(hi, +(s.fontS + step).toFixed(2))
+                                            : Math.max(lo, +(s.fontS - step).toFixed(2));
+                    } else {
+                        s.cellS = (dir > 0) ? Math.min(hi, +(s.cellS + step).toFixed(2))
+                                            : Math.max(lo, +(s.cellS - step).toFixed(2));
+                    }
+                    refresh();
+                });
+            }
+            bind('famFontPlus',  +1, 'font');
+            bind('famFontMinus', -1, 'font');
+            bind('famCellPlus',  +1, 'cell');
+            bind('famCellMinus', -1, 'cell');
+            updateLinks();
+        })();
+        </script>
     </div>
     <script>
     (function(){
@@ -174,134 +238,151 @@
         var sats = members.slice(1);
         var N = sats.length;
 
-        var satW = Math.max(48, Math.min(72, 88 - N*3));
-        var satH = Math.max(38, Math.min(58, 70 - N*2));
-        var refW = satW, refH = satH;
+        // base dimensions; renderFamily multiplies by cellMul
+        var BASE_SAT_W = Math.max(48, Math.min(72, 88 - N*3));
+        var BASE_SAT_H = Math.max(38, Math.min(58, 70 - N*2));
 
-        // Background SVG for radial connectors
-        var svgNS = 'http://www.w3.org/2000/svg';
-        var svg = document.createElementNS(svgNS, 'svg');
-        svg.setAttribute('width', W); svg.setAttribute('height', H);
-        svg.style.position = 'absolute';
-        svg.style.left = '0'; svg.style.top = '0';
-        svg.style.pointerEvents = 'none';
-        container.appendChild(svg);
+        function renderFamily(fontMul, cellMul){
+            // clear container
+            container.innerHTML = '';
 
-        var radius = (W/2) - Math.max(satW, satH)/2 - 10;
-        // Connectors span 1/3 to 2/3 of the center-to-center distance
-        var line_start_radius = radius / 3;
-        var line_end_radius = 2 * radius / 3;
+            var satW = Math.round(BASE_SAT_W * cellMul);
+            var satH = Math.round(BASE_SAT_H * cellMul);
+            var refW = satW, refH = satH;
 
-        addCell(ref, cx - refW/2, cy - refH/2, refW, refH, true);
+            // Background SVG for radial connectors
+            var svgNS = 'http://www.w3.org/2000/svg';
+            var svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('width', W); svg.setAttribute('height', H);
+            svg.style.position = 'absolute';
+            svg.style.left = '0'; svg.style.top = '0';
+            svg.style.pointerEvents = 'none';
+            container.appendChild(svg);
 
-        for (var i = 0; i < N; i++) {
-            var angle = (2*Math.PI*i/N) - Math.PI/2;
-            // Draw radial line
-            var line = document.createElementNS(svgNS, 'line');
-            line.setAttribute('x1', cx + line_start_radius * Math.cos(angle));
-            line.setAttribute('y1', cy + line_start_radius * Math.sin(angle));
-            line.setAttribute('x2', cx + line_end_radius * Math.cos(angle));
-            line.setAttribute('y2', cy + line_end_radius * Math.sin(angle));
-            line.setAttribute('stroke', 'var(--text-muted)');
-            line.setAttribute('stroke-width', '1');
-            line.setAttribute('opacity', '0.4');
-            svg.appendChild(line);
+            var radius = (W/2) - Math.max(satW, satH)/2 - 10;
+            var line_start_radius = radius / 3;
+            var line_end_radius = 2 * radius / 3;
 
-            var x = cx + radius * Math.cos(angle) - satW/2;
-            var y = cy + radius * Math.sin(angle) - satH/2;
-            addCell(sats[i], x, y, satW, satH, false);
-        }
+            addCell(ref, cx - refW/2, cy - refH/2, refW, refH, true);
 
-        function addCell(m, x, y, w, h, is_ref) {
-            var cell = document.createElement(is_ref ? 'div' : 'a');
-            if (!is_ref) cell.href = '/compound/' + m.comp_id;
-            cell.title = m.name + (m.inchikey ? '  ' + m.inchikey : '');
-            cell.style.position = 'absolute';
-            cell.style.left = x + 'px';
-            cell.style.top = y + 'px';
-            cell.style.width = w + 'px';
-            cell.style.height = h + 'px';
-            cell.style.display = 'flex';
-            cell.style.flexDirection = 'column';
-            cell.style.alignItems = 'center';
-            cell.style.justifyContent = 'center';
-            cell.style.padding = '0';
-            cell.style.textDecoration = 'none';
-            cell.style.color = 'var(--text)';
-            if (!is_ref) cell.style.transition = 'transform 0.12s, border-color 0.12s';
+            for (var i = 0; i < N; i++) {
+                var angle = (2*Math.PI*i/N) - Math.PI/2;
+                var line = document.createElementNS(svgNS, 'line');
+                line.setAttribute('x1', cx + line_start_radius * Math.cos(angle));
+                line.setAttribute('y1', cy + line_start_radius * Math.sin(angle));
+                line.setAttribute('x2', cx + line_end_radius * Math.cos(angle));
+                line.setAttribute('y2', cy + line_end_radius * Math.sin(angle));
+                line.setAttribute('stroke', 'var(--text-muted)');
+                line.setAttribute('stroke-width', '1');
+                line.setAttribute('opacity', '0.4');
+                svg.appendChild(line);
 
-            var canvas = document.createElement('canvas');
-            canvas.width = w - 8;
-            canvas.height = h - 14;
-            cell.appendChild(canvas);
-
-            var labelWrap = document.createElement('div');
-            labelWrap.style.textAlign = 'center';
-            labelWrap.style.maxWidth = (w + 30) + 'px';
-            labelWrap.style.marginTop = '1px';
-
-            var label = document.createElement('div');
-            label.style.fontSize = '0.6rem';
-            label.style.lineHeight = '1';
-            label.style.overflow = 'hidden';
-            label.style.textOverflow = 'ellipsis';
-            label.style.whiteSpace = 'nowrap';
-            label.textContent = m.name.length > 25 ? m.name.substring(0, 23) + '...' : m.name;
-            labelWrap.appendChild(label);
-
-            if (m.category) {
-                var sub = document.createElement('div');
-                sub.style.fontSize = '0.52rem';
-                sub.style.lineHeight = '1';
-                sub.style.color = 'var(--text-muted)';
-                sub.style.marginTop = '1px';
-                sub.textContent = m.category === 'unspecified' ? '(stereo unspecified)' : '(protonation state)';
-                labelWrap.appendChild(sub);
+                var x = cx + radius * Math.cos(angle) - satW/2;
+                var y = cy + radius * Math.sin(angle) - satH/2;
+                addCell(sats[i], x, y, satW, satH, false);
             }
 
-            cell.appendChild(labelWrap);
+            function addCell(m, x, y, w, h, is_ref) {
+                var cell = document.createElement(is_ref ? 'div' : 'a');
+                if (!is_ref) cell.href = '/compound/' + m.comp_id;
+                cell.title = m.name + (m.inchikey ? '  ' + m.inchikey : '');
+                cell.style.position = 'absolute';
+                cell.style.left = x + 'px';
+                cell.style.top = y + 'px';
+                cell.style.width = w + 'px';
+                cell.style.height = h + 'px';
+                cell.style.display = 'flex';
+                cell.style.flexDirection = 'column';
+                cell.style.alignItems = 'center';
+                cell.style.justifyContent = 'center';
+                cell.style.padding = '0';
+                cell.style.textDecoration = 'none';
+                cell.style.color = 'var(--text)';
+                if (!is_ref) cell.style.transition = 'transform 0.12s, border-color 0.12s';
 
-            if (!is_ref) {
-                cell.addEventListener('mouseenter', function(){ this.style.transform = 'scale(1.1)'; });
-                cell.addEventListener('mouseleave', function(){ this.style.transform = 'scale(1.0)'; });
-            }
+                var canvas = document.createElement('canvas');
+                canvas.width = w - 8;
+                canvas.height = h - 14;
+                cell.appendChild(canvas);
 
-            container.appendChild(cell);
+                var labelWrap = document.createElement('div');
+                labelWrap.style.textAlign = 'center';
+                labelWrap.style.maxWidth = (w + 30) + 'px';
+                labelWrap.style.marginTop = '1px';
 
-            (function(c, smi, cw, ch){
-                function fallback(){
-                    fetch('/api/depict?smiles=' + encodeURIComponent(smi) + '&w=' + cw + '&h=' + ch)
-                        .then(function(r){ return r.text(); })
-                        .then(function(svg){
-                            if (!c.parentNode) return;
-                            var div = document.createElement('div');
-                            div.innerHTML = svg;
-                            div.style.width = cw + 'px';
-                            div.style.height = ch + 'px';
-                            div.style.display = 'flex';
-                            div.style.alignItems = 'center';
-                            div.style.justifyContent = 'center';
-                            var inner = div.querySelector('svg');
-                            if (inner) { inner.setAttribute('width', cw); inner.setAttribute('height', ch); inner.style.maxWidth = cw + 'px'; inner.style.maxHeight = ch + 'px'; }
-                            c.parentNode.replaceChild(div, c);
-                        }).catch(function(){});
+                var label = document.createElement('div');
+                label.style.fontSize = (0.6 * fontMul).toFixed(3) + 'rem';
+                label.style.lineHeight = '1';
+                label.style.overflow = 'hidden';
+                label.style.textOverflow = 'ellipsis';
+                label.style.whiteSpace = 'nowrap';
+                label.textContent = m.name.length > 25 ? m.name.substring(0, 23) + '...' : m.name;
+                labelWrap.appendChild(label);
+
+                if (m.category) {
+                    var sub = document.createElement('div');
+                    sub.style.fontSize = (0.52 * fontMul).toFixed(3) + 'rem';
+                    sub.style.lineHeight = '1';
+                    sub.style.color = 'var(--text-muted)';
+                    sub.style.marginTop = '1px';
+                    sub.textContent = m.category === 'unspecified' ? '(stereo unspecified)' : '(protonation state)';
+                    labelWrap.appendChild(sub);
                 }
-                try {
-                    var drawer = new SmilesDrawer.Drawer({width: cw, height: ch, padding: 2, bondLength: 12, bondThickness: 0.7, fontSizeLarge: 5, fontSizeSmall: 3});
-                    SmilesDrawer.parse(smi, function(tree){
-                        drawer.draw(tree, c, 'light');
-                        setTimeout(function(){
-                            try {
-                                var pixels = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-                                var hasContent = false;
-                                for (var k = 3; k < pixels.length; k += 40) { if (pixels[k] > 0) { hasContent = true; break; } }
-                                if (!hasContent) fallback();
-                            } catch (e) { fallback(); }
-                        }, 400);
-                    }, function(){ fallback(); });
-                } catch (e) { fallback(); }
-            })(canvas, m.smiles, canvas.width, canvas.height);
+
+                cell.appendChild(labelWrap);
+
+                if (!is_ref) {
+                    cell.addEventListener('mouseenter', function(){ this.style.transform = 'scale(1.1)'; });
+                    cell.addEventListener('mouseleave', function(){ this.style.transform = 'scale(1.0)'; });
+                }
+
+                container.appendChild(cell);
+
+                (function(c, smi, cw, ch){
+                    function fallback(){
+                        fetch('/api/depict?smiles=' + encodeURIComponent(smi) + '&w=' + cw + '&h=' + ch)
+                            .then(function(r){ return r.text(); })
+                            .then(function(svg){
+                                if (!c.parentNode) return;
+                                var div = document.createElement('div');
+                                div.innerHTML = svg;
+                                div.style.width = cw + 'px';
+                                div.style.height = ch + 'px';
+                                div.style.display = 'flex';
+                                div.style.alignItems = 'center';
+                                div.style.justifyContent = 'center';
+                                var inner = div.querySelector('svg');
+                                if (inner) { inner.setAttribute('width', cw); inner.setAttribute('height', ch); inner.style.maxWidth = cw + 'px'; inner.style.maxHeight = ch + 'px'; }
+                                c.parentNode.replaceChild(div, c);
+                            }).catch(function(){});
+                    }
+                    try {
+                        var fl = Math.max(2, 5 * fontMul);
+                        var fsm = Math.max(1, 3 * fontMul);
+                        var drawer = new SmilesDrawer.Drawer({width: cw, height: ch, padding: 2, bondLength: 12, bondThickness: 0.7, fontSizeLarge: fl, fontSizeSmall: fsm});
+                        SmilesDrawer.parse(smi, function(tree){
+                            drawer.draw(tree, c, 'light');
+                            setTimeout(function(){
+                                try {
+                                    var pixels = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+                                    var hasContent = false;
+                                    for (var k = 3; k < pixels.length; k += 40) { if (pixels[k] > 0) { hasContent = true; break; } }
+                                    if (!hasContent) fallback();
+                                } catch (e) { fallback(); }
+                            }, 400);
+                        }, function(){ fallback(); });
+                    } catch (e) { fallback(); }
+                })(canvas, m.smiles, canvas.width, canvas.height);
+            }
         }
+
+        // expose for the +/- handlers
+        window.applyFamScales = function(fontMul, cellMul){
+            renderFamily(fontMul, cellMul);
+        };
+
+        // initial render
+        renderFamily(1.0, 1.0);
     })();
     </script>
     {% endif %}
@@ -381,7 +462,7 @@
     {% if c.inchikey %}
     <a href="https://www.google.com/search?q={{ c.inchikey }}" class="btn" target="_blank">Google</a>
     <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{ c.inchikey }}" class="btn btn-pubchem" target="_blank">PubChem</a>
-    <a href="https://coconut.naturalproducts.net/compound/search?q={{ c.inchikey }}" class="btn btn-coconut" target="_blank">COCONUT</a>
+    <a href="https://coconut.naturalproducts.net/search?q={{ c.inchikey }}" class="btn btn-coconut" target="_blank">COCONUT</a>
     {% endif %}
     {% if c.chebi_id %}
     <a href="https://www.ebi.ac.uk/chebi/searchId.do?chebiId={{ c.chebi_id }}" class="btn btn-chebi" target="_blank">ChEBI</a>
@@ -431,4 +512,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }, function() { serverFallback(); });
 });
 </script>
+
+        <script>
+          // Compound page: remove the page-loading overlay entirely so download
+          // clicks never trigger it.
+          (function(){
+            var ov = document.getElementById('page-loading-overlay');
+            if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+          })();
+        </script>
 {% endblock %}

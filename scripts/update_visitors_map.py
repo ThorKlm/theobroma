@@ -3,12 +3,13 @@ Resolves new IPs via ipinfo.io free tier (no key, IPv4 + IPv6, 50k/mo limit).
 Caches resolutions in /home/thorben.klamt/.visitor_country_cache.json so re-runs
 do not re-query already-known IPs.
 """
-import json, os, time, sys, urllib.request, urllib.error, subprocess
+import json, os, time, sys, urllib.request, urllib.error, psycopg2
 
 CACHE = "/home/thorben.klamt/.visitor_country_cache.json"
 OUT_DIR = "/home/thorben.klamt/theobroma/static"
 OUT_DATA = os.path.join(OUT_DIR, "visitors_by_country.json")
 OUT_META = os.path.join(OUT_DIR, "visitors_meta.json")
+DB_URI = "postgresql://theobroma:theobroma@localhost:5432/theobroma"
 
 # UAs known to be bots, blocked at robots.txt + middleware level.
 BOT_UA_SUBSTRINGS = [
@@ -35,22 +36,19 @@ def resolve_ip(ip):
 
 # Fetch distinct non-bot IPs from access_log
 def fetch_ips():
-    bot_pattern = "|".join(BOT_UA_SUBSTRINGS)
-    q = f"""SELECT ip, COUNT(*) AS hits FROM access_log
-            WHERE ip IS NOT NULL AND ip != ''
-              AND COALESCE(user_agent, '') !~* '({bot_pattern})'
-              AND path NOT LIKE '/static/%'
-              AND path NOT LIKE '/api/depict%'
-            GROUP BY ip ORDER BY 2 DESC"""
-    r = subprocess.run(['sudo','-u','postgres','psql','-d','theobroma','-At','-F','\t','-c',q],
-                       capture_output=True, text=True)
-    rows = []
-    for line in r.stdout.strip().split("\n"):
-        if not line: continue
-        parts = line.split("\t")
-        if len(parts) >= 2:
-            rows.append((parts[0], int(parts[1])))
-    return rows
+    """Distinct non-bot IPs from access_log via psycopg2 (no sudo dependency)."""
+    bot_pattern = "(" + "|".join(BOT_UA_SUBSTRINGS) + ")"
+    with psycopg2.connect(DB_URI) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT ip, COUNT(*) AS hits FROM access_log
+                WHERE ip IS NOT NULL AND ip != ''
+                  AND COALESCE(user_agent, '') !~* %s
+                  AND path NOT LIKE '/static/%%'
+                  AND path NOT LIKE '/api/depict%%'
+                GROUP BY ip ORDER BY 2 DESC
+            """, (bot_pattern,))
+            return [(row[0], row[1]) for row in cur.fetchall()]
 
 print("fetching IPs from access_log...")
 ip_rows = fetch_ips()
@@ -119,6 +117,14 @@ countries_iso3 = []
 for cc2, n in sorted(country_counts.items(), key=lambda x:-x[1]):
     iso3 = ISO2_TO_3.get(cc2, cc2)
     countries_iso3.append({"iso3": iso3, "iso2": cc2, "visitors": n, "hits": country_hits[cc2]})
+
+# Tripwire: refuse to overwrite the output JSON if country_counts is empty.
+# An empty result indicates the IP resolution path or the DB query failed
+# in a way that did not raise (e.g., empty access_log query, all IPs
+# unresolved, ipinfo rate limit). The prior valid JSON is preserved.
+if not country_counts:
+    sys.stderr.write("ERROR: country_counts is empty; refusing to overwrite output files\n")
+    sys.exit(1)
 
 # Save
 os.makedirs(OUT_DIR, exist_ok=True)

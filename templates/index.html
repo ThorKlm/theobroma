@@ -5,7 +5,7 @@
 <div class="hero" style="position:relative;">
     <div class="hero-glow"></div>
     <h1>THEOBROMA</h1>
-    <p class="subtitle">An open multi-kingdom natural products database aggregating 29 source databases across four biological kingdoms (plant, fungi, bacteria, animal), 14 resolved geographic regions, and a residual unresolved category, with per-compound license tiers for legally-aware drug discovery. Cross-kingdom attributions are preserved via a secondary-kingdoms layer so a single compound can appear under every kingdom in which it has been reported.</p>
+    <p class="subtitle">Search, filter, and explore 1.13 million natural products with per-compound license auditing, phylogenetic tree visualization, and geographic provenance across 14 regions. Aggregating 29 open source databases under transparent licensing for legally-aware drug discovery.</p>
     <div class="stat-row">
         <a href="/browse" class="stat-item"><div class="stat-num">{{ "{:,}".format(total) }}</div><div class="stat-label">Compounds</div></a>
         <a href="/sources" class="stat-item"><div class="stat-num">{{ n_sources }}</div><div class="stat-label">Source databases</div></a>
@@ -46,7 +46,40 @@
             <option value="order">Order</option>
             <option value="tax_class">Class (taxonomic)</option>
             <option value="phylum">Phylum</option>
-            <option value="class">Chemical class</option>
+            <option value="classification">Chemical classification</option>
+            <option value="property">Chemical property</option>
+        </select>
+        <select name="prop_type" id="search-prop" class="prop-subselect" style="display:none;padding:0.4rem;flex:0 0 auto;min-width:13rem;">
+            <optgroup label="Classification">
+                <option value="npclassifier_class">NPClassifier class</option>
+                <option value="npclassifier_superclass">NPClassifier superclass</option>
+                <option value="classyfire_class">ClassyFire superclass</option>
+                <option value="pathway">NPClassifier pathway</option>
+            </optgroup>
+            <optgroup label="Physicochemical">
+                <option value="mw">Molecular weight</option>
+                <option value="logp">LogP</option>
+                <option value="tpsa">TPSA</option>
+                <option value="hba">HBA</option>
+                <option value="hbd">HBD</option>
+                <option value="n_rings">Rings</option>
+                <option value="rotatable_bonds">Rotatable bonds</option>
+            </optgroup>
+            <optgroup label="ADMET">
+                <option value="QED">QED (drug-likeness)</option>
+                <option value="Lipinski">Lipinski</option>
+                <option value="BBB_Martins">BBB permeability</option>
+                <option value="Bioavailability_Ma">Bioavailability</option>
+                <option value="HIA_Hou">HIA (intestinal abs.)</option>
+                <option value="DILI">DILI (liver injury)</option>
+                <option value="hERG">hERG (cardiotoxicity)</option>
+                <option value="AMES">AMES (mutagenicity)</option>
+                <option value="Solubility_AqSolDB">Aqueous solubility</option>
+                <option value="LD50_Zhu">LD50 (toxicity)</option>
+                <option value="NR_AR">NR_AR (androgen)</option>
+                <option value="NR_ER">NR_ER (estrogen)</option>
+                <option value="SR_p53">SR_p53 (stress)</option>
+            </optgroup>
         </select>
         <div class="search-input-wrap">
             <input type="text" name="q" id="search-q" placeholder="Search compounds..." autocomplete="off">
@@ -111,7 +144,7 @@ function addFilterHome() {
     row.style.cssText = 'display:flex;gap:0.5rem;margin-top:0.5rem;align-items:center;';
     var idx = filterCountHome;
     row.innerHTML = '<span class="and-label" style="font-size:0.8rem;color:var(--text-muted);">AND</span>' +
-        '<select name="extra_type_' + idx + '" style="font-size:0.85rem;padding:0.4rem;">' +
+        '<select name="extra_type_' + idx + '" class="extra-typesel" style="font-size:0.85rem;padding:0.4rem;">' +
         '<option value="">-- select type --</option>' +
         '<option value="name">Compound name</option>' +
         '<option value="organism">Source organism</option>' +
@@ -123,13 +156,103 @@ function addFilterHome() {
         '<option value="order">Order</option>' +
         '<option value="tax_class">Class (taxonomic)</option>' +
         '<option value="phylum">Phylum</option>' +
-        '<option value="class">Chemical class</option>' +
+        '<option value="classification">Chemical classification</option>' +
+        '<option value="property">Chemical property</option>' +
         '</select>' +
-        '<input type="text" name="extra_q_' + idx + '" placeholder="filter value..." style="flex:1;padding:0.4rem;">' +
+        '<select name="extra_prop_' + idx + '" class="extra-propsel" style="display:none;font-size:0.85rem;padding:0.4rem;">' +
+            '<optgroup label="Classification">' +
+                '<option value="npclassifier_class">NPClassifier class</option>' +
+                '<option value="npclassifier_superclass">NPClassifier superclass</option>' +
+                '<option value="classyfire_class">ClassyFire superclass</option>' +
+                '<option value="pathway">NPClassifier pathway</option>' +
+            '</optgroup>' +
+            '<optgroup label="Physicochemical">' +
+                '<option value="mw">Molecular weight</option>' +
+                '<option value="logp">LogP</option>' +
+                '<option value="tpsa">TPSA</option>' +
+                '<option value="hba">HBA</option>' +
+                '<option value="hbd">HBD</option>' +
+                '<option value="n_rings">Rings</option>' +
+                '<option value="rotatable_bonds">Rotatable bonds</option>' +
+            '</optgroup>' +
+            '<optgroup label="ADMET">' +
+                '<option value="QED">QED</option>' +
+                '<option value="Lipinski">Lipinski</option>' +
+                '<option value="BBB_Martins">BBB permeability</option>' +
+                '<option value="Bioavailability_Ma">Bioavailability</option>' +
+                '<option value="HIA_Hou">HIA</option>' +
+                '<option value="DILI">DILI</option>' +
+                '<option value="hERG">hERG</option>' +
+                '<option value="AMES">AMES</option>' +
+                '<option value="Solubility_AqSolDB">Solubility</option>' +
+                '<option value="LD50_Zhu">LD50</option>' +
+            '</optgroup>' +
+        '</select>' +
+        '<input type="text" name="extra_q_' + idx + '" class="extra-q" placeholder="filter value..." style="flex:1;padding:0.4rem;">' +
         '<a href="#" onclick="this.parentNode.remove();return false;" style="font-size:0.8rem;color:#c0392b;">x</a>';
     container.appendChild(row);
-    // The form needs to know to include extra params; since they're inside the form-following div,
-    // we need to move them inside the form, or change the form to wrap everything
+    bindExtraRowHandlers(row, idx);
+}
+
+function bindExtraRowHandlers(row, idx) {
+    var typesel = row.querySelector('.extra-typesel');
+    var propsel = row.querySelector('.extra-propsel');
+    var input = row.querySelector('.extra-q');
+    var propRangesRow = {
+        "mw": 380, "logp": 3.2, "tpsa": 78, "hba": 6, "hbd": 2, "n_rings": 3, "rotatable_bonds": 5,
+        "QED": 0.55, "Lipinski": 3.6, "BBB_Martins": 0.45, "Bioavailability_Ma": 0.60,
+        "HIA_Hou": 0.75, "DILI": 0.35, "hERG": 0.30, "AMES": 0.25,
+        "Solubility_AqSolDB": -3.5, "LD50_Zhu": 2.5
+    };
+    var classRowProps = ["npclassifier_class","npclassifier_superclass","classyfire_class","pathway"];
+    function clearRowRange() {
+        var oldRange = row.querySelector('.extra-range');
+        if (oldRange) oldRange.remove();
+        input.style.display = '';
+    }
+    function showRowRange(prop) {
+        clearRowRange();
+        input.style.display = 'none';
+        var mean = propRangesRow[prop] || 0;
+        var rangeWrap = document.createElement('div');
+        rangeWrap.className = 'extra-range';
+        rangeWrap.style.cssText = 'display:flex;gap:0.3rem;align-items:center;flex:1;';
+        rangeWrap.innerHTML =
+            '<input type="number" name="' + prop + '_min" placeholder="min" step="any" style="padding:0.4rem;width:5rem;">' +
+            '<span style="font-size:0.78rem;color:var(--text-muted);">to</span>' +
+            '<input type="number" name="' + prop + '_max" placeholder="max" step="any" style="padding:0.4rem;width:5rem;">' +
+            '<span style="font-size:0.7rem;color:var(--text-muted);">(mean: ' + mean + ')</span>';
+        input.parentNode.insertBefore(rangeWrap, input);
+    }
+    function handleRowPropChange() {
+        var prop = propsel.value;
+        if (classRowProps.indexOf(prop) >= 0) {
+            clearRowRange();
+            input.placeholder = 'Type or select ' + prop.replace(/_/g, ' ') + '...';
+        } else {
+            showRowRange(prop);
+        }
+    }
+    propsel.addEventListener('change', handleRowPropChange);
+    typesel.addEventListener('change', function() {
+        var t = this.value;
+        clearRowRange();
+        if (t === 'classification' || t === 'property') {
+            propsel.style.display = '';
+            propsel.name = 'extra_prop_type_' + idx;
+            var groups = propsel.querySelectorAll('optgroup');
+            groups.forEach(function(g) {
+                var lbl = g.label;
+                if (t === 'classification') g.style.display = (lbl === 'Classification') ? '' : 'none';
+                else g.style.display = (lbl === 'Classification') ? 'none' : '';
+            });
+            propsel.value = (t === 'classification') ? 'npclassifier_class' : 'mw';
+            handleRowPropChange();
+        } else {
+            propsel.style.display = 'none';
+            input.placeholder = 'filter value...';
+        }
+    });
 }
 
 // Ensure the form sweeps up all filter values on submit by appending hidden inputs from extra rows
@@ -189,14 +312,136 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Property-subselect dispatch wiring (CHANGE 2 surgical patch).
+    var propsel = document.getElementById('search-prop');
+    var inputWrap = input.parentNode;
+    var classProps = {
+        "npclassifier_class":      "npclassifier_class",
+        "npclassifier_superclass": "npclassifier_superclass",
+        "classyfire_class":        "classyfire_class",
+        "pathway":                 "pathway"
+    };
+    var propRanges = {
+        "mw":              {min: 100, max: 1500, mean: 380},
+        "logp":            {min: -5,  max: 10,   mean: 3.2},
+        "tpsa":            {min: 0,   max: 250,  mean: 78},
+        "hba":             {min: 0,   max: 25,   mean: 6},
+        "hbd":             {min: 0,   max: 15,   mean: 2},
+        "n_rings":         {min: 0,   max: 12,   mean: 3},
+        "rotatable_bonds": {min: 0,   max: 30,   mean: 5},
+        "QED":                {min: 0,   max: 1,    mean: 0.55},
+        "Lipinski":           {min: 0,   max: 4,    mean: 3.6},
+        "BBB_Martins":        {min: 0,   max: 1,    mean: 0.45},
+        "Bioavailability_Ma": {min: 0,   max: 1,    mean: 0.60},
+        "HIA_Hou":            {min: 0,   max: 1,    mean: 0.75},
+        "DILI":               {min: 0,   max: 1,    mean: 0.35},
+        "hERG":               {min: 0,   max: 1,    mean: 0.30},
+        "AMES":               {min: 0,   max: 1,    mean: 0.25},
+        "Solubility_AqSolDB": {min: -10, max: 2,    mean: -3.5},
+        "LD50_Zhu":           {min: 0,   max: 5,    mean: 2.5},
+        "NR_AR":              {min: 0,   max: 1,    mean: 0.15},
+        "NR_ER":              {min: 0,   max: 1,    mean: 0.20},
+        "SR_p53":             {min: 0,   max: 1,    mean: 0.18}
+    };
+    function clearRangeInput() {
+        var old = inputWrap.parentNode.querySelector('.range-input');
+        if (old) old.remove();
+        input.style.display = '';
+    }
+    function showRangeInput(prop) {
+        submenu.style.display = 'none';
+        input.style.display = 'none';
+        clearRangeInput();
+        var r = propRanges[prop] || {min:0, max:100, mean:50};
+        var rangeWrap = document.createElement('div');
+        rangeWrap.className = 'range-input';
+        rangeWrap.style.cssText = 'display:flex;gap:0.3rem;align-items:center;flex:1;';
+        rangeWrap.innerHTML =
+            '<input type="number" name="' + prop + '_min" placeholder="' + r.min + '" step="any" value="" style="padding:0.4rem;width:6rem;">' +
+            '<span style="font-size:0.8rem;color:var(--text-muted);">to</span>' +
+            '<input type="number" name="' + prop + '_max" placeholder="' + r.max + '" step="any" value="" style="padding:0.4rem;width:6rem;">' +
+            '<span style="font-size:0.72rem;color:var(--text-muted);">(mean: ' + r.mean + ')</span>';
+        inputWrap.parentNode.insertBefore(rangeWrap, inputWrap.nextSibling);
+    }
+    function showClassSubmenu(propKey) {
+        clearRangeInput();
+        loadOptions().then(function(opts) {
+            var items = opts[classProps[propKey]];
+            if (!items || items.length === 0) { submenu.style.display = 'none'; return; }
+            submenu.innerHTML = '';
+            var itemEls = [];
+            items.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'submenu-item';
+                div.textContent = item;
+                div.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    input.value = item;
+                    submenu.style.display = 'none';
+                });
+                submenu.appendChild(div);
+                itemEls.push(div);
+            });
+            submenu.style.display = 'block';
+            input.oninput = function() {
+                var q = (input.value || '').toLowerCase().trim();
+                submenu.style.display = 'block';
+                if (!q) { itemEls.forEach(function(el){ el.style.display = ''; }); return; }
+                var anyPrefix = false;
+                itemEls.forEach(function(el) {
+                    var t = el.textContent.toLowerCase();
+                    if (t.indexOf(q) === 0) { el.style.display = ''; anyPrefix = true; }
+                    else el.style.display = 'none';
+                });
+                if (!anyPrefix) {
+                    itemEls.forEach(function(el) {
+                        var t = el.textContent.toLowerCase();
+                        el.style.display = t.indexOf(q) >= 0 ? '' : 'none';
+                    });
+                }
+            };
+            input.onfocus = function() { submenu.style.display = 'block'; };
+            input.onclick = function() { submenu.style.display = 'block'; };
+        });
+    }
+    function handlePropChange() {
+        var prop = propsel.value;
+        if (prop in classProps) {
+            input.placeholder = 'Select or type ' + prop.replace(/_/g, ' ') + '...';
+            showClassSubmenu(prop);
+        } else {
+            showRangeInput(prop);
+        }
+    }
+    propsel.addEventListener('change', handlePropChange);
     typesel.addEventListener('change', function() {
         var t = this.value;
-        if (['kingdom','region','source','class','genus','family'].indexOf(t) >= 0) {
-            showSubmenu(t);
-            input.placeholder = 'Select or type ' + t + '...';
+        clearRangeInput();
+        if (t === 'property' || t === 'classification') {
+            propsel.style.display = '';
+            // Filter optgroups: classification shows only Classification group; property shows Physicochemical + ADMET.
+            var groups = propsel.querySelectorAll('optgroup');
+            groups.forEach(function(g) {
+                if (t === 'classification') g.style.display = (g.label === 'Classification') ? '' : 'none';
+                else g.style.display = (g.label === 'Classification') ? 'none' : '';
+            });
+            // Reset default value to the first visible option.
+            var defaultVal = (t === 'classification') ? 'npclassifier_class' : 'mw';
+            propsel.value = defaultVal;
+            handlePropChange();
         } else {
-            submenu.style.display = 'none';
-            input.placeholder = 'Search compounds...';
+            propsel.style.display = 'none';
+            input.name = 'q';
+            input.oninput = null;
+            input.onfocus = null;
+            input.onclick = null;
+            if (['kingdom','region','source','class','genus','family'].indexOf(t) >= 0) {
+                showSubmenu(t);
+                input.placeholder = 'Select or type ' + t + '...';
+            } else {
+                submenu.style.display = 'none';
+                input.placeholder = 'Search compounds...';
+            }
         }
     });
 

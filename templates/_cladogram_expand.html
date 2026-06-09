@@ -3,6 +3,10 @@
     <div style="display:flex;justify-content:flex-end;margin-bottom:0.2rem;">
       <a href="#" id="cladogram-close" style="font-size:0.8rem;color:var(--accent);text-decoration:none;">[ close ]</a>
     </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+      <input id="cladogram-filter" type="text" placeholder="Filter tree by node name..." style="flex:0 0 320px;padding:0.3rem 0.5rem;font-size:0.85rem;border:1px solid var(--border);border-radius:3px;">
+      <span id="cladogram-filter-hint" style="font-size:0.78rem;color:var(--text-muted);">Type to dim non-matching nodes; clear to reset.</span>
+    </div>
     <div id="cladogram-container" style="width:100%;overflow-x:auto;overflow-y:visible;"></div>
     <div id="cladogram-loading" style="text-align:center;padding:2rem;color:var(--text-muted);display:none;">Loading cladogram...</div>
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:var(--text-muted);margin-top:0.6rem;">
@@ -188,7 +192,65 @@
     caps[7] = COMPOUND_MODES[compoundMode].cap;
     pruneWithCaps(treeData, 0, caps);
     renderTree(treeData);
+    // B.3 - bind click on residual "+N more" nodes to increment currentCapsIdx.
+    setTimeout(function() {
+      var container = document.getElementById('cladogram-container');
+      if (!container) return;
+      var texts = container.querySelectorAll('text');
+      texts.forEach(function(t) {
+        var txt = t.textContent || '';
+        if (/^\+\d+ more$/.test(txt)) {
+          t.style.cursor = 'pointer';
+          t.style.fill = 'var(--accent)';
+          t.addEventListener('click', function() {
+            if (currentCapsIdx < CAPS_SEQUENCE.length - 1) {
+              currentCapsIdx++;
+              applyCapsAndRerender();
+              applyFilter();
+            }
+          });
+        }
+      });
+      applyFilter();
+    }, 50);
   }
+  // B.2 - tree filter: dim nodes whose label does not match the input.
+  function applyFilter() {
+    var inp = document.getElementById('cladogram-filter');
+    if (!inp) return;
+    var q = (inp.value || '').toLowerCase().trim();
+    var container = document.getElementById('cladogram-container');
+    if (!container) return;
+    var nodes = container.querySelectorAll('g, text, circle, path');
+    nodes.forEach(function(n) {
+      n.style.opacity = '';
+    });
+    if (!q) return;
+    var texts = container.querySelectorAll('text');
+    var matches = new Set();
+    texts.forEach(function(t) {
+      var txt = (t.textContent || '').toLowerCase();
+      if (txt.indexOf(q) >= 0) {
+        matches.add(t.parentElement);
+      }
+    });
+    var allG = container.querySelectorAll('g');
+    allG.forEach(function(g) {
+      if (!matches.has(g)) {
+        // Check if any descendant matches
+        var hasMatch = false;
+        matches.forEach(function(m) { if (g.contains(m)) hasMatch = true; });
+        if (!hasMatch) g.style.opacity = '0.15';
+      }
+    });
+  }
+  // Bind the filter input once.
+  document.addEventListener('DOMContentLoaded', function() {
+    var inp = document.getElementById('cladogram-filter');
+    if (inp) {
+      inp.addEventListener('input', applyFilter);
+    }
+  });
 
   function render(){
     var c = document.getElementById('cladogram-container');
@@ -282,7 +344,7 @@
       .attr('width', svgWidth).attr('height', svgHeight)
       .attr('xmlns', 'http://www.w3.org/2000/svg')
       .attr('viewBox', '0 0 ' + svgWidth + ' ' + svgHeight)
-      .style('font','12px sans-serif')
+      .style('font','12px "Liberation Sans", Arial, Helvetica, sans-serif')
       .style('background','white');
 
     // Title block (top-left)
@@ -510,7 +572,7 @@
     var fontDec = '<button id="cladogram-font-dec" type="button" style="padding:0.1rem 0.5rem;font-size:0.8rem;border:1px solid var(--border);background:white;cursor:pointer;border-radius:3px;">&minus;</button>';
     var fontInc = '<button id="cladogram-font-inc" type="button" style="padding:0.1rem 0.5rem;font-size:0.8rem;border:1px solid var(--border);background:white;cursor:pointer;border-radius:3px;">+</button>';
     var fontLabel = '<span style="color:var(--text-muted);margin:0 0.25rem;">Font</span>';
-    var exportSvg = '<button id="cladogram-export-svg" type="button" style="' + btnStyle + '">SVG</button>';
+    var exportPdf = '<button id="cladogram-export-pdf" type="button" style="' + btnStyle + '">PDF</button>';
     var exportPng = '<button id="cladogram-export-png" type="button" style="' + btnStyle + '">PNG</button>';
     var exportLabel = '<span style="color:var(--text-muted);margin:0 0.25rem 0 0.6rem;">Export</span>';
 
@@ -524,7 +586,7 @@
         (currentCapsIdx < CAPS_SEQUENCE.length - 1 ?
           '<button id="cladogram-show-all" type="button" style="' + btnStyle + '">Show all</button>' : '') +
         fontLabel + fontDec + fontInc +
-        exportLabel + exportSvg + exportPng +
+        exportLabel + exportPdf + exportPng +
         genusBtn + compoundBtn +
       '</div>';
     c.appendChild(controls);
@@ -548,9 +610,9 @@
       fontMul = Math.min(1.6, fontMul + 0.1);
       applyCapsAndRerender();
     });
-    var svgBtn = document.getElementById('cladogram-export-svg');
-    if (svgBtn) svgBtn.addEventListener('click', function(){
-      exportSvgFile();
+    var pdfBtn = document.getElementById('cladogram-export-pdf');
+    if (pdfBtn) pdfBtn.addEventListener('click', function(){
+      exportPdfFile();
     });
     var pngBtn = document.getElementById('cladogram-export-png');
     if (pngBtn) pngBtn.addEventListener('click', function(){
@@ -568,18 +630,28 @@
     });
   }
 
-  function exportSvgFile(){
+  function exportPdfFile(){
     var svgEl = document.querySelector('#cladogram-container svg');
     if (!svgEl) return;
     var clone = svgEl.cloneNode(true);
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     var src = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(clone);
-    var blob = new Blob([src], {type: 'image/svg+xml;charset=utf-8'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'theobroma_cladogram.svg';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    fetch('/api/cladogram/export_pdf', {
+      method: 'POST',
+      headers: {'Content-Type': 'image/svg+xml'},
+      body: src
+    }).then(function(resp){
+      if (!resp.ok) throw new Error('PDF export failed: ' + resp.status);
+      return resp.blob();
+    }).then(function(pdfBlob){
+      var url = URL.createObjectURL(pdfBlob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'theobroma_cladogram.pdf';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }).catch(function(err){
+      alert(err.message || 'PDF export failed');
+    });
   }
 
   function exportPngFile(){

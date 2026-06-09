@@ -47,70 +47,77 @@
 {% if linear_tree %}{% include "_cladogram_expand.html" %}{% endif %}
 <div class="search-box">
     <form action="/search" method="get" class="search-form" id="search-form">
-        <div class="search-row" id="search-row-0">
+        <p style="font-size:0.95rem;color:var(--text-muted);margin:0 0 0.8rem 0;line-height:1.4;">Use this page to query the corpus by compound name, structure, taxonomy, geography, or chemistry. Combine filters with the <strong>+ Add filter</strong> button to compose AND-conditions.</p>
+<div class="search-row" id="search-row-0">
             <select name="type" id="search-type" onchange="onTypeChange(this, 0)">
-                {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Primary kingdom"),("genus","Genus"),("family","Family"),("order","Order"),("tax_class","Class"),("phylum","Phylum"),("property","Chemical property")] %}
+                {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Primary kingdom"),("genus","Genus"),("family","Family"),("order","Order"),("tax_class","Class"),("phylum","Phylum"),("classification","Chemical classification"),("property","Chemical property")] %}
                 <option value="{{ val }}" {{ 'selected' if search_type == val }}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <select name="prop_type" id="prop-type-0" class="prop-subselect" style="display:none;" onchange="onPropChange(this, 0)">
+            <select name="prop_type" id="prop-type-0" class="prop-subselect" style="display:none;" onchange="onPropChange(this, 0)" data-current-type="">
+                <optgroup label="Classification">
                 <option value="npclassifier_class">NPClassifier class</option>
                 <option value="classyfire_class">ClassyFire superclass</option>
-                <option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>
-                <option value="logp">LogP (-33.97 - 47.20, mean: 2.6)</option>
-                <option value="tpsa">TPSA (0.0 - 1539.4, mean: 103.8)</option>
-                <option value="hba">HBA (0 - 75, mean: 5.7)</option>
-                <option value="hbd">HBD (0 - 40, mean: 2.9)</option>
-                <option value="n_rings">Rings (0 - 32, mean: 3.5)</option>
-                <option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>
+                <option value="npclassifier_superclass">NPClassifier superclass</option>
+                <option value="pathway">NPClassifier pathway</option>
+                </optgroup>
+                <optgroup label="Physicochemical">
+                <option value="mw">Molecular weight</option>
+                <option value="logp">LogP</option>
+                <option value="tpsa">TPSA</option>
+                <option value="hba">HBA</option>
+                <option value="hbd">HBD</option>
+                <option value="n_rings">Rings</option>
+                <option value="rotatable_bonds">Rotatable bonds</option>
+                </optgroup>
                 <optgroup label="ADMET predictions">
-                <option value="Lipinski">Lipinski (alerts) (0.00 - 4.00, mean: 3.30)</option>
-                <option value="QED">QED (drug-likeness) (0.00 - 0.95, mean: 0.46)</option>
-                <option value="stereo_centers">Stereocenters (0.00 - 153.00, mean: 4.32)</option>
-                <option value="PAINS_alert">PAINS alerts (0.00 - 4.00, mean: 0.08)</option>
-                <option value="BRENK_alert">BRENK alerts (0.00 - 8.00, mean: 1.04)</option>
-                <option value="NIH_alert">NIH alerts (0.00 - 6.00, mean: 0.34)</option>
-                <option value="AMES">AMES mutagenicity (0.00 - 1.00, mean: 0.36)</option>
-                <option value="BBB_Martins">BBB penetration (0.00 - 1.00, mean: 0.58)</option>
-                <option value="Bioavailability_Ma">Bioavailability (0.00 - 0.99, mean: 0.63)</option>
-                <option value="CYP1A2_Veith">CYP1A2 inhibition (0.00 - 1.00, mean: 0.21)</option>
-                <option value="CYP2C19_Veith">CYP2C19 inhibition (0.00 - 1.00, mean: 0.26)</option>
-                <option value="CYP2C9_Substrate_CarbonMangels">CYP2C9 substrate (0.00 - 0.73, mean: 0.12)</option>
-                <option value="CYP2C9_Veith">CYP2C9 inhibition (0.00 - 1.00, mean: 0.21)</option>
-                <option value="CYP2D6_Substrate_CarbonMangels">CYP2D6 substrate (0.00 - 0.93, mean: 0.16)</option>
-                <option value="CYP2D6_Veith">CYP2D6 inhibition (0.00 - 1.00, mean: 0.13)</option>
-                <option value="CYP3A4_Substrate_CarbonMangels">CYP3A4 substrate (0.00 - 1.00, mean: 0.54)</option>
-                <option value="CYP3A4_Veith">CYP3A4 inhibition (0.00 - 1.00, mean: 0.33)</option>
-                <option value="Carcinogens_Lagunin">Carcinogenicity (0.00 - 0.97, mean: 0.11)</option>
-                <option value="ClinTox">Clinical toxicity (0.00 - 0.94, mean: 0.14)</option>
-                <option value="DILI">DILI risk (0.00 - 1.00, mean: 0.49)</option>
-                <option value="HIA_Hou">Intestinal absorption (0.00 - 1.00, mean: 0.86)</option>
-                <option value="NR_AR_LBD">AR ligand-binding (Tox21) (0.00 - 1.00, mean: 0.07)</option>
-                <option value="NR_AR">AR full (Tox21) (0.00 - 1.00, mean: 0.08)</option>
-                <option value="NR_AhR">AhR (Tox21) (0.00 - 1.00, mean: 0.15)</option>
-                <option value="NR_Aromatase">Aromatase (Tox21) (0.00 - 1.00, mean: 0.12)</option>
-                <option value="NR_ER_LBD">ER ligand-binding (Tox21) (0.00 - 0.99, mean: 0.08)</option>
-                <option value="NR_ER">ER full (Tox21) (0.00 - 1.00, mean: 0.17)</option>
-                <option value="NR_PPAR_gamma">PPAR-gamma (Tox21) (0.00 - 1.00, mean: 0.06)</option>
-                <option value="PAMPA_NCATS">PAMPA permeability (0.00 - 1.00, mean: 0.67)</option>
-                <option value="Pgp_Broccatelli">P-gp inhibition (0.00 - 1.00, mean: 0.41)</option>
-                <option value="SR_ARE">ARE (Tox21 stress) (0.00 - 1.00, mean: 0.33)</option>
-                <option value="SR_ATAD5">ATAD5 (Tox21 stress) (0.00 - 0.97, mean: 0.08)</option>
-                <option value="SR_HSE">HSE (Tox21 stress) (0.00 - 1.00, mean: 0.10)</option>
-                <option value="SR_MMP">MMP (Tox21 stress) (0.00 - 1.00, mean: 0.28)</option>
-                <option value="SR_p53">p53 (Tox21 stress) (0.00 - 0.99, mean: 0.16)</option>
-                <option value="Skin_Reaction">Skin reaction (0.00 - 1.00, mean: 0.52)</option>
-                <option value="hERG">hERG cardiotoxicity (0.00 - 1.00, mean: 0.51)</option>
-                <option value="Caco2_Wang">Caco-2 permeability (-53.24 - -3.15, mean: -5.14)</option>
-                <option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance (-577.75 - 514.43, mean: 70.26)</option>
-                <option value="Clearance_Microsome_AZ">Microsome clearance (-170.89 - 1130.07, mean: 67.58)</option>
-                <option value="Half_Life_Obach">Half-life (h) (-248.88 - 1026.17, mean: 27.51)</option>
-                <option value="HydrationFreeEnergy_FreeSolv">Hydration free energy (-502.49 - 9.25, mean: -14.32)</option>
-                <option value="LD50_Zhu">LD50 (oral, log) (-2.68 - 11.58, mean: 2.46)</option>
-                <option value="Lipophilicity_AstraZeneca">Lipophilicity (-38.75 - 9.73, mean: 2.08)</option>
-                <option value="PPBR_AZ">Plasma protein binding (%) (-473.40 - 189.18, mean: 81.25)</option>
-                <option value="Solubility_AqSolDB">Aqueous solubility (log) (-13.15 - 8.73, mean: -3.95)</option>
-                <option value="VDss_Lombardo">Volume of distribution (-80.98 - 69.37, mean: 2.99)</option>
+                <option value="Lipinski">Lipinski (alerts)</option>
+                <option value="QED">QED (drug-likeness)</option>
+                <option value="stereo_centers">Stereocenters</option>
+                <option value="PAINS_alert">PAINS alerts</option>
+                <option value="BRENK_alert">BRENK alerts</option>
+                <option value="NIH_alert">NIH alerts</option>
+                <option value="AMES">AMES mutagenicity</option>
+                <option value="BBB_Martins">BBB penetration</option>
+                <option value="Bioavailability_Ma">Bioavailability</option>
+                <option value="CYP1A2_Veith">CYP1A2 inhibition</option>
+                <option value="CYP2C19_Veith">CYP2C19 inhibition</option>
+                <option value="CYP2C9_Substrate_CarbonMangels">CYP2C9 substrate</option>
+                <option value="CYP2C9_Veith">CYP2C9 inhibition</option>
+                <option value="CYP2D6_Substrate_CarbonMangels">CYP2D6 substrate</option>
+                <option value="CYP2D6_Veith">CYP2D6 inhibition</option>
+                <option value="CYP3A4_Substrate_CarbonMangels">CYP3A4 substrate</option>
+                <option value="CYP3A4_Veith">CYP3A4 inhibition</option>
+                <option value="Carcinogens_Lagunin">Carcinogenicity</option>
+                <option value="ClinTox">Clinical toxicity</option>
+                <option value="DILI">DILI risk</option>
+                <option value="HIA_Hou">Intestinal absorption</option>
+                <option value="NR_AR_LBD">AR ligand-binding (Tox21)</option>
+                <option value="NR_AR">AR full (Tox21)</option>
+                <option value="NR_AhR">AhR (Tox21)</option>
+                <option value="NR_Aromatase">Aromatase (Tox21)</option>
+                <option value="NR_ER_LBD">ER ligand-binding (Tox21)</option>
+                <option value="NR_ER">ER full (Tox21)</option>
+                <option value="NR_PPAR_gamma">PPAR-gamma (Tox21)</option>
+                <option value="PAMPA_NCATS">PAMPA permeability</option>
+                <option value="Pgp_Broccatelli">P-gp inhibition</option>
+                <option value="SR_ARE">ARE (Tox21 stress)</option>
+                <option value="SR_ATAD5">ATAD5 (Tox21 stress)</option>
+                <option value="SR_HSE">HSE (Tox21 stress)</option>
+                <option value="SR_MMP">MMP (Tox21 stress)</option>
+                <option value="SR_p53">p53 (Tox21 stress)</option>
+                <option value="Skin_Reaction">Skin reaction</option>
+                <option value="hERG">hERG cardiotoxicity</option>
+                <option value="Caco2_Wang">Caco-2 permeability</option>
+                <option value="Clearance_Hepatocyte_AZ">Hepatocyte clearance</option>
+                <option value="Clearance_Microsome_AZ">Microsome clearance</option>
+                <option value="Half_Life_Obach">Half-life (h)</option>
+                <option value="HydrationFreeEnergy_FreeSolv">Hydration free energy</option>
+                <option value="LD50_Zhu">LD50 (oral, log)</option>
+                <option value="Lipophilicity_AstraZeneca">Lipophilicity</option>
+                <option value="PPBR_AZ">Plasma protein binding (%)</option>
+                <option value="Solubility_AqSolDB">Aqueous solubility (log)</option>
+                <option value="VDss_Lombardo">Volume of distribution</option>
                 </optgroup>
             </select>
             <div class="search-input-wrap" id="text-input-0">
@@ -335,8 +342,21 @@ function onTypeChange(sel, idx) {
     var old = row.querySelector('.search-submenu');
     if (old) old.remove();
 
-    if (t === 'property') {
-        if (propSel) propSel.style.display = '';
+    if (t === 'property' || t === 'classification') {
+        if (propSel) {
+            propSel.style.display = '';
+            propSel.setAttribute('data-current-type', t);
+            // Filter visible optgroups: classification shows only Classification; property shows Physicochemical + ADMET predictions.
+            var groups = propSel.querySelectorAll('optgroup');
+            groups.forEach(function(g) {
+                var lbl = g.label;
+                if (t === 'classification') g.style.display = (lbl === 'Classification') ? '' : 'none';
+                else g.style.display = (lbl === 'Classification') ? 'none' : '';
+            });
+            // Reset to first valid option of the visible set.
+            var defaultVal = (t === 'classification') ? 'npclassifier_class' : 'mw';
+            propSel.value = defaultVal;
+        }
         onPropChange(propSel, idx);
         return;
     }
@@ -385,9 +405,11 @@ function onPropChange(sel, idx) {
     // legacy 'class' alias) all show a text input with a typed submenu drawn
     // from the matching filter_options key.
     var classProps = {
-        "npclassifier_class": "npclassifier_class",
-        "classyfire_class":   "classyfire_class",
-        "class":              "class"
+        "npclassifier_class":      "npclassifier_class",
+        "npclassifier_superclass": "npclassifier_superclass",
+        "classyfire_class":        "classyfire_class",
+        "pathway":                 "pathway",
+        "class":                   "class"
     };
     if (pt in classProps) {
         if (textWrap) textWrap.style.display = '';
@@ -397,26 +419,65 @@ function onPropChange(sel, idx) {
         if (typesel) typesel.value = 'property';
         if (input) {
             input.name = input.name || 'q';
-            input.placeholder = (pt === 'classyfire_class' ? 'Select or type ClassyFire superclass...'
-                                                           : 'Select or type NPClassifier class...');
+            var placeholders = {
+                "npclassifier_class":      "Select or type NPClassifier class...",
+                "npclassifier_superclass": "Select or type NPClassifier superclass...",
+                "classyfire_class":        "Select or type ClassyFire superclass...",
+                "pathway":                 "Select or type NPClassifier pathway...",
+                "class":                   "Select or type chemical class..."
+            };
+            input.placeholder = placeholders[pt] || 'Select or type chemical class...';
         }
         if (!restoring) loadOptions().then(function(opts) {
             var items = opts[classProps[pt]];
             if (!items || items.length === 0) return;
             var sub = document.createElement('div');
             sub.className = 'search-submenu';
+            var itemEls = [];
             items.forEach(function(item) {
                 var div = document.createElement('div');
                 div.className = 'submenu-item';
                 div.textContent = item;
-                div.addEventListener('click', function() {
+                div.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
                     if (input) input.value = item;
                     sub.style.display = 'none';
                 });
                 sub.appendChild(div);
+                itemEls.push(div);
             });
             row.style.position = 'relative';
             row.appendChild(sub);
+            // A.4: re-open the submenu when the input is focused or clicked.
+            if (input) {
+                input.addEventListener('focus', function() { sub.style.display = ''; });
+                input.addEventListener('click', function() { sub.style.display = ''; });
+                // A.3: type-to-jump filter. As the user types, show only items whose name starts with the typed prefix; if no prefix match, fall back to contains.
+                input.addEventListener('input', function() {
+                    var q = (input.value || '').toLowerCase().trim();
+                    sub.style.display = '';
+                    if (!q) {
+                        itemEls.forEach(function(el) { el.style.display = ''; });
+                        return;
+                    }
+                    var anyStart = false;
+                    itemEls.forEach(function(el) {
+                        var t = el.textContent.toLowerCase();
+                        if (t.indexOf(q) === 0) { el.style.display = ''; anyStart = true; }
+                        else el.style.display = 'none';
+                    });
+                    if (!anyStart) {
+                        itemEls.forEach(function(el) {
+                            var t = el.textContent.toLowerCase();
+                            el.style.display = t.indexOf(q) >= 0 ? '' : 'none';
+                        });
+                    }
+                });
+            }
+            // A.4 (continued): clicking outside the row hides the submenu without removing it.
+            document.addEventListener('click', function(ev) {
+                if (!row.contains(ev.target)) sub.style.display = 'none';
+            });
         });
     } else {
         if (textWrap) textWrap.style.display = 'none';
@@ -455,18 +516,21 @@ function addFilter() {
         '<option value="order">Order</option>' +
         '<option value="tax_class">Class</option>' +
         '<option value="phylum">Phylum</option>' +
+        '<option value="classification">Chemical classification</option>' +
         '<option value="property">Chemical property</option>' +
         '</select>' +
         '<select name="extra_prop_' + filterCount + '" class="prop-subselect" style="display:none;" onchange="onPropChange(this,' + filterCount + ')">' +
         '<option value="npclassifier_class">NPClassifier class</option>' +
         '<option value="classyfire_class">ClassyFire superclass</option>' +
-        '<option value="mw">Molecular weight (0.04 - 5748.41, mean: 399.5)</option>' +
-        '<option value="logp">LogP (-33.97 - 47.20, mean: 2.6)</option>' +
-        '<option value="tpsa">TPSA (0.0 - 1539.4, mean: 103.8)</option>' +
-        '<option value="hba">HBA (0 - 75, mean: 5.7)</option>' +
-        '<option value="hbd">HBD (0 - 40, mean: 2.9)</option>' +
-        '<option value="n_rings">Rings (0 - 32, mean: 3.5)</option>' +
-        '<option value="rotatable_bonds">Rotatable bonds (0 - 117, mean: 4.8)</option>' +
+        '<option value="npclassifier_superclass">NPClassifier superclass</option>' +
+        '<option value="pathway">NPClassifier pathway</option>' +
+        '<option value="mw">Molecular weight</option>' +
+        '<option value="logp">LogP</option>' +
+        '<option value="tpsa">TPSA</option>' +
+        '<option value="hba">HBA</option>' +
+        '<option value="hbd">HBD</option>' +
+        '<option value="n_rings">Rings</option>' +
+        '<option value="rotatable_bonds">Rotatable bonds</option>' +
         '<optgroup label="ADMET predictions">' +
         '<option value="Lipinski">Lipinski (alerts) (0.00 - 4.00)</option>' +
         '<option value="QED">QED (drug-likeness) (0.00 - 0.95)</option>' +

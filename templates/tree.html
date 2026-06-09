@@ -2,9 +2,10 @@
 {% block title %}Tree &mdash; THEOBROMA{% endblock %}
 {% block content %}
 <div class="hero-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
-    <h1 class="section-title" style="margin:0;flex-shrink:0;">Phylogenetic tree</h1>
-    <div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.8rem;color:var(--text-muted);text-align:right;margin-left:auto;max-width:55%;">
-      <div>Click any clade to filter to that taxon. The view auto-sizes based on result-set complexity.</div>
+    <div style="flex-shrink:0;"><h1 class="section-title" style="margin:0 0 0.3rem 0;">Phylogenetic tree</h1><p style="font-size:0.9rem;color:var(--text-muted);margin:0;line-height:1.35;max-width:38ch;">Visualize the taxonomic distribution of any search result as a navigable linear or circular cladogram.</p></div>
+    <div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.95rem;color:var(--text);margin-left:auto;max-width:55%;">
+      <div style="text-align:right;"><strong>Click any clade</strong> to narrow the result set to that taxon.</div>
+      <div style="text-align:left;font-size:0.85rem;color:var(--text-muted);">The view auto-sizes based on result-set complexity.</div>
     </div>
     {% include "_linear_tree_thumb.html" %}
 </div>

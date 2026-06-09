@@ -3,7 +3,7 @@
 {% block title %}Browse &mdash; THEOBROMA{% endblock %}
 {% block content %}
 <div class="hero-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
-    <h1 class="section-title" style="margin:0;flex-shrink:0;">Browse Compounds</h1>
+    <div style="flex-shrink:0;"><h1 class="section-title" style="margin:0 0 0.3rem 0;">Browse Compounds</h1><p style="font-size:0.9rem;color:var(--text-muted);margin:0;line-height:1.35;max-width:42ch;">Browse the corpus by kingdom, region, or source database. Each row links to the compound detail page; use the column headers to sort.</p></div>
     {% if region_counts_filtered %}
     <div id="region-map" style="width:280px;height:140px;flex-shrink:1;margin-left:auto;overflow:hidden;">
       {% include "_world_map_body.svg" %}

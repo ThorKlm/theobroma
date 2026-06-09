@@ -20,6 +20,8 @@
         <li><strong>ClassyFire superclass</strong> &mdash; queries the <code>classyfire_superclass</code> field, carrying forward ClassyFire's broad chemical-taxonomy assignment where the source database provided it.</li>
     </ul>
     <p>Numerical property ranges are also available for molecular weight, LogP, TPSA, HBA, HBD, rings, rotatable bonds, plus the full ADMET-AI ensemble of 47 endpoints (toxicity, absorption, metabolism, distribution and physicochemical predictions including AMES, hERG, DILI, BBB, bioavailability, P-gp, Caco-2, clearance, half-life, plasma protein binding, solubility, lipophilicity, volume of distribution, the seven Tox21 nuclear-receptor assays, the five Tox21 stress-response assays, and CYP1A2/2C9/2C19/2D6/3A4 substrate and inhibition).</p>
+        <p style="margin-top:0.75rem;"><strong>Behavior notes for class search.</strong> Class search uses case-insensitive substring matching against the underlying classifier columns (<code>np_class</code>, <code>classyfire_superclass</code>, <code>inferred_class</code>, <code>np_superclass</code>, <code>np_pathway</code>). Queries for labels not present in any of these columns return zero rows. For example, "Curcuminoids" is not used as a class by NPClassifier or ClassyFire as applied to this corpus, so a class-filtered query for "Curcuminoids" returns no compounds; to retrieve curcumin and structural analogs, use name search (<code>q=curcumin&amp;type=name</code>), which substring-matches against compound names and PubChem synonyms.</p>
+    <p><strong>Name-search behavior.</strong> Name search returns substring matches against compound names and synonyms. A query such as <code>q=curcumin</code> matches any compound whose name or synonyms contain "curcumin" as a substring, including derivatives, conjugates, and analogs that list curcumin in their synonyms. To restrict to literal-equality name matches, enable the <strong>"Exact match"</strong> toggle.</p>
     <h3 style="font-size:1rem;margin-top:1.5rem;">Multi-filter search</h3>
     <p>Click <strong>"+ Add another filter"</strong> to combine multiple criteria with AND logic. For example, search for all triterpenoids from Africa, or all fungal compounds with molecular weight 200-500 Da and low DILI risk.</p>
     <p>Results are <strong>relevance-sorted</strong> for name searches: exact matches appear first, then prefix matches, then substring matches. Within each tier, shorter (simpler) names rank higher. All result tables have <strong>sortable columns</strong> &mdash; click any column header to sort ascending or descending.</p>
@@ -68,7 +70,8 @@ Parameters:
   format  &mdash; json | csv (default: json)
   license &mdash; all | commercial | academic (default: all)
 
-GET /api/compound/COMP_ID       &mdash; full compound details by THEO_ id
+GET /api/compound/COMP_ID       &mdash; full compound details by THEO_ id (includes license_provenance sub-object)
+GET /api/compound/COMP_ID/license-provenance &mdash; per-source license attestation chain (audit trail)
 GET /api/stereoisomers/COMP_ID  &mdash; all stereoisomers (14-char InChIKey match)
 GET /api/similarity?smiles=...&amp;metric=morgan|maccs|chemberta
 GET /api/autocomplete?q=QUERY   &mdash; name autocomplete
@@ -77,8 +80,8 @@ GET /api/filter_options         &mdash; available values per filter type
                                   (includes npclassifier_class, classyfire_class)
 GET /api/search?...&amp;format=json&amp;download=true   &mdash; download results as JSON attachment
 GET /api/bulk?cols=...&amp;format=json   &mdash; bulk download in JSON format (streamed)
-GET /api/stats                  &mdash; database statistics
-GET /api/bulk?cols=...&amp;tier=... &mdash; streaming bulk export (CSV)</pre>
+GET /api/stats                  &mdash; database statistics (includes license-tier breakdown)
+GET /api/bulk?cols=...&amp;license=commercial|academic|all &mdash; streaming bulk export (CSV, default 14-column annotation payload); tier=open|nc|all also accepted</pre>
     <p>Full OpenAPI specification at <a href="/api">/api</a>.</p>
     <p style="font-size:0.85rem;color:var(--text-muted);">Recommended bulk-download size: up to 100,000 rows per request through <code>/export</code> or <code>/api/search</code>; use <code>/api/bulk</code> for full-corpus exports (streaming, no row limit).</p>
     <p style="font-size:0.85rem;color:var(--text-muted);">No per-request rate limit is enforced at present; for sustained high-throughput use (more than a few requests per second), please contact the corresponding author so we can plan server load. Known scraping user-agents (GPTBot, CCBot, ClaudeBot, anthropic-ai, PerplexityBot, Bytespider) are rate-limited on the heaviest routes; <a href="/robots.txt">robots.txt</a> documents the policy.</p>
