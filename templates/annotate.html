@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Annotate &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<div class="hero-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+    <div style="flex-shrink:0;">
+        <h1 class="section-title" style="margin:0 0 0.3rem 0;">Batch annotation</h1>
+        <p style="font-size:0.9rem;color:var(--text-muted);margin:0;line-height:1.35;max-width:55ch;">
+            Upload a CSV, TSV, Excel, plain text, or SMILES file with SMILES or InChIKey values. Files with or without a header row are accepted; columns are auto-detected. Each input is matched against the corpus by full 27-character InChIKey (exact compound) and by 14-character prefix (stereoisomer family). Matched rows return with license tier, classification, pathway, ADMET context, and taxonomic origin.
+        </p>
+    </div>
+</div>
+<div id="annotate-container">
+    <div id="upload-zone" style="border:2px dashed #888;border-radius:6px;padding:2rem;text-align:center;cursor:pointer;">
+        <p style="margin:0 0 0.5rem;font-size:1rem;"><strong>Drop a file here</strong> or click to browse</p>
+        <p style="margin:0;font-size:0.85rem;color:var(--text-muted);">CSV, TSV, Excel (.xlsx), plain text, or SMILES (.smi, .smiles); a single column of SMILES or InChIKey values is fine</p>
+        <input id="file-input" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,.smi,.smiles" style="display:none;">
+    </div>
+    <div id="preview-section" style="display:none;margin-top:1.5rem;">
+        <h3 style="margin:0 0 0.5rem;font-size:1.05rem;">Detected columns</h3>
+        <div id="column-info" style="margin-bottom:0.75rem;font-size:0.9rem;"></div>
+        <div style="overflow-x:auto;"><table id="preview-table" style="font-size:0.85rem;border-collapse:collapse;width:100%;"></table></div>
+        <div style="margin-top:1rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            <button id="process-btn" style="padding:0.5rem 1rem;font-size:0.95rem;cursor:pointer;">Match against corpus</button>
+            <button id="cancel-btn" style="padding:0.5rem 1rem;font-size:0.95rem;cursor:pointer;display:none;">Cancel</button>
+            <span id="row-count" style="font-size:0.9rem;color:var(--text-muted);"></span>
+        </div>
+    </div>
+    <div id="progress-section" style="display:none;margin-top:1.5rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
+            <progress id="progress-bar" value="0" max="100" style="flex:1;height:1.2rem;"></progress>
+            <span id="progress-label" style="font-size:0.9rem;min-width:5ch;text-align:right;"></span>
+        </div>
+        <p id="progress-detail" style="margin:0;font-size:0.85rem;color:var(--text-muted);"></p>
+    </div>
+    <div id="results-section" style="display:none;margin-top:1.5rem;">
+        <h3 style="margin:0 0 0.5rem;font-size:1.05rem;">Results</h3>
+        <div id="summary" style="margin-bottom:0.75rem;font-size:0.95rem;"></div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button id="download-matched" style="padding:0.5rem 1rem;font-size:0.95rem;cursor:pointer;">Download matched.csv</button>
+            <button id="download-unmatched" style="padding:0.5rem 1rem;font-size:0.95rem;cursor:pointer;">Download unmatched.csv</button>
+            <button id="reset-btn" style="padding:0.5rem 1rem;font-size:0.95rem;cursor:pointer;">New batch</button>
+        </div>
+    </div>
+    <div id="error-section" style="display:none;margin-top:1rem;padding:0.75rem;background:#fee;border-left:4px solid #c33;font-size:0.9rem;"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function() {
+    const IK_RE = /^[A-Z]{14}-[A-Z]{10}-[A-Z]$/;
+    const SMI_RE = /^[A-Za-z0-9@+\-\[\]()=#\\\/.%]+$/;
+    const CHUNK = 500;
+    const els = {
+        zone: document.getElementById("upload-zone"),
+        input: document.getElementById("file-input"),
+        preview: document.getElementById("preview-section"),
+        colInfo: document.getElementById("column-info"),
+        previewTable: document.getElementById("preview-table"),
+        processBtn: document.getElementById("process-btn"),
+        cancelBtn: document.getElementById("cancel-btn"),
+        rowCount: document.getElementById("row-count"),
+        progress: document.getElementById("progress-section"),
+        bar: document.getElementById("progress-bar"),
+        progressLabel: document.getElementById("progress-label"),
+        progressDetail: document.getElementById("progress-detail"),
+        results: document.getElementById("results-section"),
+        summary: document.getElementById("summary"),
+        dlMatched: document.getElementById("download-matched"),
+        dlUnmatched: document.getElementById("download-unmatched"),
+        resetBtn: document.getElementById("reset-btn"),
+        errSection: document.getElementById("error-section"),
+    };
+    let parsed = null;
+    let outputs = {matched: [], unmatched: []};
+    let cancelled = false;
+    function showErr(m) { els.errSection.style.display = "block"; els.errSection.textContent = m; }
+    function clearErr() { els.errSection.style.display = "none"; els.errSection.textContent = ""; }
+    function looksLikeChemistry(v) {
+        if (!v) return false;
+        v = v.toString().trim();
+        return IK_RE.test(v) || (v.length > 1 && SMI_RE.test(v) && /[CONcon]/.test(v));
+    }
+    function isLikelyDataRow(row) {
+        const cells = row.map(v => (v || "").toString().trim()).filter(v => v);
+        if (!cells.length) return false;
+        return cells.filter(looksLikeChemistry).length / cells.length > 0.5;
+    }
+    function detectColumns(headers, rows, hasHeader) {
+        const sample = rows.slice(0, 20);
+        const lc = hasHeader ? headers.map(h => (h || "").toString().toLowerCase().trim()) : [];
+        let ikCol = -1, smiCol = -1, idCol = -1;
+        const ikHdrs = ["inchikey","inchi_key","inchi-key","ik"];
+        const smiHdrs = ["smiles","smile","canonical_smiles","canon_smiles","structure"];
+        if (hasHeader) for (let i = 0; i < lc.length; i++) {
+            if (ikHdrs.includes(lc[i])) ikCol = i;
+            if (smiHdrs.includes(lc[i])) smiCol = i;
+        }
+        if (ikCol < 0) for (let i = 0; i < headers.length; i++) {
+            if (i === smiCol) continue;
+            const vals = sample.map(r => (r[i] || "").toString().trim()).filter(v => v);
+            if (!vals.length) continue;
+            if (vals.filter(v => IK_RE.test(v)).length / vals.length > 0.7) { ikCol = i; break; }
+        }
+        if (smiCol < 0) for (let i = 0; i < headers.length; i++) {
+            if (i === ikCol) continue;
+            const vals = sample.map(r => (r[i] || "").toString().trim()).filter(v => v);
+            if (!vals.length) continue;
+            const hits = vals.filter(v => v.length > 1 && SMI_RE.test(v) && /[CONcon]/.test(v)).length;
+            if (hits / vals.length > 0.7) { smiCol = i; break; }
+        }
+        if (hasHeader) for (let i = 0; i < headers.length; i++) {
+            if (i === smiCol || i === ikCol) continue;
+            const h = lc[i];
+            if (h.includes("name") || h === "id" || h.includes("identifier") || h.includes("compound")) { idCol = i; break; }
+        }
+        if (idCol < 0) for (let i = 0; i < headers.length; i++) {
+            if (i === smiCol || i === ikCol) continue;
+            const vals = sample.map(r => (r[i] || "").toString().trim()).filter(v => v);
+            if (vals.length < 3) continue;
+            const avgLen = vals.reduce((s, v) => s + v.length, 0) / vals.length;
+            const unique = new Set(vals).size;
+            if (avgLen >= 2 && avgLen < 30 && unique / vals.length > 0.5) { idCol = i; break; }
+        }
+        return {smiCol, ikCol, idCol};
+    }
+    function processRawRows(rawRows) {
+        if (!rawRows || !rawRows.length) { showErr("File is empty"); return; }
+        // Strip BOM and trim, drop fully-empty rows
+        rawRows = rawRows.map(r => r.map((v, j) => j === 0 ? (v || "").toString().replace(/^\uFEFF/, "") : v))
+                        .filter(r => r.some(v => (v || "").toString().trim()));
+        if (!rawRows.length) { showErr("File has no non-empty rows"); return; }
+        let headers, rows, hasHeader;
+        if (isLikelyDataRow(rawRows[0])) {
+            const ncol = Math.max(...rawRows.map(r => r.length));
+            headers = Array.from({length: ncol}, (_, i) => "col_" + i);
+            rows = rawRows;
+            hasHeader = false;
+        } else {
+            if (rawRows.length < 2) { showErr("File has a header but no data rows"); return; }
+            headers = rawRows[0].map(h => (h || "").toString());
+            rows = rawRows.slice(1);
+            hasHeader = true;
+        }
+        parsed = Object.assign({headers, rows, hasHeader}, detectColumns(headers, rows, hasHeader));
+        els.preview.style.display = "block";
+        renderPreview();
+    }
+    function renderPreview() {
+        const headers = parsed.headers, rows = parsed.rows.slice(0, 5);
+        let html = "<thead><tr>";
+        for (let i = 0; i < headers.length; i++) {
+            let label = headers[i] || ("col_" + i), badge = "";
+            if (i === parsed.smiCol) badge = ' <span style="background:#cfc;padding:1px 4px;border-radius:3px;font-size:0.75rem;">SMILES</span>';
+            if (i === parsed.ikCol) badge = ' <span style="background:#ccf;padding:1px 4px;border-radius:3px;font-size:0.75rem;">InChIKey</span>';
+            if (i === parsed.idCol) badge = ' <span style="background:#fdc;padding:1px 4px;border-radius:3px;font-size:0.75rem;">id</span>';
+            html += '<th style="text-align:left;padding:4px 8px;border-bottom:1px solid #888;font-weight:600;">' + label + badge + '</th>';
+        }
+        html += "</tr></thead><tbody>";
+        for (const r of rows) {
+            html += "<tr>";
+            for (let i = 0; i < headers.length; i++) {
+                const v = (r[i] || "").toString();
+                html += '<td style="padding:3px 8px;border-bottom:1px solid #eee;max-width:30ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + v + '</td>';
+            }
+            html += "</tr>";
+        }
+        els.previewTable.innerHTML = html + "</tbody>";
+        let info = parsed.rows.length.toLocaleString() + " rows";
+        info += parsed.hasHeader ? "; header row detected; " : "; no header row detected, using synthetic column names; ";
+        if (parsed.smiCol < 0 && parsed.ikCol < 0) {
+            info += '<span style="color:#c33;">no SMILES or InChIKey column detected. Try renaming a column to "smiles" or "inchikey".</span>';
+            els.processBtn.disabled = true;
+        } else {
+            const cols = [];
+            if (parsed.ikCol >= 0) cols.push("InChIKey: " + (parsed.headers[parsed.ikCol] || "col_" + parsed.ikCol));
+            if (parsed.smiCol >= 0) cols.push("SMILES: " + (parsed.headers[parsed.smiCol] || "col_" + parsed.smiCol));
+            if (parsed.idCol >= 0) cols.push("identifier: " + (parsed.headers[parsed.idCol] || "col_" + parsed.idCol));
+            info += "detected " + cols.join("; ");
+            els.processBtn.disabled = false;
+        }
+        els.colInfo.innerHTML = info;
+        els.rowCount.textContent = parsed.rows.length.toLocaleString() + " compounds ready";
+    }
+    function handleFile(file) {
+        clearErr();
+        const name = file.name.toLowerCase();
+        if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), {type: "array"});
+                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, defval: ""});
+                    processRawRows(rows);
+                } catch (err) { showErr("Excel parse error: " + err.message); }
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            // CSV, TSV, TXT, SMI, SMILES: let Papa auto-detect delimiter from common candidates
+            Papa.parse(file, {
+                header: false, skipEmptyLines: true,
+                delimitersToGuess: ["\t", ",", ";", "|", " "],
+                complete: (res) => processRawRows(res.data),
+                error: (err) => showErr("Parse error: " + err.message),
+            });
+        }
+    }
+    async function processBatch() {
+        if (!parsed) return;
+        clearErr();
+        outputs = {matched: [], unmatched: []};
+        cancelled = false;
+        els.processBtn.disabled = true;
+        els.cancelBtn.style.display = "inline-block";
+        els.progress.style.display = "block";
+        els.results.style.display = "none";
+        const inputs = parsed.rows.map((row, i) => {
+            const obj = {id: parsed.idCol >= 0 ? (row[parsed.idCol] || "").toString() : ("row_" + (i + 1))};
+            if (parsed.ikCol >= 0) obj.inchikey = (row[parsed.ikCol] || "").toString().trim();
+            if (parsed.smiCol >= 0) obj.smiles = (row[parsed.smiCol] || "").toString().trim();
+            return obj;
+        }).filter(o => o.smiles || o.inchikey);
+        if (!inputs.length) { showErr("No usable SMILES or InChIKey values in detected column"); return; }
+        const totalChunks = Math.ceil(inputs.length / CHUNK);
+        const t0 = Date.now();
+        for (let ci = 0; ci < totalChunks; ci++) {
+            if (cancelled) break;
+            const chunk = inputs.slice(ci * CHUNK, (ci + 1) * CHUNK);
+            try {
+                const resp = await fetch("/api/annotate", {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({inputs: chunk}),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({error: resp.statusText}));
+                    showErr("Server error on chunk " + (ci + 1) + ": " + (err.error || resp.statusText)); break;
+                }
+                const data = await resp.json();
+                outputs.matched.push(...data.matched);
+                outputs.unmatched.push(...data.unmatched);
+                const pct = ((ci + 1) / totalChunks) * 100;
+                els.bar.value = pct;
+                els.progressLabel.textContent = Math.round(pct) + "%";
+                const elapsed = (Date.now() - t0) / 1000;
+                const eta = ((Date.now() - t0) / (ci + 1)) * (totalChunks - ci - 1) / 1000;
+                const done = Math.min((ci + 1) * CHUNK, inputs.length);
+                els.progressDetail.textContent =
+                    "Chunk " + (ci + 1) + " of " + totalChunks + " | " + done.toLocaleString() +
+                    " of " + inputs.length.toLocaleString() + " compounds | " +
+                    elapsed.toFixed(1) + "s elapsed, ~" + eta.toFixed(0) + "s remaining";
+            } catch (err) { showErr("Network error: " + err.message); break; }
+        }
+        els.cancelBtn.style.display = "none";
+        els.processBtn.disabled = false;
+        if (!cancelled) showResults(inputs.length);
+        else els.progressDetail.textContent += " | cancelled";
+    }
+    function showResults(nInputs) {
+        const m = outputs.matched.length, u = outputs.unmatched.length;
+        const exact = outputs.matched.filter(r => r.match_type === "exact").length;
+        const family = m - exact;
+        els.summary.innerHTML =
+            "<strong>" + nInputs.toLocaleString() + "</strong> inputs processed: " +
+            "<strong>" + exact.toLocaleString() + "</strong> exact matches, " +
+            "<strong>" + family.toLocaleString() + "</strong> stereoisomer-family matches, " +
+            "<strong>" + u.toLocaleString() + "</strong> unmatched.";
+        els.results.style.display = "block";
+    }
+    function downloadCSV(rows, filename) {
+        if (!rows.length) { showErr("No rows to download"); return; }
+        const cols = Array.from(new Set(rows.flatMap(r => Object.keys(r))));
+        const esc = v => {
+            if (v === null || v === undefined) return "";
+            if (typeof v === "object") v = JSON.stringify(v);
+            v = String(v);
+            return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+        };
+        let csv = cols.map(esc).join(",") + "\n";
+        for (const r of rows) csv += cols.map(c => esc(r[c])).join(",") + "\n";
+        const blob = new Blob([csv], {type: "text/csv;charset=utf-8;"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    els.zone.addEventListener("click", () => els.input.click());
+    els.zone.addEventListener("dragover", (e) => { e.preventDefault(); els.zone.style.background = "#f5f5f5"; });
+    els.zone.addEventListener("dragleave", () => { els.zone.style.background = ""; });
+    els.zone.addEventListener("drop", (e) => {
+        e.preventDefault(); els.zone.style.background = "";
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    els.input.addEventListener("change", () => { if (els.input.files.length) handleFile(els.input.files[0]); });
+    els.processBtn.addEventListener("click", processBatch);
+    els.cancelBtn.addEventListener("click", () => { cancelled = true; });
+    els.dlMatched.addEventListener("click", () => downloadCSV(outputs.matched, "theobroma_matched.csv"));
+    els.dlUnmatched.addEventListener("click", () => downloadCSV(outputs.unmatched, "theobroma_unmatched.csv"));
+    els.resetBtn.addEventListener("click", () => {
+        parsed = null; outputs = {matched: [], unmatched: []};
+        els.preview.style.display = "none";
+        els.progress.style.display = "none";
+        els.results.style.display = "none";
+        els.input.value = ""; clearErr();
+    });
+})();
+</script>
+{% endblock %}

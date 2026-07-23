@@ -52,8 +52,13 @@
 </div>
 {% if query_smiles %}
 <div class="card" style="margin:1.5rem 0;">
+    {% if query_comp_id %}
+    <h3 class="card-title"><a href="/compound/{{ query_comp_id }}" style="color:inherit;text-decoration:none;">Query structure{% if query_input and query_input != query_smiles %} ({{ query_input }}){% endif %} <span style="font-size:0.75rem;color:var(--accent);">&#8594; {{ query_comp_id }}</span></a></h3>
+    <a href="/compound/{{ query_comp_id }}"><canvas id="query-canvas" width="300" height="200"></canvas></a>
+    {% else %}
     <h3 class="card-title">Query structure{% if query_input and query_input != query_smiles %} ({{ query_input }}){% endif %}</h3>
     <canvas id="query-canvas" width="300" height="200"></canvas>
+    {% endif %}
 </div>
 {% endif %}
 {% if error %}<p class="no-results">{{ error }}</p>{% endif %}

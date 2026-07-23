@@ -4,8 +4,8 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     page = browser.new_page(viewport={"width": 1400, "height": 900})
     page.goto(URL)
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(3000)  # buffer for async stereoisomer widget and structure images
+    page.wait_for_load_state("domcontentloaded")
+    page.wait_for_timeout(5000)  # buffer for async stereoisomer widget and structure images
     page.pdf(
         path="fig3_fisetin_detail.pdf",
         format="A4",

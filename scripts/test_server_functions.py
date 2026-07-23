@@ -170,7 +170,7 @@ for cid, expect_ok in [
 print("\n--- J: /statistics ---")
 code, html = fetch_html("/statistics")
 ok = code == 200 and html is not None
-tier_counts = ok and all(s in html for s in ["894,353", "219,467", "12,018", "7,166"])
+tier_counts = ok and all(s in html for s in ["891,926", "225,668", "8,244", "7,166"])
 check("J: /statistics renders", ok, f"code={code}")
 check("J: shows corrected tier counts", tier_counts, "")
 

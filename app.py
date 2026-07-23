@@ -882,6 +882,22 @@ def compound_detail(comp_id):
                 taxonomy = cur4.fetchall()
             except Exception:
                 conn4.rollback()
+    # Resolved taxonomic lineage from resolved_taxonomy: kingdom-restricted
+    # majority-voted lineage, distinct from the full multi-attestation list
+    # in `taxonomy`. Rendered as a "Resolved lineage" block on the compound
+    # page so the canonical resolver output is visible alongside the
+    # all-attestations listing.
+    resolved_lineage = None
+    with get_db() as conn_rt:
+        with conn_rt.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur_rt:
+            try:
+                cur_rt.execute("""SELECT kingdom, phylum, taxclass, taxorder,
+                                         family, genus, secondary_kingdoms
+                                  FROM resolved_taxonomy WHERE comp_id = %s""",
+                               (c["comp_id"],))
+                resolved_lineage = cur_rt.fetchone()
+            except Exception:
+                conn_rt.rollback()
     class_hierarchy = []
     if c.get("np_class"):
         atomic_classes = [a.strip() for a in c["np_class"].split(" $ ") if a.strip()]
@@ -943,7 +959,7 @@ def compound_detail(comp_id):
                 license_attestations = cur_lic.fetchall()
             except Exception:
                 conn_lic.rollback()
-    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, class_hierarchy=class_hierarchy, stereoisomers=stereoisomers, stereoisomer_groups=stereoisomer_groups, license_attestations=license_attestations)
+    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, resolved_lineage=resolved_lineage, class_hierarchy=class_hierarchy, stereoisomers=stereoisomers, stereoisomer_groups=stereoisomer_groups, license_attestations=license_attestations)
 
 @app.route("/statistics")
 def statistics():
@@ -1610,6 +1626,20 @@ def api_compound(comp_id):
             cur.execute("SELECT * FROM compounds WHERE comp_id=%s", (comp_id,))
             c = cur.fetchone()
             if not c: return jsonify({"error":"compound not found"}), 404
+            # Resolved taxonomic lineage merged into the response so API
+            # consumers do not need a separate /resolved_taxonomy lookup.
+            cur.execute("""SELECT phylum, taxclass, taxorder, family, genus,
+                                  secondary_kingdoms
+                           FROM resolved_taxonomy WHERE comp_id = %s""",
+                        (comp_id,))
+            rt = cur.fetchone()
+            if rt:
+                c["phylum"]             = rt.get("phylum")
+                c["taxclass"]           = rt.get("taxclass")
+                c["taxorder"]           = rt.get("taxorder")
+                c["family"]             = rt.get("family")
+                c["genus"]              = rt.get("genus")
+                c["secondary_kingdoms"] = rt.get("secondary_kingdoms")
             cur.execute("SELECT * FROM admet WHERE comp_id=%s", (comp_id,))
             a = cur.fetchone()
             if a:
@@ -1777,20 +1807,39 @@ def export_results():
 def similarity():
     query_input = request.args.get("smiles", "").strip()
     query_smiles = query_input
-    # Resolve name or comp_id to SMILES
+    query_comp_id = None  # Set when input resolves to a corpus compound; enables click-through on Query structure card.
+    # Resolve name or comp_id to SMILES, and capture the matching comp_id.
     if query_input and not any(c in query_input for c in "()=#@[]"):
         with get_db() as conn:
             with conn.cursor() as cur:
-                # Try comp_id first
                 if query_input.startswith("THEO_"):
-                    cur.execute("SELECT smiles FROM compounds WHERE comp_id=%s", (query_input,))
+                    cur.execute("SELECT comp_id, smiles FROM compounds WHERE comp_id=%s", (query_input,))
                     row = cur.fetchone()
-                    if row: query_smiles = row[0]
+                    if row:
+                        query_comp_id = row[0]
+                        query_smiles  = row[1]
                 else:
-                    # Try name search
-                    cur.execute("SELECT smiles FROM compounds WHERE LOWER(name)=%s LIMIT 1", (query_input.lower(),))
+                    cur.execute("SELECT comp_id, smiles FROM compounds WHERE LOWER(name)=%s LIMIT 1", (query_input.lower(),))
                     row = cur.fetchone()
-                    if row: query_smiles = row[0]
+                    if row:
+                        query_comp_id = row[0]
+                        query_smiles  = row[1]
+    # Raw SMILES case: try to resolve to a corpus compound via InChIKey lookup.
+    if query_comp_id is None and query_smiles and any(c in query_smiles for c in "()=#@[]"):
+        try:
+            from rdkit import Chem
+            mol = Chem.MolFromSmiles(query_smiles)
+            if mol is not None:
+                ik = Chem.MolToInchiKey(mol)
+                if ik:
+                    with get_db() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT comp_id FROM compounds WHERE inchikey=%s LIMIT 1", (ik,))
+                            row = cur.fetchone()
+                            if row:
+                                query_comp_id = row[0]
+        except Exception:
+            pass
     top_n = min(200, max(1, int(request.args.get("top_n", 50))))
     threshold = max(0.0, min(1.0, float(request.args.get("threshold", "0.3"))))
     results = []
@@ -1864,7 +1913,9 @@ def similarity():
         deduped_results.append(r)
     results = deduped_results
     metric = request.args.get("metric", "morgan")
-    return render_template("similarity.html", query_smiles=query_smiles, query_input=query_input, results=results, metric=metric,
+    return render_template("similarity.html", query_smiles=query_smiles, query_input=query_input,
+                           query_comp_id=query_comp_id,
+                           results=results, metric=metric,
                            region_filter=region_filter, kingdom_filter=kingdom_filter, class_filter=class_filter,
                            top_n=top_n, threshold=threshold, error=error,
                            engine_loaded=sim_engine.loaded)
@@ -1925,6 +1976,24 @@ def substructure():
     max_results = min(500, max(1, int(request.args.get("max_results", 100))))
     results = []
     error = None
+    # If the query happens to be a valid SMILES of a corpus compound, capture
+    # the matching comp_id so the Query structure card can link to its page.
+    query_comp_id = None
+    if query:
+        try:
+            from rdkit import Chem
+            mol = Chem.MolFromSmiles(query)
+            if mol is not None:
+                ik = Chem.MolToInchiKey(mol)
+                if ik:
+                    with get_db() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT comp_id FROM compounds WHERE inchikey=%s LIMIT 1", (ik,))
+                            row = cur.fetchone()
+                            if row:
+                                query_comp_id = row[0]
+        except Exception:
+            pass
     if query:
         if not sim_engine.loaded:
             error = "Substructure search not available."
@@ -1952,7 +2021,9 @@ def substructure():
                             results.append(row)
                             if len(results) >= max_results:
                                 break
-    return render_template("substructure.html", query=query, results=results,
+    return render_template("substructure.html", query=query,
+                           query_comp_id=query_comp_id,
+                           results=results,
                            max_results=max_results, error=error,
                            engine_loaded=sim_engine.loaded)
 

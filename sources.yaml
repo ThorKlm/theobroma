@@ -115,7 +115,7 @@ sources:
   raw_compounds: 35000
   in_theobroma: 5513
   converter: convert_microbial.py npatlas
-  license_data: CC BY 4.0
+  license_data: CC BY-NC 4.0
   citation: 10.1021/acscentsci.9b00806
 - name: phytochemdb
   url: https://phytochemdb.com
