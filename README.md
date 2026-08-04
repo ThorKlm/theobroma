@@ -8,7 +8,7 @@ An open multi-kingdom natural products database with per-compound license tiers 
 
 ## Overview
 
-THEOBROMA aggregates 1,133,004 natural product compounds from 29 source databases spanning five biological kingdoms (plant, fungi, bacteria, animal, marine) plus a multi-kingdom category, across 13 resolved geographic regions. Compounds are deduplicated by full 27-character InChIKey (preserving stereoisomers as distinct entries: 486,215 stereoisomer families). Each compound carries a per-record license tier so the corpus can be filtered for commercial-use compatibility. The full pipeline integrates ChemBERTa molecular embeddings, Bemis-Murcko scaffold classification, NPClassifier and ClassyFire chemical-class assignments, ADMET-AI predictions across 104 endpoints (four persisted in the searchable database), synthetic accessibility scores, and SEA-style target predictions against ChEMBL v34 actives.
+THEOBROMA aggregates 1,132,805 natural product compounds from 29 source databases spanning four biological kingdoms (plant, animal, fungi, bacteria) plus an unresolved category, across 13 resolved geographic regions. Compounds are deduplicated by full 27-character InChIKey, preserving stereoisomers as distinct entries: 486,032 distinct molecular skeletons, of which 314,742 are multi-member stereoisomer families. Each compound carries a per-record license tier so the corpus can be filtered for commercial-use compatibility. The full pipeline integrates ChemBERTa molecular embeddings, Bemis-Murcko scaffold classification, NPClassifier and ClassyFire chemical-class assignments, ADMET-AI predictions across 104 endpoints (four persisted in the searchable database), synthetic accessibility scores, and SEA-style target predictions against ChEMBL v34 actives.
 
 ## Features
 
@@ -22,9 +22,17 @@ The CMNPD database, originally part of the corpus, was removed in v32 due to its
 
 ## License tiers
 
-Permissive open (1,031,332 compounds, 91.03%) carry CC BY 4.0 from their source databases. Public domain (12,044, 1.06%) carry CC0. Non-commercial (87,119, 7.69%) carry CC BY-NC 4.0. Unspecified (2,509, 0.22%) await source-license confirmation; the license filter excludes these from both commercial and academic categories pending resolution.
+Each compound carries a `license_tier` describing the terms under which its chemical **structure** may be redistributed, resolved by a two-level rule. **First**, each source database is assigned the most restrictive license applicable to its contents: sources that are non-commercial, share-alike, or whose terms cannot be resolved at the per-compound level are treated conservatively at that tier, or recorded as *Unspecified* when no license can be determined. **Second**, because a chemical structure is a fact that may be independently reported by several databases, a compound found in multiple sources takes the **most permissive** license among them, since the structure is genuinely available under that license from at least one source. The assignment is thus conservative where provenance is singular or ambiguous, and permissive only where a concrete more-permissive source exists. Tier order (permissive to restrictive): CC0 < CC BY 4.0 < CC BY-NC 4.0 < CC BY-NC-SA 4.0 < CC BY-NC-ND 4.0 < Unspecified.
 
-When a compound appears in multiple source databases, the most permissive license applies. Each record carries a `license_tier` field for downstream filtering.
+Across the 1,132,805 compounds:
+
+- **CC0** (1,013,320; 89.45%): COCONUT 2.0, LOTUS v11, MIBiG 4.0, SANCDB.
+- **CC BY 4.0** (3,720; 0.33%): AfroDb, CyanoMetDB, EMNPD, LanaPDB, MeFSAT, TIPdb.
+- **CC BY-NC 4.0** (84,956; 7.50%): ANPDB, CMAUP, CSIRO, FooDB, NPASS 3.0, NPAtlas, Phyto4Health, TCMBank, YMDB.
+- **CC BY-NC-ND 4.0** (3,758; 0.33%): IMPPAT 2.0.
+- **Unspecified** (27,051; 2.39%): HERB 2.0, TM-MC 2.0, StreptomeDB, phytochemdb, MicotoXilico, MycoCentral, AMDB, ConMedNP, NaturAr, LMDB, and specialized/regional collections whose license could not be resolved; excluded from both commercial and non-commercial filters pending source-license confirmation.
+
+**1,017,040 compounds (89.78%) permit commercial use** (CC0 or CC BY 4.0). The `license_tier` reflects **structure** redistribution; reuse of the full integrated annotation record (source organism, references, computed metadata) may additionally require honoring the contributing sources' terms for those fields. The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause.
 
 ## Deployment
 
@@ -62,7 +70,7 @@ Full OpenAPI specification at [/api](https://theobroma.l3s.uni-hannover.de/api).
 
 ## License
 
-Web application code is MIT. Compound data follows per-record license tiers carried forward from source databases; see the License tiers section above and the per-compound `license_tier` field.
+Web application code is MIT. Compound data carries per-record license tiers resolved by the two-level rule described in the License tiers section above (conservative within an ambiguous source, most-permissive across multiple sources); see the per-compound `license_tier` field.
 
 ## Citation
 
