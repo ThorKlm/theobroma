@@ -24,6 +24,11 @@
         <tr><th><code>GET /api/autocomplete</code></th><td>Name autocomplete. Params: <code>q</code> (min 2 chars)</td></tr>
         <tr><th><code>GET /api/organisms</code></th><td>Organism name autocomplete. Params: <code>q</code></td></tr>
         <tr><th><code>GET /api/stats</code></th><td>Database summary statistics</td></tr>
+        <tr><th><code>GET /api/compound/&lt;id&gt;/license-provenance</code></th><td>Per-source license attestation chain (audit trail) for a compound</td></tr>
+        <tr><th><code>GET /api/stereoisomers/&lt;id&gt;</code></th><td>All stereoisomers of a compound (14-character InChIKey match)</td></tr>
+        <tr><th><code>GET /api/similarity</code></th><td>Structural similarity search. Params: <code>smiles</code>, <code>metric</code> (morgan/maccs/chemberta)</td></tr>
+        <tr><th><code>GET /api/filter_options</code></th><td>Available values per filter type (kingdoms, sources, regions, classes, taxonomic ranks)</td></tr>
+        <tr><th><code>GET /api/bulk</code></th><td>Streaming bulk export (no row limit). Params: <code>cols</code>, <code>format</code>, <code>license</code></td></tr>
     </table>
     <h3 class="card-title" style="margin-top:1.5rem;">Examples</h3>
     <pre>curl "https://theobroma.l3s.uni-hannover.de/api/search?q=curcumin&amp;type=name&amp;limit=10"

@@ -35,7 +35,10 @@ app = Flask(__name__)
 def inject_version():
     return {"theobroma_version": VERSION_DISPLAY,
             "theobroma_version_external": VERSION_EXTERNAL,
-            "theobroma_version_internal": VERSION_INTERNAL}
+            "theobroma_version_internal": VERSION_INTERNAL,
+            # Maintenance banner: on when env THEOBROMA_MAINTENANCE is set to
+            # a truthy value ("1"/"true"/"on"). Flip off by unsetting it.
+            "maintenance_notice": os.environ.get("THEOBROMA_MAINTENANCE", "").lower() in ("1", "true", "on", "yes")}
 app.config.from_object(Config)
 
 # Module-level cache of browse-page dropdown options. Loaded once at import
@@ -70,7 +73,7 @@ def resolve_taxon(rank, raw_query):
     to the single closest distinct value by trigram similarity (>= 0.3).
     Returns the canonical taxon name to search for, or None if no acceptable match."""
     col_map = {"genus": "genus", "family": "family", "order": "taxorder",
-               "tax_class": "taxclass", "phylum": "phylum", "kingdom": "kingdom"}
+               "tax_class": "taxclass", "clade": "taxclass", "phylum": "phylum", "kingdom": "kingdom"}
     col = col_map.get(rank)
     if not col or not raw_query:
         return raw_query
@@ -126,6 +129,114 @@ def paginate(query, params, page, per_page, conn):
     return results, total, pages
 
 REGION_SQL = """CASE WHEN region IS NULL OR region='' OR region='global' THEN 'global / unresolved' ELSE region END"""
+
+import re as _re
+# Source-database identifier prefixes: names starting with these are NOT human
+# chemical names and must never be the primary display name if any real name exists.
+_ID_PREFIX = _re.compile(
+    r'^(chebi:?|npc|npo|npa|sa_|mol_?|cid[0-9]|hmdb|zinc|pubchem|c\.i\.|e\s?\d|unii|ec\s?\d'
+    r'|orb|kbiogr|kbioss|kbio|refchem|ncimech|schembl|mls\d|mcule|chembl|ambn|stk|bdbm'
+    r'|nsc\d|cas[-_ ]?\d|acon|dtxsid|dtxcid|gtpl|lmfa|lmgp|lmpr|lmsp|lmst|q\d{4,})',
+    _re.I)
+_CAS = _re.compile(r'^\d{1,7}-\d{2}-\d$')                 # CAS registry number
+_ALLCODE = _re.compile(r'^[^a-z]*$')                       # no lowercase letter -> code/acronym
+_SYSTEMATIC = _re.compile(r'[0-9]+[,\-]|[\[\]\(\)]|(\b\d[EZRS]\b)|hepta|hexa|penta|tetra|dione|yl\b')
+
+def is_id_like(s):
+    """True if s is a source-database identifier / code rather than a human name."""
+    if not s:
+        return True
+    t = s.strip()
+    return bool(_ID_PREFIX.match(t) or _CAS.match(t) or _ALLCODE.match(t)
+                or t in ("nan", "") or t.startswith("NPO"))
+
+# Locant / stereo / structural descriptor prefixes whose case is meaningful and must
+# NOT be capitalized (n-, o-, p-, m-, cis-, trans-, tert-, sec-, d-, l-, e-, z-, etc.).
+_DESCRIPTOR_PREFIX = _re.compile(
+    r'^(n|o|p|m|d|l|e|z|r|s|h|cis|trans|tert|sec|syn|anti|alpha|beta|gamma|delta|omega|ortho|meta|para)-',
+    _re.I)
+
+def display_name(s):
+    """Presentation-only capitalization. Conservative: capitalize the first letter ONLY
+    when the name is a plain trivial name (pure lowercase letters, no digits/punctuation,
+    not a locant/descriptor prefix). Systematic names, descriptor-led names, and anything
+    with internal case meaning are returned unchanged. Never lowercases anything."""
+    if not s:
+        return s
+    t = str(s)
+    # already has an uppercase letter, or does not start with a lowercase letter -> leave as-is
+    if not t[:1].islower():
+        return t
+    # descriptor/locant-led (p-cymene, N-methyl, cis-..., L-dopa) -> leave as-is
+    if _DESCRIPTOR_PREFIX.match(t):
+        return t
+    # pure lowercase letters only (curcumin, quercetin, geraniol) -> capitalize first letter
+    if t.isalpha() and t.islower():
+        return t[0].upper() + t[1:]
+    # starts with a lowercase letter and the first token is an alphabetic word
+    # (e.g. "curcumin dimer", "ginkgolide a"): capitalize first letter only.
+    first_tok = t.split()[0] if t.split() else ""
+    if first_tok.isalpha() and t[:1].islower():
+        return t[0].upper() + t[1:]
+    # otherwise (leading digit, punctuation, locant): leave unchanged
+    return t
+
+def synonym_tier(s):
+    """Lower tier = better display name. 0 chemical common name, 1 systematic/IUPAC,
+    2 vernacular/trade, 3 registry code/identifier. Used to order synonyms and pick a name."""
+    if not s:
+        return 4
+    t = s.strip()
+    if is_id_like(t):
+        return 3
+    if _SYSTEMATIC.search(t.lower()):
+        return 1
+    # short, single- or few-word, mostly-alpha names: treat as common/vernacular (tier 2),
+    # promoted to 0 only when it is a plausible chemical common name (single token or ends in
+    # a chemical suffix). This keeps "curcumin" above "Kacha haldi" without a curated lexicon.
+    words = t.split()
+    chem_suffix = _re.search(r'(ine|ol|one|ate|ide|acid|in|ene|ane|oside|genin)$', t.lower())
+    if len(words) <= 1 and chem_suffix:
+        return 0
+    if chem_suffix and len(words) <= 2:
+        return 0
+    return 2
+
+def order_synonyms(syns):
+    """Stable-order a synonym list best-first by tier, then by length within tier."""
+    seen, uniq = set(), []
+    for s in syns:
+        k = (s or "").strip().lower()
+        if k and k not in seen:
+            seen.add(k); uniq.append(s)
+    return sorted(uniq, key=lambda s: (synonym_tier(s), len(s)))
+
+def canonical_display_name(chebi_name, name, synonyms, chebi_iupac_name, query_norm=None):
+    """Best display name: curated chebi_name > query-matched synonym > best-tier synonym
+    > systematic IUPAC > existing name > empty. Returns '' if nothing usable."""
+    if chebi_name and chebi_name.strip():
+        return chebi_name.strip()
+    nm = str(name or "")
+    # Treat an ID-style primary name (Npc18984, SCHEMBL..., CHEBI:..., Mol_...) as a
+    # placeholder so a real synonym or the systematic name is preferred over it.
+    is_placeholder = (not nm or is_id_like(nm))
+    ordered = order_synonyms(synonyms or [])
+    if query_norm:
+        for s in ordered:
+            if normalize_query(s) == query_norm:
+                return s
+    if not is_placeholder:
+        return nm
+    for s in ordered:
+        if synonym_tier(s) <= 2:
+            return s
+    if chebi_iupac_name and chebi_iupac_name.strip():
+        return chebi_iupac_name.split(";")[0].strip()
+    # Last resort: a systematic-looking synonym (tier 1) beats an ID or a dash.
+    for s in ordered:
+        if synonym_tier(s) <= 3 and not is_id_like(s):
+            return s
+    return nm if nm else (ordered[0] if ordered else "")
 
 @app.template_filter("normalize_name")
 def normalize_name(name):
@@ -185,7 +296,9 @@ def log_access(response):
 
 
 def normalize_query(q):
-    """Normalize search query: strip hyphens, handle alpha/greek equivalents."""
+    """Normalize search query to match the stored name_norm rule, which strips
+    spaces and hyphens but preserves other punctuation (e.g. commas):
+    'Withaferin A' -> 'withaferina', '2,3-Dihydro X' -> '2,3dihydrox'."""
     q = q.lower().strip()
     # Greek letter equivalents
     replacements = [
@@ -194,8 +307,9 @@ def normalize_query(q):
     ]
     for greek, latin in replacements:
         q = q.replace(greek, latin)
-    # Remove hyphens for fuzzy matching
+    # Remove hyphens AND spaces to match name_norm (commas etc. are preserved)
     q = q.replace("-", "").replace("–", "").replace("—", "")
+    q = q.replace(" ", "")
     return q
 
 _load_browse_options()
@@ -333,29 +447,33 @@ def search():
                 if row:
                     return redirect(url_for("compound_detail", comp_id=row["comp_id"]))
     # Fuzzy taxonomic resolution: must run BEFORE tq dict is built since params are baked in.
-    if st in ("genus", "family", "order", "tax_class", "phylum"):
+    if st in ("genus", "family", "order", "tax_class", "clade", "phylum"):
         resolved = resolve_taxon(st, q)
         if resolved is not None and resolved != q:
             q = resolved
         elif resolved is None:
             q = "__no_such_taxon__"
     tq = {
-        "name":    ((f"""SELECT c.* FROM (
+        "name":    ((f"""SELECT c.*, 0 AS rank_key FROM (
                SELECT DISTINCT ON (sn.comp_id) sn.comp_id, 0 AS relevance
                FROM search_names sn
                WHERE sn.name_norm = %s
              ) matched
              JOIN compounds c ON c.comp_id = matched.comp_id
-             ORDER BY c.name""", (normalize_query(q),)) if exact else (f"""SELECT c.* FROM (
+             ORDER BY c.name""", (normalize_query(q),)) if exact else (f"""SELECT c.*, matched.rank_key,
+               CASE WHEN (c.chebi_name IS NOT NULL AND c.chebi_name <> '')
+                      OR (c.name IS NOT NULL AND c.name <> ''
+                          AND c.name !~* '^(mol_|npo|sa_|npc|npo|schembl|orb|kbio|refchem|ncimech|mls[0-9]|cid[0-9]|chembl|zinc|hmdb|nan)')
+                    THEN 0 ELSE 1 END AS has_name
+             FROM (
                SELECT DISTINCT ON (sn.comp_id) sn.comp_id,
-               CASE WHEN sn.name_norm = %s THEN 0
-                    WHEN sn.name_norm LIKE %s THEN 1
-                    ELSE 2 END AS relevance
+               levenshtein(sn.name_norm, %s) AS rank_key
                FROM search_names sn
                WHERE sn.name_norm LIKE %s
+               ORDER BY sn.comp_id, levenshtein(sn.name_norm, %s)
              ) matched
              JOIN compounds c ON c.comp_id = matched.comp_id
-             ORDER BY matched.relevance, LENGTH(c.name), c.name""", (normalize_query(q), normalize_query(q)+'%', '%'+normalize_query(q)+'%'))),
+             ORDER BY has_name, matched.rank_key, LENGTH(c.name), c.name""", (normalize_query(q), '%'+normalize_query(q)+'%', normalize_query(q)))),
         "smiles":  (f"""SELECT * FROM compounds WHERE inchikey = (
             SELECT inchikey FROM compounds WHERE smiles=%s LIMIT 1
           ) {oc}""", (q,)),
@@ -368,6 +486,7 @@ def search():
         "family":  ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.family) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.family ILIKE %s {oc}", (f"%{q}%",))),
         "order":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.taxorder) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.taxorder ILIKE %s {oc}", (f"%{q}%",))),
         "tax_class":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.taxclass) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.taxclass ILIKE %s {oc}", (f"%{q}%",))),
+        "clade":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.taxclass) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.taxclass ILIKE %s {oc}", (f"%{q}%",))),
         "phylum":  ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.phylum) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.phylum ILIKE %s {oc}", (f"%{q}%",))),
         "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR np_superclass ILIKE %s OR np_pathway ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%")),
         "npclassifier_class": (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%")),
@@ -400,10 +519,11 @@ def search():
             "family": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.family) = LOWER(%s))",
             "order":  "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.taxorder) = LOWER(%s))",
             "tax_class": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.taxclass) = LOWER(%s))",
+            "clade": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.taxclass) = LOWER(%s))",
             "phylum": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.phylum) = LOWER(%s))",
         }
         # Fuzzy resolution for taxonomic ranks in extras as well.
-        if et in ("genus", "family", "order", "tax_class", "phylum"):
+        if et in ("genus", "family", "order", "tax_class", "clade", "phylum"):
             resolved = resolve_taxon(et, eq)
             if resolved is not None and resolved != eq:
                 eq = resolved
@@ -431,7 +551,7 @@ def search():
             elif et in ("genus", "family"):
                 extra_clauses.append(esql)
                 extra_params.append(eq)
-            elif et in ("order", "tax_class", "phylum"):
+            elif et in ("order", "tax_class", "clade", "phylum"):
                 extra_clauses.append(esql)
                 extra_params.append(eq)
             else:
@@ -460,19 +580,20 @@ def search():
     # basic-browse license logic at the /search route's lower branch (line ~764).
     license_filter = request.args.get("license", "all")
     if license_filter == "commercial":
-        extra_clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
+        extra_clauses.append("tier_rank <= 1")
     elif license_filter == "academic":
-        extra_clauses.append("license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')")
+        extra_clauses.append("tier_rank <= 4")
     # Named-only toggle: filter to compounds with non-empty name
     named_only = request.args.get("named", "")
     if named_only:
         extra_clauses.append("name IS NOT NULL AND name != ''")
     if extra_clauses:
         extra_where = " AND ".join(extra_clauses)
+        rank_order = " ORDER BY base.has_name, base.rank_key, LENGTH(base.name), base.name" if st == "name" and not exact else ""
         if needs_admet_join:
-            query = f"SELECT base.* FROM ({query}) AS base JOIN admet ON base.comp_id=admet.comp_id WHERE {extra_where}"
+            query = f"SELECT base.* FROM ({query}) AS base JOIN admet ON base.comp_id=admet.comp_id WHERE {extra_where}{rank_order}"
         else:
-            query = f"SELECT * FROM ({query}) AS base WHERE {extra_where}"
+            query = f"SELECT * FROM ({query}) AS base WHERE {extra_where}{rank_order}"
         params = params + tuple(extra_params)
     with get_db() as conn:
         results, total, pages = paginate(query, params, page, per_page, conn)
@@ -491,36 +612,30 @@ def search():
                 r["name"] = nm[0].upper() + nm[1:]
             deduped.append(r)
         results = deduped
-    # Fallback: if name is empty or looks like Mol_xxxx/placeholder, prefer ChEBI IUPAC, then first synonym.
-    placeholder_rows = [r for r in results
-                       if not r.get("name") or str(r.get("name")).startswith("Mol_")
-                       or str(r.get("name")).startswith("NPO") or str(r.get("name")).startswith("SA_")
-                       or str(r.get("name")) == "nan"]
-    # First pass: ChEBI IUPAC for compounds that have it.
-    for r in placeholder_rows:
-        iupac = r.get("chebi_iupac_name")
-        if iupac:
-            r["name"] = iupac.split(";")[0].strip()  # first IUPAC variant
-    # Second pass: first synonym for remaining placeholders (legacy fallback).
-    empty_name_iks = [r.get("inchikey") for r in placeholder_rows
-                       if (not r.get("name") or str(r.get("name")).startswith("Mol_")
-                           or str(r.get("name")).startswith("NPO") or str(r.get("name")).startswith("SA_")
-                           or str(r.get("name")) == "nan")]
-    empty_name_iks = [ik for ik in empty_name_iks if ik]
-    if empty_name_iks:
+    # Display name for every row: canonical helper prefers curated chebi_name, then a
+    # synonym matching the query, then best-tier synonym, then systematic IUPAC.
+    q_norm = normalize_query(q) if st == "name" else None
+    # Rows that may need a synonym lookup: no chebi_name and (placeholder OR name-search).
+    def _is_placeholder(nm):
+        return is_id_like(str(nm or ""))
+    need_syn = [r for r in results
+                if not (r.get("chebi_name") or "").strip()
+                and (_is_placeholder(r.get("name")) or st == "name")]
+    syn_map = {}
+    iks = [r.get("inchikey") for r in need_syn if r.get("inchikey")]
+    if iks:
         with get_db() as conn2:
             with conn2.cursor() as cur2:
-                ph = ",".join(["%s"]*len(empty_name_iks))
-                cur2.execute(f"SELECT DISTINCT ON (inchikey) inchikey, synonym FROM compound_synonyms WHERE inchikey IN ({ph}) ORDER BY inchikey, LENGTH(synonym)", tuple(empty_name_iks))
-                syn_map = dict(cur2.fetchall())
-        for r in results:
-            ik = r.get("inchikey")
-            nm = str(r.get("name") or "")
-            is_placeholder = (not nm or nm.startswith("Mol_") or nm.startswith("NPO")
-                              or nm.startswith("SA_") or nm == "nan")
-            if is_placeholder and ik in syn_map:
-                s = syn_map[ik]
-                r["name"] = s[0].upper() + s[1:] if s else nm
+                ph = ",".join(["%s"]*len(iks))
+                cur2.execute(f"SELECT inchikey, synonym FROM compound_synonyms WHERE inchikey IN ({ph})", tuple(iks))
+                for ik, syn in cur2.fetchall():
+                    syn_map.setdefault(ik, []).append(syn)
+    for r in results:
+        disp = canonical_display_name(r.get("chebi_name"), r.get("name"),
+                                      syn_map.get(r.get("inchikey"), []),
+                                      r.get("chebi_iupac_name"), q_norm)
+        if disp:
+            r["name"] = display_name(disp)
     # Kingdom donut for the full search result set.
     # Special case A: explicit kingdom filter (type=kingdom OR extra_*=kingdom).
     # Special case B: taxonomic filter (genus/family/order/tax_class/phylum) where
@@ -548,38 +663,28 @@ def search():
             # to reflect primary kingdoms of result compounds only. Cross-kingdom
             # secondary attestations get filtered out.
             tax_filter_active = (
-                st in ('genus','family','order','tax_class','phylum') or
-                any(request.args.get(f'extra_type_{i}','') in ('genus','family','order','tax_class','phylum')
+                st in ('genus','family','order','tax_class','clade','phylum') or
+                any(request.args.get(f'extra_type_{i}','') in ('genus','family','order','tax_class','clade','phylum')
                     for i in range(1, 11))
             )
-            if tax_filter_active:
-                kingdom_sql = f"""
-                    WITH result_set AS ({query})
-                    SELECT rt.kingdom AS kingdom, COUNT(DISTINCT rs.comp_id) AS cnt
-                    FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
-                    WHERE rt.kingdom IS NOT NULL AND rt.kingdom != ''
-                    GROUP BY 1 ORDER BY cnt DESC"""
-            else:
-                kingdom_sql = f"""
-                    WITH result_set AS ({query}),
-                    expanded AS (
-                        SELECT rs.comp_id, rt.kingdom AS kingdom
-                        FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
-                        WHERE rt.kingdom IS NOT NULL AND rt.kingdom != ''
-                        UNION ALL
-                        SELECT rs.comp_id, unnest(rt.secondary_kingdoms) AS kingdom
-                        FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
-                        WHERE rt.secondary_kingdoms IS NOT NULL AND array_length(rt.secondary_kingdoms, 1) > 0
-                    )
-                    SELECT kingdom, COUNT(DISTINCT comp_id) AS cnt FROM expanded
-                    GROUP BY 1 ORDER BY cnt DESC"""
+            # Result-set kingdom donut: count PRIMARY kingdom only, matching the
+            # expanded taxonomy tree's primary-lineage representation. A name query
+            # for a plant compound (e.g. curcumin) shows plant-only, not incidental
+            # secondary-kingdom attestations. (The browse/search kingdom FILTER still
+            # matches primary+secondary for findability; this is the visualization.)
+            kingdom_sql = f"""
+                WITH result_set AS ({query})
+                SELECT rt.kingdom AS kingdom, COUNT(DISTINCT rs.comp_id) AS cnt
+                FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
+                WHERE rt.kingdom IS NOT NULL AND rt.kingdom != ''
+                GROUP BY 1 ORDER BY cnt DESC"""
             with get_db() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute(kingdom_sql, params)
                     thumb_kingdoms = cur.fetchall()
             # If no explicit kingdom override but the query is taxonomic and one
             # kingdom dominates, treat that kingdom as implied.
-            if kingdom_label_override is None and st in ("genus", "family", "order", "tax_class", "phylum") and thumb_kingdoms:
+            if kingdom_label_override is None and st in ("genus", "family", "order", "tax_class", "clade", "phylum") and thumb_kingdoms:
                 top = thumb_kingdoms[0]
                 if top["cnt"] / total >= 0.95:
                     kingdom_label_override = top["kingdom"]
@@ -770,9 +875,9 @@ def browse():
             clauses.append("LOWER(region) = LOWER(%s)"); params += (region,)
     license_filter = request.args.get("license", "all")
     if license_filter == "commercial":
-        clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
+        clauses.append("tier_rank <= 1")
     elif license_filter == "academic":
-        clauses.append("license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')")
+        clauses.append("tier_rank <= 4")
     if named:
         clauses.append("name IS NOT NULL AND name != ''")
     if chem_class:
@@ -854,16 +959,22 @@ def compound_detail(comp_id):
             with conn2.cursor() as cur2:
                 cur2.execute("SELECT synonym FROM compound_synonyms WHERE inchikey=%s LIMIT 20", (c["inchikey"],))
                 synonyms = [r[0] for r in cur2.fetchall()]
-    # Fallback for placeholder names: prefer ChEBI IUPAC, else first synonym.
-    nm = str(c.get("name") or "")
-    is_placeholder = (not nm or nm.startswith("Mol_") or nm.startswith("NPO")
-                      or nm.startswith("SA_") or nm == "nan")
-    if is_placeholder:
-        iupac = c.get("chebi_iupac_name")
-        if iupac:
-            c["name"] = iupac.split(";")[0].strip()
-        elif synonyms:
-            c["name"] = synonyms[0]
+    # Canonical display name (chebi_name > synonym > IUPAC), then presentation-capitalize.
+    disp = canonical_display_name(c.get("chebi_name"), c.get("name"), synonyms, c.get("chebi_iupac_name"))
+    if disp:
+        c["name"] = display_name(disp)
+    # Order synonyms, presentation-capitalize each, and drop any that duplicate the
+    # primary name case-insensitively (so "curcumin" name + "Curcumin" synonym collapse).
+    name_key = (c.get("name") or "").strip().casefold()
+    seen_syn = set()
+    ordered_syns = []
+    for s in order_synonyms(synonyms):
+        k = (s or "").strip().casefold()
+        if not k or k == name_key or k in seen_syn:
+            continue
+        seen_syn.add(k)
+        ordered_syns.append(display_name(s))
+    synonyms = ordered_syns
     with get_db() as conn3:
         with conn3.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur3:
             try:
@@ -1093,15 +1204,32 @@ def api_cladogram():
         where_clauses.append("LOWER(c.region)=LOWER(%s)")
         where_params.append(region)
     if license_f == "commercial":
-        where_clauses.append("c.license_tier IN ('CC BY 4.0','CC0')")
+        where_clauses.append("c.tier_rank <= 1")
     elif license_f == "academic":
-        where_clauses.append("c.license_tier IN ('CC BY 4.0','CC0','CC BY-NC 4.0')")
+        where_clauses.append("c.tier_rank <= 4")
     if named:
         where_clauses.append("c.name IS NOT NULL AND c.name != ''")
     # Search-page filters: type/q + extra_type_N/extra_q_N
     search_type = request.args.get("type", "").strip()
     search_q = request.args.get("q", "").strip()
     exact = request.args.get("exact", "false").lower() == "true"
+    # Resolve property/classification meta-type to the concrete search type
+    # (mirrors the /search route) so type=property&prop_type=X scopes the tree.
+    if search_type in ("property", "classification"):
+        _prop_aliases = {
+            "class": "npclassifier_class", "chemical_class": "npclassifier_class",
+            "chem_class": "npclassifier_class", "npclassifier_class": "npclassifier_class",
+            "npc_class": "npclassifier_class", "np_class": "npclassifier_class",
+            "superclass": "npclassifier_superclass", "np_superclass": "npclassifier_superclass",
+            "npclassifier_superclass": "npclassifier_superclass",
+            "classyfire_class": "classyfire_class", "cf_class": "classyfire_class",
+            "classyfire_superclass": "classyfire_class",
+            "pathway": "pathway", "np_pathway": "pathway",
+            "genus": "genus", "family": "family", "order": "order",
+            "tax_class": "tax_class", "phylum": "phylum",
+        }
+        search_type = _prop_aliases.get(request.args.get("prop_type", "").strip().lower(), "npclassifier_class")
+
 
     def _add_search_clause(t, qval):
         """Append a WHERE clause for a search-type/value pair using same patterns as /search."""
@@ -1109,7 +1237,7 @@ def api_cladogram():
             return
         # Fuzzy taxonomic resolution
         local_q = qval
-        if t in ("genus", "family", "order", "tax_class", "phylum"):
+        if t in ("genus", "family", "order", "tax_class", "clade", "phylum"):
             try:
                 resolved = resolve_taxon(t, qval)
                 if resolved is not None and resolved != qval:
@@ -1132,6 +1260,7 @@ def api_cladogram():
                        ("rt.family ILIKE %s", ["%"+local_q+"%"])),
             "order": (("LOWER(rt.taxorder)=LOWER(%s)", [local_q]) if exact else
                       ("rt.taxorder ILIKE %s", ["%"+local_q+"%"])),
+            "clade": (("LOWER(rt.taxclass)=LOWER(%s)", [local_q]) if exact else ("rt.taxclass ILIKE %s", [f"%{local_q}%"])),
             "tax_class": (("LOWER(rt.taxclass)=LOWER(%s)", [local_q]) if exact else
                           ("rt.taxclass ILIKE %s", ["%"+local_q+"%"])),
             "phylum": (("LOWER(rt.phylum)=LOWER(%s)", [local_q]) if exact else
@@ -1205,13 +1334,22 @@ def api_taxonomy_tree():
     """Return taxonomic tree. If no filter params, serve precomputed cache.
     Otherwise compute filtered tree on the fly from compounds + compound_taxonomy."""
     filter_keys = ("kingdom", "source", "region", "license", "named", "type", "q",
-                   "extra_type_1", "extra_type_2", "extra_type_3", "extra_type_4", "extra_type_5")
+                   "extra_type_1", "extra_type_2", "extra_type_3", "extra_type_4", "extra_type_5",
+                   "comp_ids")
     has_filter = any(request.args.get(k) for k in filter_keys)
     cache_path = os.path.join(app.static_folder, "taxonomy_cache.json")
     if not has_filter and os.path.exists(cache_path):
         return send_from_directory(app.static_folder, "taxonomy_cache.json", mimetype="application/json")
     where = []
     params = []
+    # comp_ids scoping for similarity-on-tree (#4): restrict the tree to an
+    # explicit compound set passed as comma-separated THEO_ ids in ?comp_ids=.
+    _comp_ids_raw = request.args.get("comp_ids", "").strip()
+    if _comp_ids_raw:
+        _cid_list = [c for c in _comp_ids_raw.split(",") if c.startswith("THEO_")]
+        if _cid_list:
+            where.append("c.comp_id = ANY(%s)")
+            params.append(_cid_list)
     kingdom = request.args.get("kingdom")
     source = request.args.get("source")
     region = request.args.get("region")
@@ -1221,6 +1359,22 @@ def api_taxonomy_tree():
     search_type = request.args.get("type", "")
     search_q = request.args.get("q", "").strip()
     exact = request.args.get("exact", "false").lower() == "true"
+    # Resolve property/classification meta-type to the concrete search type
+    # (mirrors the /search route) so type=property&prop_type=X scopes the tree.
+    if search_type in ("property", "classification"):
+        _prop_aliases = {
+            "class": "npclassifier_class", "chemical_class": "npclassifier_class",
+            "chem_class": "npclassifier_class", "npclassifier_class": "npclassifier_class",
+            "npc_class": "npclassifier_class", "np_class": "npclassifier_class",
+            "superclass": "npclassifier_superclass", "np_superclass": "npclassifier_superclass",
+            "npclassifier_superclass": "npclassifier_superclass",
+            "classyfire_class": "classyfire_class", "cf_class": "classyfire_class",
+            "classyfire_superclass": "classyfire_class",
+            "pathway": "pathway", "np_pathway": "pathway",
+            "genus": "genus", "family": "family", "order": "order",
+            "tax_class": "tax_class", "phylum": "phylum",
+        }
+        search_type = _prop_aliases.get(request.args.get("prop_type", "").strip().lower(), "npclassifier_class")
     # Apply search-page "extra_type_N / extra_q_N" filters (1..5) by reusing
     # the same per-rank SQL patterns we use for the primary search clause.
     for i in range(1, 11):
@@ -1238,10 +1392,11 @@ def api_taxonomy_tree():
             "family": (("LOWER(rt.family) = LOWER(%s)", (eq,)) if exact else ("rt.family ILIKE %s", (f"%{eq}%",))),
             "order": (("LOWER(rt.taxorder) = LOWER(%s)", (eq,)) if exact else ("rt.taxorder ILIKE %s", (f"%{eq}%",))),
             "tax_class": (("LOWER(rt.taxclass) = LOWER(%s)", (eq,)) if exact else ("rt.taxclass ILIKE %s", (f"%{eq}%",))),
+            "clade": (("LOWER(rt.taxclass) = LOWER(%s)", (eq,)) if exact else ("rt.taxclass ILIKE %s", (f"%{eq}%",))),
             "phylum": (("LOWER(rt.phylum) = LOWER(%s)", (eq,)) if exact else ("rt.phylum ILIKE %s", (f"%{eq}%",))),
         }
         # Fuzzy resolution for taxonomic ranks
-        if et in ("genus", "family", "order", "tax_class", "phylum"):
+        if et in ("genus", "family", "order", "tax_class", "clade", "phylum"):
             resolved = resolve_taxon(et, eq)
             if resolved is not None and resolved != eq:
                 eq = resolved
@@ -1253,7 +1408,7 @@ def api_taxonomy_tree():
             params.extend(ec[1])
     if search_type and search_q:
         # Fuzzy taxonomic resolution
-        if search_type in ("genus", "family", "order", "tax_class", "phylum"):
+        if search_type in ("genus", "family", "order", "tax_class", "clade", "phylum"):
             resolved = resolve_taxon(search_type, search_q)
             if resolved is not None and resolved != search_q:
                 search_q = resolved
@@ -1271,6 +1426,7 @@ def api_taxonomy_tree():
             "family": (("LOWER(rt.family) = LOWER(%s)", (search_q,)) if exact else ("rt.family ILIKE %s", (f"%{search_q}%",))),
             "order": (("LOWER(rt.taxorder) = LOWER(%s)", (search_q,)) if exact else ("rt.taxorder ILIKE %s", (f"%{search_q}%",))),
             "tax_class": (("LOWER(rt.taxclass) = LOWER(%s)", (search_q,)) if exact else ("rt.taxclass ILIKE %s", (f"%{search_q}%",))),
+            "clade": (("LOWER(rt.taxclass) = LOWER(%s)", (search_q,)) if exact else ("rt.taxclass ILIKE %s", (f"%{search_q}%",))),
             "phylum": (("LOWER(rt.phylum) = LOWER(%s)", (search_q,)) if exact else ("rt.phylum ILIKE %s", (f"%{search_q}%",))),
             "class": ("(c.np_class ILIKE %s OR c.classyfire_superclass ILIKE %s OR c.inferred_class ILIKE %s)", (f"%{search_q}%", f"%{search_q}%", f"%{search_q}%")),
             "npclassifier_class": ("(c.np_class ILIKE %s OR c.inferred_class ILIKE %s)", (f"%{search_q}%", f"%{search_q}%")),
@@ -1305,9 +1461,9 @@ def api_taxonomy_tree():
     if named:
         where.append("c.name IS NOT NULL AND c.name != ''")
     if license_f == "commercial":
-        where.append("c.license_tier IN ('CC BY 4.0','CC0')")
+        where.append("c.tier_rank <= 1")
     elif license_f == "academic":
-        where.append("c.license_tier IN ('CC BY 4.0','CC0','CC BY-NC 4.0')")
+        where.append("c.tier_rank <= 4")
     # Range filters: physchem (in compounds) + ADMET (in admet table)
     admet_cols_taxapi = {"Lipinski","QED","stereo_centers","PAINS_alert","BRENK_alert","NIH_alert","AMES","BBB_Martins","Bioavailability_Ma","CYP1A2_Veith","CYP2C19_Veith","CYP2C9_Substrate_CarbonMangels","CYP2C9_Veith","CYP2D6_Substrate_CarbonMangels","CYP2D6_Veith","CYP3A4_Substrate_CarbonMangels","CYP3A4_Veith","Carcinogens_Lagunin","ClinTox","DILI","HIA_Hou","NR_AR_LBD","NR_AR","NR_AhR","NR_Aromatase","NR_ER_LBD","NR_ER","NR_PPAR_gamma","PAMPA_NCATS","Pgp_Broccatelli","SR_ARE","SR_ATAD5","SR_HSE","SR_MMP","SR_p53","Skin_Reaction","hERG","Caco2_Wang","Clearance_Hepatocyte_AZ","Clearance_Microsome_AZ","Half_Life_Obach","HydrationFreeEnergy_FreeSolv","LD50_Zhu","Lipophilicity_AstraZeneca","PPBR_AZ","Solubility_AqSolDB","VDss_Lombardo"}
     needs_admet_join = False
@@ -1348,7 +1504,7 @@ def api_taxonomy_tree():
             if et == "kingdom" and eq_v:
                 kingdom_override = eq_v
                 break
-    if kingdom_override is None and search_type in ("genus", "family", "order", "tax_class", "phylum") and search_q:
+    if kingdom_override is None and search_type in ("genus", "family", "order", "tax_class", "clade", "phylum") and search_q:
         # Quick dominance check using the where_sql already built
         try:
             with get_db() as conn:
@@ -1377,9 +1533,10 @@ def api_taxonomy_tree():
 
     # Detect taxonomic filter (incl. extras)
     api_tax_filter_active = (
-        search_type in ('genus','family','order','tax_class','phylum') or
-        any(request.args.get(f'extra_type_{i}','') in ('genus','family','order','tax_class','phylum')
+        search_type in ('genus','family','order','tax_class','clade','phylum') or
+        any(request.args.get(f'extra_type_{i}','') in ('genus','family','order','tax_class','clade','phylum')
             for i in range(1, 11))
+        or bool(_comp_ids_raw)  # comp_ids set -> primary-lineage only (match thumbnail)
     )
     secondary_union = '' if api_tax_filter_active else (
         "UNION ALL SELECT comp_id, unnest(secondary_kingdoms), NULL, NULL, NULL, NULL, NULL "
@@ -1556,9 +1713,9 @@ def api_search():
             pm_tuple = (nq, nq+'%', '%'+nq+'%')
         license_filter = request.args.get("license", "all")
         if license_filter == "commercial":
-            base = base.replace("ORDER BY", "WHERE c.license_tier IN ('CC BY 4.0', 'CC0') ORDER BY")
+            base = base.replace("ORDER BY", "WHERE c.tier_rank <= 1 ORDER BY")
         elif license_filter == "academic":
-            base = base.replace("ORDER BY", "WHERE c.license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0') ORDER BY")
+            base = base.replace("ORDER BY", "WHERE c.tier_rank <= 4 ORDER BY")
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(f"SELECT COUNT(*) FROM ({base}) sq", pm_tuple)
@@ -1567,11 +1724,12 @@ def api_search():
                 results = cur.fetchall()
     else:
         tc = {"smiles":"smiles=%s","inchikey":"inchikey=%s",
-              "kingdom":"LOWER(kingdom) = LOWER(%s)","organism": ("LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s"),
+              "kingdom":"EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))","organism": ("LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s"),
               "genus": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.genus) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.genus ILIKE %s)"),
               "family": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.family) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.family ILIKE %s)"),
               "order": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxorder) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.taxorder ILIKE %s)"),
               "tax_class": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.taxclass ILIKE %s)"),
+              "clade": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.taxclass ILIKE %s)"),
               "phylum": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.phylum) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.phylum ILIKE %s)"),
               "region":"LOWER(region) = LOWER(%s)","source":"LOWER(source_db) = LOWER(%s)",
               "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR np_superclass ILIKE %s OR np_pathway ILIKE %s",
@@ -1587,19 +1745,21 @@ def api_search():
             pm = (f"%{q}%", f"%{q}%")
         elif st == "classyfire_class":
             pm = (f"%{q}%",)
-        elif st in ("tax_class", "order", "phylum"):
+        elif st in ("tax_class", "clade", "order", "phylum"):
             pm = (q,) if exact else (f"%{q}%",)
+        elif st == "kingdom":
+            pm = (q, q)
         else:
-            pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (q if st in ("kingdom","region","source") else q)
+            pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (q if st in ("region","source") else q)
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 params = pm if isinstance(pm, tuple) else (pm,)
                 license_filter = request.args.get("license", "all")
                 lic_clause = ""
                 if license_filter == "commercial":
-                    lic_clause = " AND license_tier IN ('CC BY 4.0', 'CC0')"
+                    lic_clause = " AND tier_rank <= 1"
                 elif license_filter == "academic":
-                    lic_clause = " AND license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')"
+                    lic_clause = " AND tier_rank <= 4"
                 cur.execute(f"SELECT COUNT(*) FROM compounds WHERE {cl}{lic_clause}", params)
                 total = cur.fetchone()["count"]
                 cur.execute(f"SELECT {cols} FROM compounds WHERE {cl}{lic_clause} LIMIT %s OFFSET %s", params + (limit, offset))
@@ -1765,12 +1925,12 @@ def export_results():
     if q:
         tmap = {"name":"LOWER(name) LIKE %s","smiles":"smiles=%s","inchikey":"inchikey=%s",
                 "source":"LOWER(source_db) = LOWER(%s)","organism":"source_organism ILIKE %s",
-                "region":"LOWER(region) = LOWER(%s)","kingdom":"LOWER(kingdom) = LOWER(%s)"}
+                "region":"LOWER(region) = LOWER(%s)","kingdom":"EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))"}
         cl = tmap.get(st, tmap["name"])
         pm = f"%{q.lower()}%" if st in ("name","organism") else (q if st in ("kingdom","region","source") else q)
-        clauses.append(cl); params += (pm,)
+        clauses.append(cl); params += (pm, pm) if st == "kingdom" else (pm,)
     if kingdom:
-        clauses.append("LOWER(compounds.kingdom) = LOWER(%s)"); params += (kingdom,)
+        clauses.append("EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))"); params += (kingdom, kingdom)
     if source:
         clauses.append("(LOWER(source_db) = LOWER(%s) OR all_sources LIKE %s)"); params += (source, f"%{source}%")
     if region and region != "unresolved":
@@ -1779,9 +1939,9 @@ def export_results():
         clauses.append("(region IS NULL OR region='' OR region='global')")
     license_filter = request.args.get("license", "all")
     if license_filter == "commercial":
-        clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
+        clauses.append("tier_rank <= 1")
     elif license_filter == "academic":
-        clauses.append("license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')")
+        clauses.append("tier_rank <= 4")
     if named:
         clauses.append("name IS NOT NULL AND name != ''")
     where = "WHERE "+" AND ".join(clauses) if clauses else ""
@@ -1913,12 +2073,44 @@ def similarity():
         deduped_results.append(r)
     results = deduped_results
     metric = request.args.get("metric", "morgan")
+    # --- three-widget data (map + linear tree + circular tree), scoped to similarity results ---
+    sim_comp_ids = [r["comp_id"] for r in results if r.get("comp_id")]
+    sim_thumb = None
+    sim_linear_tree = []
+    sim_region_counts = []
+    sim_region_css = ""
+    sim_region_titles = {}
+    if sim_comp_ids:
+        try:
+            with get_db() as _sc:
+                with _sc.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as _scur:
+                    _scur.execute("""WITH result_set AS (SELECT unnest(%s::text[]) AS comp_id)
+                        SELECT rt.kingdom AS kingdom, COUNT(DISTINCT rs.comp_id) AS cnt
+                        FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
+                        WHERE rt.kingdom IS NOT NULL AND rt.kingdom != ''
+                        GROUP BY 1 ORDER BY cnt DESC""", (sim_comp_ids,))
+                    _sk = _scur.fetchall()
+                    _scur.execute("""WITH result_set AS (SELECT unnest(%s::text[]) AS comp_id)
+                        SELECT c.region AS region, COUNT(*) AS count
+                        FROM result_set rs JOIN compounds c ON c.comp_id = rs.comp_id
+                        WHERE c.region IS NOT NULL AND c.region != ''
+                        GROUP BY 1 ORDER BY count DESC""", (sim_comp_ids,))
+                    sim_region_counts = _scur.fetchall()
+            sim_thumb = kingdom_thumbnail_svg(_sk, total=len(sim_comp_ids), size=150, title="Result-set kingdoms")
+            sim_linear_tree = compute_linear_tree(where_sql="c.comp_id = ANY(%s)", where_params=[sim_comp_ids])
+            sim_region_css, sim_region_titles = build_region_color_css(sim_region_counts)
+        except Exception:
+            sim_thumb = None
     return render_template("similarity.html", query_smiles=query_smiles, query_input=query_input,
                            query_comp_id=query_comp_id,
                            results=results, metric=metric,
                            region_filter=region_filter, kingdom_filter=kingdom_filter, class_filter=class_filter,
                            top_n=top_n, threshold=threshold, error=error,
-                           engine_loaded=sim_engine.loaded)
+                           engine_loaded=sim_engine.loaded,
+                           thumb=sim_thumb, linear_tree=sim_linear_tree,
+                           region_css=sim_region_css, region_counts_filtered=sim_region_counts,
+                           region_titles=sim_region_titles,
+                           sim_comp_ids_str=",".join(sim_comp_ids))
 
 @app.route("/api/similarity")
 def api_similarity():
@@ -2150,7 +2342,7 @@ def advanced_search():
         field_map = {
             "name": "LOWER(name) LIKE %s",
             "organism": "source_organism ILIKE %s",
-            "kingdom": "LOWER(kingdom) = LOWER(%s)",
+            "kingdom": "EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))",
             "region": "LOWER(region) = LOWER(%s)",
             "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
@@ -2164,7 +2356,10 @@ def advanced_search():
             elif field == "class":
                 clauses.append(sql)
                 params.extend([f"%{value}%", f"%{value}%"])
-            elif field in ("kingdom", "region", "source"):
+            elif field == "kingdom":
+                clauses.append(sql)
+                params.extend([value, value])
+            elif field in ("region", "source"):
                 clauses.append(sql)
                 params.append(value)
             else:
@@ -2173,9 +2368,9 @@ def advanced_search():
     # License filter
     license_filter = request.args.get("license", "all")
     if license_filter == "commercial":
-        clauses.append("license_tier IN ('CC BY 4.0', 'CC0')")
+        clauses.append("tier_rank <= 1")
     elif license_filter == "academic":
-        clauses.append("license_tier IN ('CC BY 4.0', 'CC0', 'CC BY-NC 4.0')")
+        clauses.append("tier_rank <= 4")
     # Property range filters
     for prop in ["mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds"]:
         lo = request.args.get(f"{prop}_min", "")
@@ -2244,6 +2439,9 @@ def api_filter_options():
             orders = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT taxclass FROM resolved_taxonomy WHERE taxclass IS NOT NULL AND taxclass != '' ORDER BY taxclass")
             tax_classes = [r[0] for r in cur.fetchall()]
+            # APG clades now live in taxclass (APG fix used overwrite-in-place),
+            # so 'clade' mirrors tax_class rather than a separate taxclass column.
+            clades = tax_classes
             cur.execute("SELECT DISTINCT phylum FROM resolved_taxonomy WHERE phylum IS NOT NULL AND phylum != '' ORDER BY phylum")
             phyla = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT np_superclass FROM compounds WHERE np_superclass IS NOT NULL AND np_superclass != '' ORDER BY np_superclass")
@@ -2259,7 +2457,7 @@ def api_filter_options():
               "classyfire_class": cf_classes,
               "pathway": np_pathways,
               "genus": genera, "family": families,
-              "order": orders, "tax_class": tax_classes, "phylum": phyla}
+              "order": orders, "tax_class": tax_classes, "clade": clades, "phylum": phyla}
     _filter_options_cache.update(result)
     return jsonify(result)
 
