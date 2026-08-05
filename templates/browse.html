@@ -100,7 +100,7 @@
         <td>{{ r.region|region_label }}</td>
         <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
         <td>{{ "%.2f"|format(r.logp) if r.logp else '&mdash;'|safe }}</td>
-        <td><span class="license-badge license-{{ 'open' if r.license_tier == 'CC BY 4.0' or r.license_tier == 'CC0' else 'nc' }}">{{ r.license_tier or 'CC BY 4.0' }}</span></td>
+        <td><span class="license-badge license-{{ 'open' if r.license_tier in ('CC0','CC BY 4.0') else ('unknown' if r.license_tier == 'Unspecified' else 'nc') }}">{{ r.license_tier or 'CC BY 4.0' }}</span></td>
     </tr>
     {% endfor %}
     </tbody>

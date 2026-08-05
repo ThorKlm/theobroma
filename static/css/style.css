@@ -4,7 +4,7 @@
     --border: #d4cfc7;
     --kingdom-plant: #2d6a4f; --kingdom-fungi: #9b5de5; --kingdom-bacteria: #0077b6;
     --kingdom-unresolved: #aaaaaa; --kingdom-food: #d4a373; --kingdom-animal: #a0522d;
-    --kingdom-multi: #6c757d; --kingdom-unknown: #999;
+    --kingdom-multi: #6c757d; --kingdom-unknown: #999; --kingdom-chromista: #b8860b; --kingdom-protozoa: #7a6f9b;
     --radius: 6px;
     --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
     --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
@@ -75,12 +75,15 @@ a.stat-item:hover { transform: translateY(-2px); text-decoration: none; }
 .badge-food { background: var(--kingdom-food); }
 .badge-animal { background: var(--kingdom-animal); }
 .badge-multi { background: var(--kingdom-multi); }
+.badge-chromista { background: var(--kingdom-chromista); }
+.badge-protozoa { background: var(--kingdom-protozoa); }
 .badge-unknown, .badge-unresolved { background: var(--kingdom-unknown); }
 
 /* License badges */
 .license-badge { display: inline-block; font-size: 0.68rem; font-weight: 600; padding: 0.12rem 0.4rem; border-radius: 3px; font-family: 'IBM Plex Mono', monospace; }
 .license-open { background: #d8f3dc; color: #1b4332; }
 .license-nc { background: #ffe8cc; color: #7c4700; }
+.license-unknown { background: #ececec; color: #555; }
 
 /* Source chips */
 .source-chip { display: inline-block; font-size: 0.75rem; padding: 0.15rem 0.5rem; margin: 0.1rem 0.2rem; border-radius: 3px; background: var(--bg-alt); border: 1px solid var(--border); color: var(--text-muted); }

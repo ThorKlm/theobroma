@@ -103,7 +103,7 @@
     if (qsLines.length === 0) qsLines = ['(no filters)'];
     qsBox.textContent = qsLines.join(' . ');
     qsList.innerHTML = qsLines.map(function(l){ return l; }).join('<br>');
-    fetch('/api/taxonomy_tree' + window.location.search).then(function(r){return r.json();}).then(function(d){
+    fetch('/api/taxonomy_tree' + window.location.search + ((window.__EXTRA_TREE_PARAMS__) ? ((window.location.search ? '&' : '?') + window.__EXTRA_TREE_PARAMS__) : '')).then(function(r){return r.json();}).then(function(d){
       data = d;
       loaded = true;
       loading.style.display = 'none';
@@ -579,49 +579,69 @@
           newFilters[ancType] = anc.data.name;
           newOrder.push(ancType);
         }
-        // Merge existing URL filters: KEEP only those at coarser ranks than the
-        // clicked rank (or non-taxonomic). DROP existing filters at the clicked
-        // rank or any finer rank, since clicking on a coarser ring is a zoom-out.
-        existingOrder.forEach(function(t){
-          var pos = rankOrder[t];
-          // Non-taxonomic filter (not in rankOrder): always keep.
-          if (pos === undefined) {
-            if (!(t in newFilters)) { newFilters[t] = existing[t]; newOrder.push(t); }
-            return;
-          }
-          // Strictly coarser taxonomic filter than the click: keep if no collision.
-          if (pos < clickedRankPos) {
-            if (!(t in newFilters)) { newFilters[t] = existing[t]; newOrder.push(t); }
-          }
-          // At-or-finer rank: drop (already encoded by the lineage trail or being zoomed out).
+        // INTERSECTION via preserve-and-edit: start from the FULL current
+        // params (so prop_type, property ranges, license, named, and the primary
+        // filter of ANY shape survive) and only touch the taxonomic dimensions.
+        // newFilters/newOrder above hold the clicked taxon + its coarser
+        // ancestors (taxonomic ranks only); we add those as extras and drop any
+        // pre-existing taxonomic extra at or finer than the clicked rank.
+        var out = new URLSearchParams(window.location.search);
+        out.delete('page');
+        // Collect the taxonomic filters to apply (clicked + coarser ancestors),
+        // ignoring any non-taxonomic entries that leaked into newFilters.
+        var taxToAdd = [];
+        newOrder.forEach(function(t){
+          if (rankOrder[t] !== undefined) taxToAdd.push([t, newFilters[t]]);
         });
-        if (newOrder.length === 0) return;
-        var first = newOrder[0];
-        var url = '/search?type=' + first + '&q=' + encodeURIComponent(newFilters[first]);
-        var extraIdx = 1;
-        for (var i = 1; i < newOrder.length; i++) {
-          var t = newOrder[i];
-          url += '&extra_type_' + extraIdx + '=' + t +
-                 '&extra_q_' + extraIdx + '=' + encodeURIComponent(newFilters[t]);
-          extraIdx++;
-          if (extraIdx > 5) break;
+        // Remove existing extra_* slots that are taxonomic AND at-or-finer than
+        // the clicked rank (zoom-out semantics); keep coarser taxa and all
+        // non-taxonomic extras. Re-pack survivors, then append taxToAdd.
+        var keptExtras = [];
+        for (var i = 1; i <= 10; i++) {
+          var t = out.get('extra_type_' + i);
+          var v = out.get('extra_q_' + i);
+          if (t && v) {
+            var pos = rankOrder[t];
+            var isTaxAtOrFiner = (pos !== undefined && pos >= clickedRankPos);
+            var isDup = taxToAdd.some(function(p){ return p[0] === t; });
+            if (!isTaxAtOrFiner && !isDup) keptExtras.push([t, v]);
+          }
+          out.delete('extra_type_' + i);
+          out.delete('extra_q_' + i);
         }
-        ['license', 'named', 'exact'].forEach(function(k){
-          var v = curParams.get(k);
-          if (v && v !== 'all') url += '&' + k + '=' + encodeURIComponent(v);
+        // If the PRIMARY (type/q) is a taxonomic rank at-or-finer than the click,
+        // it is being zoomed out: demote it (it will be superseded by taxToAdd).
+        var primT = out.get('type');
+        var primPos = (primT ? rankOrder[rankToType(primT)] : undefined);
+        var primIsTaxAtOrFiner = (primPos !== undefined && primPos >= clickedRankPos);
+        var extras = keptExtras.slice();
+        taxToAdd.forEach(function(p){
+          // Skip a tax filter that duplicates the (kept) primary dimension.
+          if (!primIsTaxAtOrFiner && rankToType(primT || '') === p[0] && out.get('q') === p[1]) return;
+          extras.push(p);
         });
-        // /browse-style URL params (region, source, kingdom) get folded into the
-        // /search query as additional extras so the filter survives the click.
-        ['kingdom', 'region', 'source'].forEach(function(k){
-          var v = curParams.get(k);
-          if (v && !(k in newFilters)) {
-            if (extraIdx > 5) return;
-            url += '&extra_type_' + extraIdx + '=' + k +
-                   '&extra_q_' + extraIdx + '=' + encodeURIComponent(v);
-            extraIdx++;
+        if (primIsTaxAtOrFiner) {
+          // Promote the coarsest taxToAdd entry to primary, rest to extras.
+          out.delete('type'); out.delete('q'); out.delete('prop_type');
+          if (extras.length) {
+            var head = extras.shift();
+            out.set('type', head[0]); out.set('q', head[1]);
           }
+        }
+        // Write extras back into slots 1..10.
+        var idx = 1;
+        extras.forEach(function(p){
+          if (idx > 10) return;
+          out.set('extra_type_' + idx, p[0]);
+          out.set('extra_q_' + idx, p[1]);
+          idx++;
         });
-        window.location.href = url;
+        if (!out.get('type') || !out.get('q')) {
+          // Nothing to search (shouldn't happen): fall back to the clicked taxon.
+          if (taxToAdd.length) { out.set('type', taxToAdd[0][0]); out.set('q', taxToAdd[0][1]); }
+          else return;
+        }
+        window.location.href = '/search?' + out.toString();
       })
       .on('mousemove', function(event, d){
         var trail = d.ancestors().map(function(n){return n.data.name;}).reverse().join(' \u203a ');
