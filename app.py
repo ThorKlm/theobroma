@@ -2031,7 +2031,7 @@ def export_results():
 
 @app.route("/similarity")
 def similarity():
-    query_input = request.args.get("smiles", "").strip()
+    query_input = (request.args.get("smiles") or request.args.get("q") or "").strip()
     query_smiles = query_input
     query_comp_id = None  # Set when input resolves to a corpus compound; enables click-through on Query structure card.
     # Resolve name or comp_id to SMILES, and capture the matching comp_id.
@@ -2185,11 +2185,11 @@ def similarity():
 
 @app.route("/api/similarity")
 def api_similarity():
-    raw = request.args.get("smiles", "").strip()
+    raw = (request.args.get("smiles") or request.args.get("q") or "").strip()
     top_n = min(200, max(1, int(request.args.get("top_n", 50))))
     threshold = max(0.0, min(1.0, float(request.args.get("threshold", "0.3"))))
     if not raw:
-        return jsonify({"error": "smiles parameter required"}), 400
+        return jsonify({"error": "smiles or q parameter required"}), 400
     if not sim_engine.loaded:
         return jsonify({"error": "similarity search not available"}), 503
     smiles = raw

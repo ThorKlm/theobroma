@@ -55,7 +55,7 @@
 
   function loadAndRender(){
     document.getElementById('cladogram-loading').style.display = '';
-    fetch('/api/taxonomy_tree' + window.location.search)
+    fetch('/api/taxonomy_tree' + window.location.search + ((window.__EXTRA_TREE_PARAMS__) ? ((window.location.search ? '&' : '?') + window.__EXTRA_TREE_PARAMS__) : ''))
       .then(function(r){return r.json();})
       .then(function(d){
         data = d;
@@ -518,10 +518,22 @@
         var rank = DEPTH_TO_TYPE[d.depth];
         if (!rank) return;
         var params = new URLSearchParams(window.location.search);
-        // Replace any current primary type/q (it was the previous search context)
-        // with the clicked-clade as a new primary filter. Existing extras carry over.
-        params.set('type', rank);
-        params.set('q', nm);
+        // AND-intersection: keep the existing primary filter (chemical class,
+        // property, etc.) and add the clicked clade as the next free extra
+        // filter, so results match the original search AND this taxon. Only when
+        // there is no primary filter does the clicked clade become primary.
+        // prop_type / property-range / region / license params carry over untouched.
+        if (params.get('type') && params.get('q')) {
+          var idx = 1;
+          while (params.get('extra_type_' + idx)) idx++;
+          if (idx <= 10) {
+            params.set('extra_type_' + idx, rank);
+            params.set('extra_q_' + idx, nm);
+          }
+        } else {
+          params.set('type', rank);
+          params.set('q', nm);
+        }
         params.delete('page');
         window.location.href = '/search?' + params.toString();
       });
