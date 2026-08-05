@@ -1887,8 +1887,9 @@ def api_compound(comp_id):
             ]
             c["license_provenance"] = {
                 "resolved_tier": c.get("license_tier"),
-                "resolution_rule": "most-restrictive-wins",
-                "precedence_order": ["copyleft", "Unspecified", "CC BY-NC 4.0", "CC0", "CC BY 4.0"],
+                "resolution_rule": "most-permissive-wins (structure-as-fact)",
+                "resolution_note": "A structure is a fact obtainable from whichever source is least restrictive, so the resolved tier is the most permissive license under which the structure is available across its sources. Unspecified is treated as unknown (no signal): it never overrides a known license, and a compound is Unspecified only if all of its sources are.",
+                "precedence_order": ["CC0", "CC BY 4.0", "CC BY-NC 4.0", "CC BY-NC-SA 4.0", "CC BY-NC-ND 4.0", "Unspecified"],
                 "attestations": attestations,
             }
     return jsonify(c)
@@ -1921,8 +1922,9 @@ def api_license_provenance(comp_id):
     return jsonify({
         "comp_id": comp_id,
         "resolved_tier": c["license_tier"],
-        "resolution_rule": "most-restrictive-wins",
-        "precedence_order": ["copyleft", "Unspecified", "CC BY-NC 4.0", "CC0", "CC BY 4.0"],
+        "resolution_rule": "most-permissive-wins (structure-as-fact)",
+        "resolution_note": "A structure is a fact obtainable from whichever source is least restrictive, so the resolved tier is the most permissive license under which the structure is available across its sources. Unspecified is treated as unknown (no signal): it never overrides a known license, and a compound is Unspecified only if all of its sources are.",
+        "precedence_order": ["CC0", "CC BY 4.0", "CC BY-NC 4.0", "CC BY-NC-SA 4.0", "CC BY-NC-ND 4.0", "Unspecified"],
         "attestations": attestations,
     })
 
