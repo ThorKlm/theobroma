@@ -831,8 +831,12 @@ def build_region_color_css(region_counts, mode="dark"):
         count = entry.get("count") or entry.get("cnt") or entry.get("n") or 0
         iso2_list = _REGION_TO_ISO2.get(region, [])
         for iso2 in iso2_list:
-            counts_by_iso2[iso2] = counts_by_iso2.get(iso2, 0) + count
-            region_by_iso2[iso2] = region
+            # Dominant-region colouring: a country shared by >1 macro-region
+            # (e.g. Kazakhstan in both Russia/CIS and Central Asia) takes its
+            # strongest region's count, not the sum, to avoid colour inflation.
+            if count > counts_by_iso2.get(iso2, 0):
+                counts_by_iso2[iso2] = count
+                region_by_iso2[iso2] = region
     if not counts_by_iso2:
         return "", {}
     max_count = max(counts_by_iso2.values())
