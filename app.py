@@ -1815,18 +1815,70 @@ def api_search():
             pm = (q, q)
         else:
             pm = (q if exact else f"%{q.lower()}%") if st == "organism" else (q if st in ("region","source") else q)
+        # Extra AND-filters (extra_type_N / extra_q_N): mirror the /search page so
+        # the API honours multi-filter intersection instead of silently ignoring
+        # it. Conditions reference compounds.comp_id (the API queries FROM
+        # compounds directly). Values are always bound parameters.
+        extra_cl = []
+        extra_pm = []
+        emap = {
+            "name": ("LOWER(name) = LOWER(%s)" if exact else "LOWER(name) LIKE %s"),
+            "organism": ("LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s"),
+            "kingdom": "EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))",
+            "region": "LOWER(region) = LOWER(%s)",
+            "source": "LOWER(source_db) = LOWER(%s)",
+            "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
+            "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
+            "classyfire_class": "classyfire_superclass ILIKE %s",
+            "pathway": "np_pathway ILIKE %s",
+            "genus":  "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.genus) = LOWER(%s))",
+            "family": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.family) = LOWER(%s))",
+            "order":  "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxorder) = LOWER(%s))",
+            "tax_class": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))",
+            "clade": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))",
+            "phylum": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.phylum) = LOWER(%s))",
+        }
+        for _i in range(1, 11):
+            _et = request.args.get(f"extra_type_{_i}", "")
+            _eq = request.args.get(f"extra_q_{_i}", "").strip()
+            if not _et or not _eq:
+                continue
+            if _et in ("genus", "family", "order", "tax_class", "clade", "phylum"):
+                _res = resolve_taxon(_et, _eq)
+                if _res is not None and _res != _eq:
+                    _eq = _res
+                elif _res is None:
+                    _eq = "__no_such_taxon__"
+            _sql = emap.get(_et)
+            if not _sql:
+                continue
+            extra_cl.append(_sql)
+            if _et in ("class", "npclassifier_class"):
+                extra_pm.extend([f"%{_eq}%", f"%{_eq}%"])
+            elif _et in ("classyfire_class", "pathway"):
+                extra_pm.append(f"%{_eq}%")
+            elif _et == "kingdom":
+                extra_pm.extend([_eq, _eq])
+            elif exact and _et in ("name", "organism"):
+                extra_pm.append(_eq)
+            elif _et in ("region", "source", "genus", "family", "order", "tax_class", "clade", "phylum"):
+                extra_pm.append(_eq)
+            else:
+                extra_pm.append(f"%{_eq}%")
+        extra_sql = ("".join(" AND (" + c + ")" for c in extra_cl))
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 params = pm if isinstance(pm, tuple) else (pm,)
+                params = params + tuple(extra_pm)
                 license_filter = request.args.get("license", "all")
                 lic_clause = ""
                 if license_filter == "commercial":
                     lic_clause = " AND tier_rank <= 1"
                 elif license_filter == "academic":
                     lic_clause = " AND tier_rank <= 4"
-                cur.execute(f"SELECT COUNT(*) FROM compounds WHERE {cl}{lic_clause}", params)
+                cur.execute(f"SELECT COUNT(*) FROM compounds WHERE ({cl}){extra_sql}{lic_clause}", params)
                 total = cur.fetchone()["count"]
-                cur.execute(f"SELECT {cols} FROM compounds WHERE {cl}{lic_clause} LIMIT %s OFFSET %s", params + (limit, offset))
+                cur.execute(f"SELECT {cols} FROM compounds WHERE ({cl}){extra_sql}{lic_clause} LIMIT %s OFFSET %s", params + (limit, offset))
                 results = cur.fetchall()
     if fmt == "csv":
         si = io.StringIO()
