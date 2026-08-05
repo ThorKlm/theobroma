@@ -850,11 +850,11 @@ def build_region_color_css(region_counts, mode="dark"):
         zero_color = "#b0b8c0"
     def color(c):
         if c <= 0: return zero_color
-        t = math.sqrt(c / max_count)  # sqrt for better low-count contrast
+        t = c / max_count  # linear share-of-max
         return f"#{int(start_color[0]+(end_color[0]-start_color[0])*t):02x}{int(start_color[1]+(end_color[1]-start_color[1])*t):02x}{int(start_color[2]+(end_color[2]-start_color[2])*t):02x}"
     def hover(c):
         if c <= 0: return "#bfbfbf" if mode == "light" else "#c8d0d8"
-        t = math.sqrt(c / max_count)
+        t = c / max_count
         r0 = start_color[0]+(end_color[0]-start_color[0])*t
         g0 = start_color[1]+(end_color[1]-start_color[1])*t
         b0 = start_color[2]+(end_color[2]-start_color[2])*t
