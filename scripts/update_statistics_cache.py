@@ -39,7 +39,13 @@ cache['sources'] = [
 
 cache['regions'] = [
     {'region': r[0], 'cnt': int(r[1])}
-    for r in run_sql(f"SELECT {REGION_SQL} AS region, COUNT(*) FROM compounds GROUP BY 1 ORDER BY 2 DESC LIMIT 30")
+    for r in run_sql("""SELECT region, cnt FROM (
+              SELECT macro_region AS region, COUNT(DISTINCT comp_id) AS cnt FROM compound_region_map GROUP BY 1
+              UNION ALL
+              SELECT 'global / unresolved' AS region,
+                     (SELECT COUNT(*) FROM compounds c WHERE NOT EXISTS
+                        (SELECT 1 FROM compound_region_map m WHERE m.comp_id=c.comp_id)) AS cnt
+            ) t ORDER BY cnt DESC LIMIT 30""")
 ]
 
 prop_rows = run_sql("SELECT AVG(mw), AVG(logp), AVG(tpsa), AVG(hba), AVG(hbd) FROM compounds WHERE mw IS NOT NULL")
