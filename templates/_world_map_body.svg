@@ -443,6 +443,14 @@
         }
         var ov = document.getElementById('page-loading-overlay'); if (ov) ov.style.display = 'flex';
         window.location.href = '/search?' + params.toString();
+      } else if (path === '/similarity') {
+        // Similarity: stay on the page and add region as a post-filter. The
+        // similarity route re-runs the same search (smiles/metric/top_n/threshold
+        // are already in the URL) and filters the hit set to this region, so the
+        // similarity context is preserved instead of dumping all-of-region.
+        params.set('region', region);
+        var ov2 = document.getElementById('page-loading-overlay'); if (ov2) ov2.style.display = 'flex';
+        window.location.href = '/similarity?' + params.toString();
       } else {
         // /browse and other pages: use plain region= param
         params.set('region', region);
