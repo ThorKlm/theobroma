@@ -58,7 +58,7 @@ def _load_browse_options():
             cur.execute("SELECT source_db, COUNT(*) AS cnt FROM compounds "
                         "GROUP BY source_db ORDER BY source_db")
             _BROWSE_CACHE["all_sources_list"] = cur.fetchall()
-            cur.execute(f"SELECT DISTINCT {REGION_SQL} AS reg FROM compounds ORDER BY reg")
+            cur.execute("SELECT DISTINCT macro_region AS reg FROM compound_region_map UNION SELECT 'global / unresolved' ORDER BY reg")
             _BROWSE_CACHE["all_regions"] = [r["reg"] for r in cur.fetchall()]
 
 SORTABLE = {"comp_id","name","kingdom","source_db","region","source_organism",
@@ -361,7 +361,13 @@ def index():
             kingdoms = cur.fetchall()
             cur.execute("SELECT COUNT(DISTINCT source_db) AS cnt FROM compounds")
             n_sources = cur.fetchone()["cnt"]
-            cur.execute(f"SELECT {REGION_SQL} AS reg, COUNT(*) AS cnt FROM compounds GROUP BY 1 ORDER BY cnt DESC")
+            cur.execute("""SELECT reg, cnt FROM (
+                   SELECT macro_region AS reg, COUNT(DISTINCT comp_id) AS cnt FROM compound_region_map GROUP BY 1
+                   UNION ALL
+                   SELECT 'global / unresolved' AS reg,
+                          (SELECT COUNT(*) FROM compounds c WHERE NOT EXISTS
+                             (SELECT 1 FROM compound_region_map m WHERE m.comp_id=c.comp_id)) AS cnt
+                 ) t ORDER BY cnt DESC""")
             regions = cur.fetchall()
             n_regions = len([r for r in regions if r["reg"]!="unresolved"])
     home_thumb = kingdom_thumbnail_svg(kingdoms, total=total, size=180, title="Corpus kingdoms")
@@ -545,7 +551,7 @@ def search():
         "inchikey":(f"SELECT * FROM compounds WHERE inchikey=%s {oc}", (q,)),
         "source":  (f"SELECT * FROM compounds WHERE LOWER(source_db) = LOWER(%s) {oc}", (q,)),
         "organism":((f"SELECT * FROM compounds WHERE LOWER(source_organism) = LOWER(%s) {oc if request.args.get('sort') else ''}", (q,)) if exact else (f"SELECT * FROM compounds WHERE source_organism ILIKE %s {oc}", (f"%{q}%",))),
-        "region":  (f"SELECT * FROM compounds WHERE LOWER(region) = LOWER(%s) {oc}", (q,)),
+        "region":  (f"SELECT * FROM compounds WHERE EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = compounds.comp_id AND LOWER(crm.macro_region) = LOWER(%s)) {oc}", (q,)),
         "kingdom": (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE (LOWER(rt.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt.secondary_kingdoms)) {oc}", (q, q)),
         "genus":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.genus) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.genus ILIKE %s {oc}", (f"%{q}%",))),
         "family":  ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.family) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.family ILIKE %s {oc}", (f"%{q}%",))),
@@ -574,7 +580,7 @@ def search():
             "name": "LOWER(name) = LOWER(%s)" if exact else "LOWER(name) LIKE %s",
             "organism": "LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s",
             "kingdom": "EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = base.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))",
-            "region": "LOWER(region) = LOWER(%s)",
+            "region": "EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = base.comp_id AND LOWER(crm.macro_region) = LOWER(%s))",
             "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
@@ -764,7 +770,7 @@ def search():
     region_titles = {}
     if total > 0:
         try:
-            region_sql = f"SELECT region, COUNT(*) AS count FROM ({query}) AS sub WHERE region IS NOT NULL AND region != '' GROUP BY region ORDER BY count DESC"
+            region_sql = f"SELECT crm.macro_region AS region, COUNT(DISTINCT sub.comp_id) AS count FROM ({query}) AS sub JOIN compound_region_map crm ON crm.comp_id = sub.comp_id GROUP BY crm.macro_region ORDER BY count DESC"
             with get_db() as conn_rs:
                 with conn_rs.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur_rs:
                     cur_rs.execute(region_sql, params)
@@ -938,7 +944,7 @@ def browse():
         if region in ("unresolved", "global / unresolved"):
             clauses.append("(region IS NULL OR region='' OR region='global')")
         else:
-            clauses.append("LOWER(region) = LOWER(%s)"); params += (region,)
+            clauses.append("EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = compounds.comp_id AND LOWER(crm.macro_region) = LOWER(%s))"); params += (region,)
     license_filter = request.args.get("license", "all")
     if license_filter == "commercial":
         clauses.append("tier_rank <= 1")
@@ -985,7 +991,7 @@ def browse():
         if any_filter:
             with get_db() as conn_rm:
                 with conn_rm.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur_rm:
-                    region_q = f"SELECT region, COUNT(*) AS count FROM compounds {where} AND region IS NOT NULL AND region != '' GROUP BY region ORDER BY count DESC" if where else "SELECT region, COUNT(*) AS count FROM compounds WHERE region IS NOT NULL AND region != '' GROUP BY region ORDER BY count DESC"
+                    region_q = f"SELECT crm.macro_region AS region, COUNT(DISTINCT compounds.comp_id) AS count FROM compounds JOIN compound_region_map crm ON crm.comp_id = compounds.comp_id {where} GROUP BY crm.macro_region ORDER BY count DESC" if where else "SELECT crm.macro_region AS region, COUNT(DISTINCT compounds.comp_id) AS count FROM compounds JOIN compound_region_map crm ON crm.comp_id = compounds.comp_id GROUP BY crm.macro_region ORDER BY count DESC"
                     cur_rm.execute(region_q, params)
                     region_counts_filtered = cur_rm.fetchall()
         else:
@@ -1183,7 +1189,13 @@ def statistics():
             kingdoms = cur.fetchall()
             cur.execute("SELECT source_db, COUNT(*) AS cnt FROM compounds GROUP BY source_db ORDER BY cnt DESC")
             sources = cur.fetchall()
-            cur.execute(f"SELECT {REGION_SQL} AS region, COUNT(*) AS cnt FROM compounds GROUP BY 1 ORDER BY cnt DESC LIMIT 30")
+            cur.execute("""SELECT region, cnt FROM (
+                   SELECT macro_region AS region, COUNT(DISTINCT comp_id) AS cnt FROM compound_region_map GROUP BY 1
+                   UNION ALL
+                   SELECT 'global / unresolved' AS region,
+                          (SELECT COUNT(*) FROM compounds c WHERE NOT EXISTS
+                             (SELECT 1 FROM compound_region_map m WHERE m.comp_id=c.comp_id)) AS cnt
+                 ) t ORDER BY cnt DESC LIMIT 30""")
             regions = cur.fetchall()
             cur.execute("SELECT AVG(mw) AS avg_mw, AVG(logp) AS avg_logp, AVG(tpsa) AS avg_tpsa, AVG(hba) AS avg_hba, AVG(hbd) AS avg_hbd FROM compounds WHERE mw IS NOT NULL")
             prop_stats = cur.fetchone()
@@ -1267,7 +1279,7 @@ def api_cladogram():
         where_clauses.append("(LOWER(c.source_db)=LOWER(%s) OR c.all_sources ILIKE %s)")
         where_params.extend([source, "%"+source+"%"])
     if region:
-        where_clauses.append("LOWER(c.region)=LOWER(%s)")
+        where_clauses.append("EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = c.comp_id AND LOWER(crm.macro_region) = LOWER(%s))")
         where_params.append(region)
     if license_f == "commercial":
         where_clauses.append("c.tier_rank <= 1")
@@ -1319,7 +1331,7 @@ def api_cladogram():
                          ("c.source_organism ILIKE %s", ["%"+local_q+"%"])),
             "kingdom": ("(LOWER(rt.kingdom)=LOWER(%s) OR LOWER(%s)=ANY(rt.secondary_kingdoms))", [local_q, local_q]),
             "source": ("(LOWER(c.source_db)=LOWER(%s) OR c.all_sources ILIKE %s)", [local_q, "%"+local_q+"%"]),
-            "region": ("LOWER(c.region)=LOWER(%s)", [local_q]),
+            "region": ("EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = c.comp_id AND LOWER(crm.macro_region) = LOWER(%s))", [local_q]),
             "genus": (("LOWER(rt.genus)=LOWER(%s)", [local_q]) if exact else
                       ("rt.genus ILIKE %s", ["%"+local_q+"%"])),
             "family": (("LOWER(rt.family)=LOWER(%s)", [local_q]) if exact else
@@ -1453,7 +1465,7 @@ def api_taxonomy_tree():
             "organism": (("LOWER(c.source_organism) = LOWER(%s)", (eq,)) if exact else ("c.source_organism ILIKE %s", (f"%{eq}%",))),
             "kingdom": ("(LOWER(rt.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt.secondary_kingdoms))", (eq, eq)),
             "source": ("(LOWER(c.source_db) = LOWER(%s) OR c.all_sources LIKE %s)", (eq, f"%{eq}%")),
-            "region": ("LOWER(c.region) = LOWER(%s)", (eq,)),
+            "region": ("EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = c.comp_id AND LOWER(crm.macro_region) = LOWER(%s))", (eq,)),
             "genus": (("LOWER(rt.genus) = LOWER(%s)", (eq,)) if exact else ("rt.genus ILIKE %s", (f"%{eq}%",))),
             "family": (("LOWER(rt.family) = LOWER(%s)", (eq,)) if exact else ("rt.family ILIKE %s", (f"%{eq}%",))),
             "order": (("LOWER(rt.taxorder) = LOWER(%s)", (eq,)) if exact else ("rt.taxorder ILIKE %s", (f"%{eq}%",))),
@@ -1485,7 +1497,7 @@ def api_taxonomy_tree():
             "organism": (("LOWER(c.source_organism) = LOWER(%s)", (search_q,)) if exact else ("c.source_organism ILIKE %s", (f"%{search_q}%",))),
             "kingdom": ("(LOWER(rt.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt.secondary_kingdoms))", (search_q, search_q)),
             "source": ("(LOWER(c.source_db) = LOWER(%s) OR c.all_sources LIKE %s)", (search_q, f"%{search_q}%")),
-            "region": ("LOWER(c.region) = LOWER(%s)", (search_q,)),
+            "region": ("EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = c.comp_id AND LOWER(crm.macro_region) = LOWER(%s))", (search_q,)),
             "smiles": ("c.smiles = %s", (search_q,)),
             "inchikey": ("c.inchikey = %s", (search_q,)),
             "genus": (("LOWER(rt.genus) = LOWER(%s)", (search_q,)) if exact else ("rt.genus ILIKE %s", (f"%{search_q}%",))),
@@ -1522,7 +1534,7 @@ def api_taxonomy_tree():
         params.append(source)
         params.append(f"%{source}%")
     if region and "region" not in extras_have:
-        where.append("c.region = %s")
+        where.append("EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = c.comp_id AND LOWER(crm.macro_region) = LOWER(%s))")
         params.append(region)
     if named:
         where.append("c.name IS NOT NULL AND c.name != ''")
@@ -1797,7 +1809,7 @@ def api_search():
               "tax_class": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.taxclass ILIKE %s)"),
               "clade": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.taxclass ILIKE %s)"),
               "phylum": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.phylum) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.phylum ILIKE %s)"),
-              "region":"LOWER(region) = LOWER(%s)","source":"LOWER(source_db) = LOWER(%s)",
+              "region":"EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = compounds.comp_id AND LOWER(crm.macro_region) = LOWER(%s))","source":"LOWER(source_db) = LOWER(%s)",
               "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR np_superclass ILIKE %s OR np_pathway ILIKE %s",
               "npclassifier_class":"np_class ILIKE %s OR inferred_class ILIKE %s",
               "classyfire_class":"classyfire_superclass ILIKE %s",
@@ -1827,7 +1839,7 @@ def api_search():
             "name": ("LOWER(name) = LOWER(%s)" if exact else "LOWER(name) LIKE %s"),
             "organism": ("LOWER(source_organism) = LOWER(%s)" if exact else "source_organism ILIKE %s"),
             "kingdom": "EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))",
-            "region": "LOWER(region) = LOWER(%s)",
+            "region": "EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = compounds.comp_id AND LOWER(crm.macro_region) = LOWER(%s))",
             "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
@@ -2471,7 +2483,7 @@ def advanced_search():
             "name": "LOWER(name) LIKE %s",
             "organism": "source_organism ILIKE %s",
             "kingdom": "EXISTS(SELECT 1 FROM resolved_taxonomy rt2 WHERE rt2.comp_id = compounds.comp_id AND (LOWER(rt2.kingdom) = LOWER(%s) OR LOWER(%s) = ANY(rt2.secondary_kingdoms)))",
-            "region": "LOWER(region) = LOWER(%s)",
+            "region": "EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = compounds.comp_id AND LOWER(crm.macro_region) = LOWER(%s))",
             "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "pathway": "np_pathway ILIKE %s",
