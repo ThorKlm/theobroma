@@ -518,21 +518,34 @@
         var rank = DEPTH_TO_TYPE[d.depth];
         if (!rank) return;
         var params = new URLSearchParams(window.location.search);
-        // AND-intersection: keep the existing primary filter (chemical class,
-        // property, etc.) and add the clicked clade as the next free extra
-        // filter, so results match the original search AND this taxon. Only when
-        // there is no primary filter does the clicked clade become primary.
-        // prop_type / property-range / region / license params carry over untouched.
-        if (params.get('type') && params.get('q')) {
-          var idx = 1;
-          while (params.get('extra_type_' + idx)) idx++;
-          if (idx <= 10) {
-            params.set('extra_type_' + idx, rank);
-            params.set('extra_q_' + idx, nm);
+        // Ranks the search route treats as taxonomic (mirrors app.py). kingdom is
+        // added here so a kingdom click also intersects rather than replaces.
+        var TAX = {kingdom:1, phylum:1, tax_class:1, order:1, family:1, genus:1};
+        var primType = params.get('type');
+        var primIsTax = !!(primType && TAX[primType]);
+        if (rank === 'name') {
+          // Compound leaf: clean name lookup. Clear all extra/taxonomic context
+          // and prop_type so a deep filter stack can't over-constrain the single
+          // compound to 0 results.
+          for (var j = 1; j <= 10; j++) { params.delete('extra_type_' + j); params.delete('extra_q_' + j); }
+          params.delete('prop_type');
+          params.set('type', 'name'); params.set('q', nm);
+        } else if (primType && params.get('q') && !primIsTax) {
+          // INTERSECTION: keep the non-taxonomic primary (chemical class,
+          // property, name, etc.) and add the clicked taxon as an extra filter,
+          // replacing any existing extra of the SAME rank so repeated clicks
+          // update instead of stacking (which previously over-constrained to 0).
+          for (var i = 1; i <= 10; i++) {
+            if (params.get('extra_type_' + i) === rank) {
+              params.delete('extra_type_' + i); params.delete('extra_q_' + i);
+            }
           }
+          var idx = 1; while (params.get('extra_type_' + idx)) idx++;
+          if (idx <= 10) { params.set('extra_type_' + idx, rank); params.set('extra_q_' + idx, nm); }
         } else {
-          params.set('type', rank);
-          params.set('q', nm);
+          // Taxonomic primary or no primary: simple replace (predictable; avoids
+          // zoom-out complexity). Drop stale prop_type.
+          params.set('type', rank); params.set('q', nm); params.delete('prop_type');
         }
         params.delete('page');
         window.location.href = '/search?' + params.toString();
