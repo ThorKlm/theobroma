@@ -2,10 +2,10 @@
 {% from "_sort_header.html" import sort_header %}
 {% block title %}Search &mdash; THEOBROMA{% endblock %}
 {% block content %}
-<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;" class="hero-row">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;" class="hero-row">
     <h1 class="section-title" style="margin:0;">Search</h1>
     {% if region_counts_filtered %}
-    <div id="region-map" style="width:280px;height:140px;flex-shrink:1;margin-left:auto;overflow:hidden;">
+    <div id="region-map" style="width:280px;height:140px;flex-shrink:1;overflow:hidden;">
       {% include "_world_map_body.svg" %}
       <style>{{ region_css|safe }}</style>
       <script>
@@ -27,7 +27,7 @@
       </script>
     </div>
     {% endif %}
-    {% with right_gravitate=true %}{% include "_linear_tree_thumb.html" %}{% endwith %}
+    {% include "_linear_tree_thumb.html" %}
     {% if thumb and thumb.svg %}
     <a href="#" class="kingdom-thumb-wrap" style="display:flex;align-items:center;gap:0.75rem;font-size:0.78rem;line-height:1.3;text-decoration:none;color:inherit;">
       {{ thumb.svg|safe }}
@@ -177,7 +177,7 @@
         <td>{{ (r.name or '&mdash;')|normalize_name|safe }}</td>
         <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
         <td>{{ r.source_db or '&mdash;'|safe }}</td>
-        <td class="organism-cell" title="{{ r.source_organism }}">{{ r.source_organism or '&mdash;'|safe }}</td>
+        <td class="organism-cell" title="{{ r.source_organism }}">{{ r.source_organism_curated or r.source_organism or '&mdash;'|safe }}</td>
         <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
         <td><span class="license-badge license-{{ 'open' if r.license_tier == 'CC BY 4.0' or r.license_tier == 'CC0' else 'nc' }}">{{ r.license_tier or 'CC BY 4.0' }}</span></td>
     </tr>
