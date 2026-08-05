@@ -486,6 +486,7 @@ def search():
             landing_region_css = ""
             landing_region_titles = {}
         return render_template("search.html", results=[], query="", search_type=st,
+                               searched=False,
                                page=1, total=0, pages=0, sort=sort, order=order, per_page=per_page,
                                linear_tree=linear_tree,
                                thumb=landing_thumb,
@@ -789,6 +790,7 @@ def search():
     except Exception:
         pass
     return render_template("search.html", results=results, query=q, search_type=st,
+                           searched=bool(q or has_extra or has_range),
                            page=page, total=total, pages=pages, sort=sort, order=order, per_page=per_page,
                            thumb=thumb, linear_tree=linear_tree,
                            region_css=region_css, region_counts_filtered=region_counts_filtered, region_titles=region_titles)

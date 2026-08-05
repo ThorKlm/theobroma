@@ -54,7 +54,7 @@
                 <option value="{{ val }}" {{ 'selected' if search_type == val }}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <select name="prop_type" id="prop-type-0" class="prop-subselect" style="display:none;" onchange="onPropChange(this, 0)" data-current-type="">
+            <select name="prop_type" id="prop-type-0" class="prop-subselect" style="display:none;" disabled onchange="onPropChange(this, 0)" data-current-type="">
                 <optgroup label="Classification">
                 <option value="npclassifier_class">NPClassifier class</option>
                 <option value="classyfire_class">ClassyFire superclass</option>
@@ -149,12 +149,12 @@
             <button type="submit" style="margin-left:auto;">Search</button>
         </div>
     </form>
-    {% if not query %}
+    {% if not searched %}
     <p class="search-hint">Try: <a href="/search?q=curcumin&type=name">curcumin</a> &middot; <a href="/search?q=quercetin&type=name">quercetin</a> &middot; <a href="/search?q=Streptomyces&type=organism">Streptomyces</a> &middot; <a href="/search?q=Triterpenoids&type=property&prop_type=npclassifier_class">Triterpenoids (NPClassifier)</a> &middot; <a href="/search?q=OC(=O)c1ccccc1&type=smiles">OC(=O)c1ccccc1</a></p>
     {% endif %}
 </div>
-{% if query %}
-<p class="results-info">{{ "{:,}".format(total) }} result{{ 's' if total != 1 }} for <strong>{{ query }}</strong> in {{ search_type }}</p>
+{% if searched %}
+<p class="results-info">{{ "{:,}".format(total) }} result{{ 's' if total != 1 }}{% if query %} for <strong>{{ query }}</strong> in {{ search_type }}{% else %} matching your filters{% endif %}</p>
 {% endif %}
 {% if results %}
 <div class="table-scroll">
@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-{% elif query %}
+{% elif searched %}
 <p class="no-results">No results found.</p>
 {% endif %}
 
@@ -345,6 +345,7 @@ function onTypeChange(sel, idx) {
     if (t === 'property' || t === 'classification') {
         if (propSel) {
             propSel.style.display = '';
+            propSel.disabled = false;  // enable so prop_type serializes
             propSel.setAttribute('data-current-type', t);
             // Filter visible optgroups: classification shows only Classification; property shows Physicochemical + ADMET predictions.
             var groups = propSel.querySelectorAll('optgroup');
@@ -361,7 +362,7 @@ function onTypeChange(sel, idx) {
         return;
     }
 
-    if (propSel) propSel.style.display = 'none';
+    if (propSel) { propSel.style.display = 'none'; propSel.disabled = true; }  // hidden -> do not serialize
     if (textWrap) textWrap.style.display = '';
     if (rangeWrap) rangeWrap.style.display = 'none';
 
@@ -519,7 +520,7 @@ function addFilter() {
         '<option value="classification">Chemical classification</option>' +
         '<option value="property">Chemical property</option>' +
         '</select>' +
-        '<select name="extra_prop_' + filterCount + '" class="prop-subselect" style="display:none;" onchange="onPropChange(this,' + filterCount + ')">' +
+        '<select name="extra_prop_' + filterCount + '" class="prop-subselect" style="display:none;" disabled onchange="onPropChange(this,' + filterCount + ')">' +
         '<option value="npclassifier_class">NPClassifier class</option>' +
         '<option value="classyfire_class">ClassyFire superclass</option>' +
         '<option value="npclassifier_superclass">NPClassifier superclass</option>' +
