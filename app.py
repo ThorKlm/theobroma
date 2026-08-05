@@ -2171,10 +2171,21 @@ def similarity():
                         row = db_rows[cid]
                         row["tanimoto"] = scores[cid]
                         results.append(row)
-    # Geographic analog: filter by region
+    # Geographic analog: filter by region (multi-valued via compound_region_map).
     region_filter = request.args.get("region", "")
     if region_filter and results:
-        results = [r for r in results if r.get("region") == region_filter]
+        _rids = [r.get("comp_id") for r in results if r.get("comp_id")]
+        _in_region = set()
+        if _rids:
+            _ph = ",".join(["%s"]*len(_rids))
+            with get_db() as _conn:
+                with _conn.cursor() as _cur:
+                    _cur.execute(
+                        f"SELECT DISTINCT comp_id FROM compound_region_map "
+                        f"WHERE comp_id IN ({_ph}) AND LOWER(macro_region)=LOWER(%s)",
+                        tuple(_rids)+(region_filter,))
+                    _in_region = {row[0] for row in _cur.fetchall()}
+        results = [r for r in results if r.get("comp_id") in _in_region]
     # Apply license filter
     license_filter = request.args.get("license", "all")
     if license_filter == "commercial" and results:

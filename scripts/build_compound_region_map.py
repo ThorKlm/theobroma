@@ -24,7 +24,7 @@ REGION_TO_ISO3 = {
     "Oceania":        ["PNG","FJI","SLB","VUT","NCL","PYF","WSM","TON","KIR","MHL","FSM","PLW","NRU","TUV","COK","ASM","GUM","MNP"],
 }
 
-q = "SELECT region, COUNT(*) FROM compounds WHERE region IS NOT NULL AND region != '' GROUP BY region ORDER BY 2 DESC"
+q = "SELECT macro_region, COUNT(DISTINCT comp_id) FROM compound_region_map GROUP BY macro_region ORDER BY 2 DESC"
 r = subprocess.run(['psql','-d','theobroma','-U','theobroma','-h','localhost','-At','-F','\t','-c',q],
                    capture_output=True, text=True)
 
@@ -49,15 +49,20 @@ for region, cnt in region_counts.items():
         print(f"  WARN: no ISO3 mapping for region '{region}'")
         continue
     for iso3 in iso3_list:
-        country_counts[iso3] = country_counts.get(iso3, 0) + cnt
-        # Track region with the largest contribution for click routing
-        if iso3 not in country_region or region_counts.get(country_region[iso3], 0) < cnt:
+        # Dominant-region (max) not sum: a country shared by >1 macro-region
+        # (e.g. Central Asian states in both Russia/CIS and Central Asia) takes
+        # its strongest region's count, matching the live world-map colouring.
+        if cnt > country_counts.get(iso3, 0):
+            country_counts[iso3] = cnt
             country_region[iso3] = region
 
 out = {
     "country_counts": [{"iso3": k, "count": v, "region": country_region[k]} for k, v in sorted(country_counts.items(), key=lambda x: -x[1])],
     "region_counts": [{"region": k, "count": v} for k, v in sorted(region_counts.items(), key=lambda x: -x[1])],
-    "total_compounds_with_region": sum(region_counts.values()),
+    "total_compounds_with_region": int(subprocess.run(
+        ['psql','-d','theobroma','-U','theobroma','-h','localhost','-At','-c',
+         'SELECT COUNT(DISTINCT comp_id) FROM compound_region_map'],
+        capture_output=True, text=True).stdout.strip() or 0),
 }
 
 with open(OUT_DATA, "w") as f:
