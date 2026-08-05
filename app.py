@@ -68,6 +68,40 @@ ALLOWED_PER_PAGE = {25, 50, 100, 1000}
 def get_db():
     return psycopg2.connect(app.config["DB_URI"])
 
+def _resolve_comp_id_for_nafm(raw_query, smiles=None):
+    """Resolve a similarity query to a corpus comp_id for NaFM lookup.
+    Order: explicit THEO_ id -> exact name match -> InChIKey of the query SMILES.
+    Returns comp_id str or None."""
+    if not raw_query and not smiles:
+        return None
+    q = (raw_query or "").strip()
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                if q.upper().startswith("THEO_"):
+                    cur.execute("SELECT comp_id FROM compounds WHERE comp_id=%s LIMIT 1", (q,))
+                    r = cur.fetchone()
+                    if r: return r[0]
+                if q:
+                    cur.execute("SELECT comp_id FROM compounds WHERE LOWER(name)=%s LIMIT 1", (q.lower(),))
+                    r = cur.fetchone()
+                    if r: return r[0]
+                if smiles:
+                    try:
+                        from rdkit import Chem
+                        m = Chem.MolFromSmiles(smiles)
+                        if m is not None:
+                            ik = Chem.MolToInchiKey(m)
+                            if ik:
+                                cur.execute("SELECT comp_id FROM compounds WHERE inchikey=%s LIMIT 1", (ik,))
+                                r = cur.fetchone()
+                                if r: return r[0]
+                    except Exception:
+                        pass
+    except Exception:
+        return None
+    return None
+
 def resolve_taxon(rank, raw_query):
     """Normalize the query, find exact match in resolved_taxonomy.<col>, or fall back
     to the single closest distinct value by trigram similarity (>= 0.3).
@@ -2013,6 +2047,11 @@ def similarity():
                 hits = sim_engine.maccs_search(query_smiles, top_n=top_n, threshold=threshold)
             elif metric == "chemberta":
                 hits = sim_engine.chemberta_search(query_smiles, top_n=top_n)
+            elif metric == "nafm":
+                _cid = _resolve_comp_id_for_nafm(request.args.get("q","").strip(), query_smiles)
+                hits = sim_engine.nafm_search_by_comp_id(_cid, top_n=top_n) if _cid else []
+                if not hits and not _cid:
+                    error = "NaFM similarity needs a compound in the database (search by name or THEO_ id, or a SMILES that matches a corpus compound). For novel structures, use Morgan or ChemBERTa."
             else:
                 hits = sim_engine.tanimoto_search(query_smiles, top_n=top_n, threshold=threshold)
             if not hits:
@@ -2136,6 +2175,9 @@ def api_similarity():
         hits = sim_engine.chemberta_search(smiles, top_n=top_n)
     elif metric == "maccs":
         hits = sim_engine.maccs_search(smiles, top_n=top_n, threshold=threshold)
+    elif metric == "nafm":
+        _cid = _resolve_comp_id_for_nafm(request.args.get("q","").strip(), smiles)
+        hits = sim_engine.nafm_search_by_comp_id(_cid, top_n=top_n) if _cid else []
     else:
         hits = sim_engine.tanimoto_search(smiles, top_n=top_n, threshold=threshold)
     comp_ids = [h["comp_id"] for h in hits]

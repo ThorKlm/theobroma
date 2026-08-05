@@ -8,6 +8,7 @@ class SimilarityEngine:
         self.loaded = False
         self.faiss_loaded = False
         self.maccs_loaded = False
+        self.nafm_loaded = False
         self.vectors_dir = vectors_dir
 
     def load(self):
@@ -39,6 +40,61 @@ class SimilarityEngine:
                 print(f"[SimilarityEngine] FAISS loaded ({self.faiss_index.ntotal:,} vectors)")
             except Exception as e:
                 print(f"[SimilarityEngine] FAISS not available: {e}")
+        # NaFM: natural-products foundation-model embeddings (1024-d), precomputed.
+        # Cosine index built in memory at load (not persisted: disk-constrained host).
+        # Its own comp_id ordering (independent of comp_ids.npy). Similarity uses the
+        # precomputed vector of a corpus compound (no query-time model on the server).
+        nafm_fp16_path = os.path.join(d, "nafm_fp16.index")
+        nafm_ids_path = os.path.join(d, "nafm_comp_ids.txt")
+        if os.path.exists(nafm_fp16_path) and os.path.exists(nafm_ids_path):
+            try:
+                import faiss
+                print("[SimilarityEngine] Loading NaFM fp16 index...")
+                self.nafm_index = faiss.read_index(nafm_fp16_path)
+                try:
+                    self.nafm_index.make_direct_map()         # enable reconstruct(row)
+                except Exception:
+                    pass
+                with open(nafm_ids_path) as f:
+                    self.nafm_comp_ids = [ln.strip() for ln in f if ln.strip()]
+                if self.nafm_index.ntotal != len(self.nafm_comp_ids):
+                    raise ValueError(f"NaFM idx/id mismatch: {self.nafm_index.ntotal} vs {len(self.nafm_comp_ids)}")
+                self.nafm_id_to_row = {cid: i for i, cid in enumerate(self.nafm_comp_ids)}
+                self.nafm_loaded = True
+                print(f"[SimilarityEngine] NaFM loaded ({self.nafm_index.ntotal:,} vectors, fp16 flat)")
+            except Exception as e:
+                print(f"[SimilarityEngine] NaFM not available: {e}")
+
+    def nafm_search_by_comp_id(self, comp_id, top_n=50):
+        """Neighbors of a corpus compound by its precomputed NaFM vector.
+        Returns [] if the compound has no NaFM embedding (off-vocabulary / skipped)."""
+        if not self.nafm_loaded: return []
+        row = self.nafm_id_to_row.get(str(comp_id))
+        if row is None: return []
+        try:
+            import numpy as _np
+            q = self.nafm_index.reconstruct(int(row)).reshape(1, -1)  # normalized vec from index
+            q = _np.ascontiguousarray(q, dtype=_np.float32)
+            D, I = self.nafm_index.search(q, top_n)
+            out = []
+            for dist, idx in zip(D[0], I[0]):
+                if idx < 0 or idx >= len(self.nafm_comp_ids): continue
+                out.append({"comp_id": self.nafm_comp_ids[idx],
+                            "tanimoto": round(float(dist), 4)})
+            return out
+        except Exception as e:
+            print(f"[NaFM] search error: {e}")
+            return []
+
+    def nafm_search(self, query_smiles, top_n=50, comp_id=None):
+        """NaFM similarity. If comp_id is given (query resolved to a corpus compound),
+        use its precomputed vector. Otherwise try to resolve the SMILES to a corpus
+        compound via InChIKey match against the loaded comp_ids is NOT available here,
+        so off-corpus SMILES return [] (caller should inform the user)."""
+        if not self.nafm_loaded: return []
+        if comp_id is not None:
+            return self.nafm_search_by_comp_id(comp_id, top_n=top_n)
+        return []
 
     def smiles_to_morgan(self, smiles):
         from rdkit import Chem
