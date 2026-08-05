@@ -459,9 +459,39 @@ def search():
     except Exception:
         linear_tree = []
     if not q and not has_extra and not has_range and st not in ("mw",):
+        # Whole-corpus widgets for the bare landing page (world map + circular tree
+        # + linear cladogram), mirroring the home route and using cached data so no
+        # live 1.13M aggregation happens on a query-less hit.
+        landing_thumb = None
+        landing_region_counts = []
+        landing_region_css = ""
+        landing_region_titles = {}
+        try:
+            with get_db() as conn_lp:
+                with conn_lp.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur_lp:
+                    cur_lp.execute("SELECT kingdom, COUNT(*) AS cnt FROM compounds WHERE kingdom IS NOT NULL AND kingdom!='' GROUP BY kingdom ORDER BY cnt DESC")
+                    lp_kingdoms = cur_lp.fetchall()
+                    cur_lp.execute("SELECT COUNT(*) AS cnt FROM compounds")
+                    lp_total = cur_lp.fetchone()["cnt"]
+            landing_thumb = kingdom_thumbnail_svg(lp_kingdoms, total=lp_total, size=150, title="Corpus kingdoms")
+        except Exception:
+            landing_thumb = None
+        try:
+            import json as _json_lp
+            with open("/home/thorben.klamt/theobroma/static/compounds_by_country.json") as _f_lp:
+                landing_region_counts = _json_lp.load(_f_lp).get("region_counts", [])
+            landing_region_css, landing_region_titles = build_region_color_css(landing_region_counts)
+        except Exception:
+            landing_region_counts = []
+            landing_region_css = ""
+            landing_region_titles = {}
         return render_template("search.html", results=[], query="", search_type=st,
                                page=1, total=0, pages=0, sort=sort, order=order, per_page=per_page,
-                               linear_tree=linear_tree)
+                               linear_tree=linear_tree,
+                               thumb=landing_thumb,
+                               region_counts_filtered=landing_region_counts,
+                               region_css=landing_region_css,
+                               region_titles=landing_region_titles)
     if not q and (has_extra or has_range):
         st = "_base"
     # THEO_id direct redirect
