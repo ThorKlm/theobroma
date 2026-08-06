@@ -149,7 +149,7 @@
     node.filter(function(d){ return d.depth>0; }).each(function(d){
       var grp=d3.select(this);
       var anchor = d.children ? 'end' : 'start';
-      var dx = d.children ? -5 : 8;
+      var dx = (d.data._kind==='pathway') ? -10 : (d.children ? -5 : 8);
       var raw = d.data.name || '';
       var countStr = (d.data.value!=null && !d.data._is_residual) ? '  ('+d.data.value.toLocaleString()+')' : '';
       var hint = '';
@@ -216,15 +216,14 @@
   }
 
   function reRenderWithLoading(){
+    // Preserve scroll across the re-render so the user stays at the same spot
+    // instead of jumping to the top after expanding/collapsing a superclass.
     var c = document.getElementById('chem-clado-container');
-    var load = document.getElementById('chem-clado-loading');
-    if (c) c.style.display='none';
-    if (load) load.style.display='';
-    setTimeout(function(){
-      if (load) load.style.display='none';
-      if (c) c.style.display='';
-      render();
-    }, 120);
+    var pageY = window.scrollY || window.pageYOffset || 0;
+    var sx = c ? c.scrollLeft : 0;
+    render();
+    if (c) c.scrollLeft = sx;
+    window.scrollTo(0, pageY);
   }
 
   window.__renderChemClado = function(){ if(!rendered) render(); };
