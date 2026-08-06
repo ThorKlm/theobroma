@@ -2,6 +2,7 @@
 {% block title %}Similarity Search &mdash; THEOBROMA{% endblock %}
 {% block content %}
 <h1 class="section-title">Similarity Search</h1>
+<p style="font-size:0.9rem;color:var(--text-muted);margin:0.2rem 0 0.8rem 0;line-height:1.35;max-width:60ch;">Find structurally related compounds by SMILES, name, or THEO&#8209;ID. Choose a fingerprint or embedding metric (Morgan, MACCS, ChemBERTa, or the natural&#8209;products NaFM model) and map the hits onto the phylogenetic tree.</p>
 <div class="search-box">
     <form action="/similarity" method="get" class="search-form" style="flex-wrap:wrap;">
         <div class="search-row" style="width:100%;">

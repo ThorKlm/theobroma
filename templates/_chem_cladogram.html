@@ -1,0 +1,232 @@
+{# Parallel chemistry linear-cladogram renderer. Self-contained; does NOT touch the
+   taxonomy renderer. Reads chem_tree (pathway->superclass->class + counts), draws a
+   linear cladogram in the same style, routes leaf/pathway clicks to search.
+   Single-expand superclass model: at most one superclass shows its classes.
+   Collapsed superclass click -> expand (re-render, others collapse). Expanded
+   superclass click -> search. Loading state shown during re-render. #}
+<div id="chem-cladogram-panel" style="margin:1rem 0 1.5rem 0;">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+      <input id="chem-clado-filter" type="text" placeholder="Filter tree by node name..." style="flex:0 0 320px;padding:0.3rem 0.5rem;font-size:0.85rem;border:1px solid var(--border);border-radius:3px;">
+      <span style="font-size:0.78rem;color:var(--text-muted);">Type to dim non-matching nodes; clear to reset.</span>
+    </div>
+    <div id="chem-clado-container" style="width:100%;overflow-x:auto;overflow-y:visible;position:relative;"></div>
+    <div id="chem-clado-loading" style="display:none;text-align:center;padding:2rem;color:var(--text-muted);">Loading cladogram...</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:var(--text-muted);margin-top:0.6rem;">
+      <div>Click a pathway or class to search its compounds. Click a superclass to expand its classes; click it again to search it.</div>
+      <div>THEOBROMA {{ theobroma_version }}</div>
+    </div>
+  </div>
+</div>
+<script id="chem-tree-data" type="application/json">{{ chem_tree|tojson }}</script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7" defer></script>
+<script>
+(function(){
+  var CLASS_CAP = 60;    // safety cap on classes under the expanded superclass
+  var rendered = false;
+  var expandedSuper = null;   // name of the single expanded superclass, or null
+  var raw = null;
+  try { raw = JSON.parse(document.getElementById('chem-tree-data').textContent); } catch(e){ raw = null; }
+
+  // level colors (blue family): navy pathway, mid-blue superclass, turquoise class
+  var KIND_COLOR = {pathway:'#285099', super:'#3a7ca5', 'class':'#88c1d3'};
+
+  function searchUrl(kind, name){
+    var pt = kind==='pathway' ? 'pathway' : (kind==='super' ? 'npclassifier_superclass' : 'npclassifier_class');
+    return '/search?q=' + encodeURIComponent(name) + '&type=property&prop_type=' + pt;
+  }
+
+  // Build {name,children,value,_kind,_is_residual,_expandable}. Classes appear ONLY
+  // under the currently expandedSuper.
+  function buildHierarchy(){
+    if (!raw || !raw.pathways) return null;
+    var root = {name:'root', _kind:'root', children:[]};
+    raw.pathways.forEach(function(pw){
+      var pnode = {name:pw.name, value:pw.count, _kind:'pathway', children:[]};
+      var supers = (pw.superclasses||[]).slice();
+      supers.forEach(function(sc){
+        var isOpen = (sc.name === expandedSuper);
+        var snode = {name:sc.name, value:sc.count, _kind:'super', _expandable:true, _open:isOpen, children:[]};
+        if (isOpen){
+          (sc.classes||[]).slice(0, CLASS_CAP).forEach(function(cl){
+            snode.children.push({name:cl.name, value:cl.count, _kind:'class'});
+          });
+          var restC = (sc.classes||[]).slice(CLASS_CAP);
+          if (restC.length){
+            var extra = restC.reduce(function(a,x){return a+(x.value||0);},0);
+            snode.children.push({name:'+'+restC.length+' more', value:extra, _kind:'class', _is_residual:true});
+          }
+        }
+        pnode.children.push(snode);
+      });
+      root.children.push(pnode);
+    });
+    return root;
+  }
+
+  function render(){
+    var c = document.getElementById('chem-clado-container');
+    if (!c) return;
+    var treeData = buildHierarchy();
+    if (!treeData){ c.innerHTML = '<p style="color:var(--text-muted);">Chemistry tree data unavailable.</p>'; return; }
+    c.innerHTML = '';
+    var root = d3.hierarchy(treeData);
+    var maxDepth = 0;
+    root.descendants().forEach(function(d){ if (d.depth>maxDepth) maxDepth=d.depth; });
+
+    var nLeaves = root.leaves().length;
+    var rowHeight = 22, topMargin = 30;
+    var height = 120;  // recomputed after packing
+    var rankX = [40, 190, 430, 700];   // root, pathway, superclass, class
+    var labelBudget = 280;
+    var width = rankX[Math.min(maxDepth,3)] + labelBudget;
+
+    // wrap helper: break after char 25 at the next whitespace outside brackets.
+    function wrapLabel(name){
+      if (!name || name.length <= 25) return [name||''];
+      var depth=0;
+      for (var i=0;i<name.length;i++){
+        var ch=name[i];
+        if (ch==='(') depth++;
+        else if (ch===')') depth=Math.max(0,depth-1);
+        else if (ch===' ' && depth===0 && i>=25) return [name.slice(0,i), name.slice(i+1)];
+      }
+      return [name];
+    }
+    // variable-height packing: leaves wrap to 2 lines reserve 2 rows; node centered.
+    var _y = topMargin;
+    root.leaves().forEach(function(leaf){
+      var lines = (leaf.depth>0 ? wrapLabel(leaf.data.name||'') : ['']);
+      leaf._nlines = lines.length;
+      leaf._lines = lines;
+      var block = leaf._nlines * rowHeight;
+      leaf.x_orig = _y + block/2;
+      _y += block;
+    });
+    (function setInternal(node){
+      if (!node.children || !node.children.length) return;
+      node.children.forEach(setInternal);
+      var s=0,n=0; node.leaves().forEach(function(l){ s+=l.x_orig; n++; }); node.x_orig=s/n;
+    })(root);
+    height = Math.max(120, _y + topMargin);
+    root.descendants().forEach(function(d){ d.fixed_x = rankX[Math.min(d.depth,3)]; });
+
+    var titleH=50, footerH=20;
+    var svgWidth=width, svgHeight=height+titleH+footerH;
+    var svg = d3.select(c).append('svg')
+      .attr('width',svgWidth).attr('height',svgHeight)
+      .attr('viewBox','0 0 '+svgWidth+' '+svgHeight)
+      .style('font','12px "Liberation Sans", Arial, Helvetica, sans-serif')
+      .style('background','white');
+    svg.append('text').attr('x',12).attr('y',18).attr('font-size','12px').attr('fill','#888').text('Linear cladogram');
+    svg.append('text').attr('x',12).attr('y',36).attr('font-size','16px').attr('font-weight','600').attr('fill','#2c3e50').text('Compounds by chemical classification');
+    svg.append('text').attr('x',12).attr('y',svgHeight-6).attr('font-size','10px').attr('fill','#999').text('THEOBROMA {{ theobroma_version }}');
+
+    var g = svg.append('g').attr('transform','translate(0,'+titleH+')');
+    var diagonal = function(s,t){
+      var midX=(s.fixed_x+t.fixed_x)/2;
+      return 'M '+s.fixed_x+','+s.x_orig+' C '+midX+','+s.x_orig+' '+midX+','+t.x_orig+' '+t.fixed_x+','+t.x_orig;
+    };
+    g.selectAll('path.chem-link')
+      .data(root.links()).enter().append('path')
+        .attr('class','chem-link')
+        .attr('d', function(d){ return diagonal(d.source,d.target); })
+        .attr('fill','none')
+        .style('stroke', function(d){ return KIND_COLOR[d.target.data._kind] || '#888'; })
+        .style('stroke-opacity','0.85').style('stroke-width','3px');
+
+    var node = g.selectAll('g.chem-node')
+      .data(root.descendants()).enter().append('g')
+        .attr('class','chem-node')
+        .attr('transform', function(d){ return 'translate('+d.fixed_x+','+d.x_orig+')'; })
+        .style('cursor', function(d){ return (d.depth>0 && !d.data._is_residual) ? 'pointer' : 'default'; });
+
+    node.append('circle')
+      .attr('r', function(d){ return d.depth===0 ? 0 : (d.children ? 5 : (d.data._is_residual ? 4 : 6)); })
+      .attr('fill', function(d){ if (d.depth===0) return 'transparent'; if (d.data._is_residual) return '#aaa'; return KIND_COLOR[d.data._kind] || '#888'; })
+      .attr('stroke','white').attr('stroke-width',1.5);
+
+    node.filter(function(d){ return d.depth>0; }).each(function(d){
+      var grp=d3.select(this);
+      var anchor = d.children ? 'end' : 'start';
+      var dx = d.children ? -5 : 8;
+      var raw = d.data.name || '';
+      var countStr = (d.data.value!=null && !d.data._is_residual) ? '  ('+d.data.value.toLocaleString()+')' : '';
+      var hint = '';
+      if (d.data._kind==='super' && d.data._expandable && !d.data._is_residual){
+        hint = d.data._open ? '   (click to search)' : '   (click to expand)';
+      }
+      // leaves (classes) wrap at 25 chars; pathways wrap after "and"; superclasses single-line
+      function wrapAtAnd(name){
+        var m = name.match(/^(.*\band)\s+(.+)$/);
+        return m ? [m[1], m[2]] : [name];
+      }
+      var lines;
+      if (!d.children) lines = wrapLabel(raw);
+      else if (d.data._kind==='pathway') lines = wrapAtAnd(raw);
+      else lines = [raw];
+      if (lines.length === 1){
+        var single = lines[0] + countStr + hint;
+        var dy = d.children ? -6 : 4;
+        var t = grp.append('text').attr('x',dx).attr('y',dy).attr('text-anchor',anchor)
+          .attr('font-size','12px').attr('fill', d.data._is_residual ? '#999' : '#2c3e50').text(single);
+        try { var bb=t.node().getBBox();
+          grp.insert('rect','text').attr('x',bb.x-2).attr('y',bb.y-1).attr('width',bb.width+4).attr('height',bb.height+2).attr('fill','white').attr('fill-opacity',0.5).attr('rx',1);
+        } catch(e){}
+      } else {
+        // two lines: line1 above node, line2 (with count) below; node/link at midpoint
+        var line1 = lines[0];
+        var line2 = lines[1] + countStr + hint;
+        var offs = d.children ? [{txt:line1, y:-20},{txt:line2, y:-6}] : [{txt:line1, y:-3},{txt:line2, y:12}];
+        offs.forEach(function(L){
+          var t = grp.append('text').attr('x',dx).attr('y',L.y).attr('text-anchor',anchor)
+            .attr('font-size','12px').attr('fill','#2c3e50').text(L.txt);
+          try { var bb=t.node().getBBox();
+            grp.insert('rect','text').attr('x',bb.x-2).attr('y',bb.y-1).attr('width',bb.width+4).attr('height',bb.height+2).attr('fill','white').attr('fill-opacity',0.5).attr('rx',1);
+          } catch(e){}
+        });
+        grp.append('title').text(raw);
+      }
+    });
+
+    // click behavior
+    node.filter(function(d){ return d.depth>0 && !d.data._is_residual; })
+      .on('click', function(ev, d){
+        if (d.data._kind==='super'){
+          if (d.data._open){                       // expanded -> search
+            window.location.href = searchUrl('super', d.data.name);
+          } else {                                 // collapsed -> expand (single), with loading
+            expandedSuper = d.data.name;
+            reRenderWithLoading();
+          }
+        } else {                                   // pathway or class -> search
+          window.location.href = searchUrl(d.data._kind, d.data.name);
+        }
+      });
+
+    var inp = document.getElementById('chem-clado-filter');
+    if (inp){
+      inp.oninput = function(){
+        var q=(inp.value||'').toLowerCase().trim();
+        if(!q){ node.style('opacity',1); return; }
+        node.style('opacity', function(d){ return (d.data.name||'').toLowerCase().indexOf(q)>=0 ? 1 : 0.2; });
+      };
+    }
+    rendered = true;
+  }
+
+  function reRenderWithLoading(){
+    var c = document.getElementById('chem-clado-container');
+    var load = document.getElementById('chem-clado-loading');
+    if (c) c.style.display='none';
+    if (load) load.style.display='';
+    setTimeout(function(){
+      if (load) load.style.display='none';
+      if (c) c.style.display='';
+      render();
+    }, 120);
+  }
+
+  window.__renderChemClado = function(){ if(!rendered) render(); };
+})();
+</script>

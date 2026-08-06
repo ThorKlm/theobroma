@@ -473,7 +473,7 @@
     {% if c.inchikey %}
     <a href="https://www.google.com/search?q={{ c.inchikey }}" class="btn" target="_blank">Google</a>
     <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{ c.inchikey }}" class="btn btn-pubchem" target="_blank">PubChem</a>
-    <a href="https://coconut.naturalproducts.net/search?q={{ c.inchikey }}" class="btn btn-coconut" target="_blank">COCONUT</a>
+    {% if c.all_sources and 'COCONUT' in c.all_sources %}<a href="https://coconut.naturalproducts.net/search?q={{ c.inchikey }}" class="btn btn-coconut" target="_blank">COCONUT</a>{% endif %}
     {% endif %}
     {% if c.chebi_id %}
     <a href="https://www.ebi.ac.uk/chebi/searchId.do?chebiId={{ c.chebi_id }}" class="btn btn-chebi" target="_blank">ChEBI</a>

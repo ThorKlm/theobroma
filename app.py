@@ -905,11 +905,23 @@ def compute_linear_tree(where_sql=None, where_params=None, limit=15):
             return [{"name": r[0], "kingdom": r[1], "count": r[2]} for r in cur.fetchall()]
 
 
+def compute_chem_tree():
+    """Read the precomputed NPClassifier chemistry-tree cache (static/chem_tree.json).
+    Never builds in-request: the cache is generated offline by
+    scripts/build_chem_tree_cache.py at deploy time. Returns empty if absent."""
+    cache_path = os.path.join(app.static_folder, "chem_tree.json")
+    try:
+        with open(cache_path) as f:
+            return json.load(f)
+    except Exception:
+        return {"pathways": [], "top_superclass": None}
+
 @app.route("/tree")
 def tree_page():
     """Dedicated cladogram page with all the search/browse filter context."""
     linear_tree = compute_linear_tree()
-    return render_template("tree.html", linear_tree=linear_tree)
+    chem_tree = compute_chem_tree()
+    return render_template("tree.html", linear_tree=linear_tree, chem_tree=chem_tree)
 
 
 @app.route("/browse")
@@ -1816,6 +1828,7 @@ def api_search():
               "region":"EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = compounds.comp_id AND LOWER(crm.macro_region) = LOWER(%s))","source":"LOWER(source_db) = LOWER(%s)",
               "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR np_superclass ILIKE %s OR np_pathway ILIKE %s",
               "npclassifier_class":"np_class ILIKE %s OR inferred_class ILIKE %s",
+              "npclassifier_superclass":"np_superclass ILIKE %s",
               "classyfire_class":"classyfire_superclass ILIKE %s",
               "pathway":"np_pathway ILIKE %s"}
         cl = tc.get(st, "LOWER(name) LIKE %s")
@@ -1825,7 +1838,7 @@ def api_search():
             pm = (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%")
         elif st == "npclassifier_class":
             pm = (f"%{q}%", f"%{q}%")
-        elif st == "classyfire_class":
+        elif st in ("classyfire_class", "npclassifier_superclass"):
             pm = (f"%{q}%",)
         elif st in ("tax_class", "clade", "order", "phylum"):
             pm = (q,) if exact else (f"%{q}%",)
@@ -1848,6 +1861,7 @@ def api_search():
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
             "classyfire_class": "classyfire_superclass ILIKE %s",
+            "npclassifier_superclass": "np_superclass ILIKE %s",
             "pathway": "np_pathway ILIKE %s",
             "genus":  "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.genus) = LOWER(%s))",
             "family": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.family) = LOWER(%s))",
@@ -1873,7 +1887,7 @@ def api_search():
             extra_cl.append(_sql)
             if _et in ("class", "npclassifier_class"):
                 extra_pm.extend([f"%{_eq}%", f"%{_eq}%"])
-            elif _et in ("classyfire_class", "pathway"):
+            elif _et in ("classyfire_class", "pathway", "npclassifier_superclass"):
                 extra_pm.append(f"%{_eq}%")
             elif _et == "kingdom":
                 extra_pm.extend([_eq, _eq])
@@ -2581,7 +2595,7 @@ def api_filter_options():
             cur.execute("SELECT DISTINCT source_db FROM compounds WHERE source_db IS NOT NULL ORDER BY source_db")
             sources = [r[0] for r in cur.fetchall()]
             # NPClassifier classes: atomic (split on ' $ ') from np_class.
-            cur.execute("SELECT DISTINCT TRIM(c) AS cls FROM compounds, regexp_split_to_table(np_class, ' [$] ') AS c WHERE np_class IS NOT NULL AND np_class != '' ORDER BY cls")
+            cur.execute("SELECT DISTINCT TRIM(c) AS cls FROM compounds, regexp_split_to_table(np_class, ' *[|$] *') AS c WHERE np_class IS NOT NULL AND np_class != '' AND TRIM(c) != '' ORDER BY cls")
             npc_classes = [r[0] for r in cur.fetchall()]
             # ClassyFire superclasses: stored as plain single values, not dollar-split.
             cur.execute("SELECT DISTINCT classyfire_superclass FROM compounds WHERE classyfire_superclass IS NOT NULL AND classyfire_superclass != '' ORDER BY classyfire_superclass")
@@ -2599,9 +2613,9 @@ def api_filter_options():
             clades = tax_classes
             cur.execute("SELECT DISTINCT phylum FROM resolved_taxonomy WHERE phylum IS NOT NULL AND phylum != '' ORDER BY phylum")
             phyla = [r[0] for r in cur.fetchall()]
-            cur.execute("SELECT DISTINCT np_superclass FROM compounds WHERE np_superclass IS NOT NULL AND np_superclass != '' ORDER BY np_superclass")
+            cur.execute("SELECT DISTINCT TRIM(sc) AS scls FROM compounds, regexp_split_to_table(np_superclass, ' *[|$] *') AS sc WHERE np_superclass IS NOT NULL AND np_superclass != '' AND TRIM(sc) != '' ORDER BY scls")
             npc_superclasses = [r[0] for r in cur.fetchall()]
-            cur.execute("SELECT DISTINCT np_pathway FROM compounds WHERE np_pathway IS NOT NULL AND np_pathway != '' ORDER BY np_pathway")
+            cur.execute("SELECT DISTINCT TRIM(pw) AS pwy FROM compounds, regexp_split_to_table(np_pathway, ' *[|$] *') AS pw WHERE np_pathway IS NOT NULL AND np_pathway != '' AND TRIM(pw) != '' ORDER BY pwy")
             np_pathways = [r[0] for r in cur.fetchall()]
     # Union of both for backward-compatible 'class' key (deduplicated).
     classes = sorted(set(npc_classes) | set(cf_classes))

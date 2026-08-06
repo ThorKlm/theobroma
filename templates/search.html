@@ -369,7 +369,7 @@ function onTypeChange(sel, idx) {
     var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
     if (!input) return;
 
-    if (['kingdom','region','source','class','genus','family'].indexOf(t) >= 0 && !restoring) {
+    if (['kingdom','region','source','class','genus','family','order','tax_class','phylum'].indexOf(t) >= 0 && !restoring) {
         loadOptions().then(function(opts) {
             var items = opts[t];
             if (!items || items.length === 0) return;
@@ -493,8 +493,7 @@ function onPropChange(sel, idx) {
         rangeWrap.innerHTML =
             '<input type="number" name="' + pt + '_min" placeholder="' + r.min + '" step="any" value="">' +
             '<span style="font-size:0.8rem;color:var(--text-muted);margin:0 0.3rem;">to</span>' +
-            '<input type="number" name="' + pt + '_max" placeholder="' + r.max + '" step="any" value="">' +
-            '<span style="font-size:0.72rem;color:var(--text-muted);margin-left:0.5rem;">(mean: ' + r.mean + ')</span>';
+            '<input type="number" name="' + pt + '_max" placeholder="' + r.max + '" step="any" value="">';
     }
 }
 

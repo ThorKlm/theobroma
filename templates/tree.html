@@ -1,30 +1,81 @@
 {% extends "base.html" %}
 {% block title %}Tree &mdash; THEOBROMA{% endblock %}
 {% block content %}
-<div class="hero-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
-    <div style="flex-shrink:0;"><h1 class="section-title" style="margin:0 0 0.3rem 0;">Phylogenetic tree</h1><p style="font-size:0.9rem;color:var(--text-muted);margin:0;line-height:1.35;max-width:38ch;">Visualize the taxonomic distribution of any search result as a navigable linear or circular cladogram.</p></div>
-    <div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.95rem;color:var(--text);margin-left:auto;max-width:55%;">
-      <div style="text-align:right;"><strong>Click any clade</strong> to narrow the result set to that taxon.</div>
-      <div style="text-align:left;font-size:0.85rem;color:var(--text-muted);">The view auto-sizes based on result-set complexity.</div>
-    </div>
-    {% include "_linear_tree_thumb.html" %}
+<h1 class="section-title" style="margin:0 0 0.75rem 0;">Trees</h1>
+
+<div class="tree-toggle" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
+  <div class="tree-panel-head" data-tree="phylo" style="flex:1;min-width:260px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius);padding:0.85rem 1rem;background:var(--surface);">
+    <strong style="font-size:1.05rem;">Phylogenetic tree</strong>
+    <div style="font-size:0.85rem;color:var(--text-muted);margin:0.2rem 0 0.35rem 0;line-height:1.35;">Taxonomic distribution of compounds as a navigable linear cladogram.</div>
+    <div class="tree-expand-hint" style="font-size:0.8rem;color:var(--accent);">(click to expand)</div>
+  </div>
+  <div class="tree-panel-head" data-tree="chem" style="flex:1;min-width:260px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius);padding:0.85rem 1rem;background:var(--surface);">
+    <strong style="font-size:1.05rem;">Chemical classification tree</strong>
+    <div style="font-size:0.85rem;color:var(--text-muted);margin:0.2rem 0 0.35rem 0;line-height:1.35;">NPClassifier hierarchy from pathway to superclass to class as a linear cladogram.</div>
+    <div class="tree-expand-hint" style="font-size:0.8rem;color:var(--accent);">(click to expand)</div>
+  </div>
 </div>
-{% if linear_tree %}{% include "_cladogram_expand.html" %}{% endif %}
+
+{# Phylogenetic panel: thumb kept in DOM (renderer binds to it) but visually hidden;
+   the box drives expand/collapse by clicking it. Renderer untouched. #}
+<div id="tree-panel-phylo" class="tree-body" style="display:none;">
+  <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">
+    {% include "_linear_tree_thumb.html" %}
+  </div>
+  {% if linear_tree %}{% include "_cladogram_expand.html" %}{% endif %}
+</div>
+
+{# Chemistry panel: parallel linear-cladogram renderer (separate partial). #}
+<div id="tree-panel-chem" class="tree-body" style="display:none;">
+  {% if chem_tree and chem_tree.pathways %}
+    {% include "_chem_cladogram.html" %}
+  {% else %}
+    <p style="color:var(--text-muted);">Chemical classification tree unavailable.</p>
+  {% endif %}
+</div>
+
 <script>
-// Auto-open the cladogram panel on page load. d3 is loaded via a deferred script,
-// so the cladogram_expand listener attaches once d3 finishes loading. Poll for it.
-window.addEventListener('load', function(){
-  var attempts = 0;
-  var iv = setInterval(function(){
-    attempts++;
-    var thumb = document.querySelector('.linear-tree-thumb-wrap');
+(function(){
+  var heads = document.querySelectorAll('.tree-panel-head');
+  var bodies = {
+    phylo: document.getElementById('tree-panel-phylo'),
+    chem:  document.getElementById('tree-panel-chem')
+  };
+  var openKey = null;
+
+  function setHint(head, open){
+    var h = head.querySelector('.tree-expand-hint');
+    if (h) h.textContent = open ? '(click to collapse)' : '(click to expand)';
+  }
+  function headFor(key){ var out=null; heads.forEach(function(h){ if(h.getAttribute('data-tree')===key) out=h; }); return out; }
+
+  function phyloShow(){
     var panel = document.getElementById('cladogram-panel');
-    if (thumb && panel){
-      thumb.click();
-      clearInterval(iv);
-    }
-    if (attempts > 50) clearInterval(iv);  // 5s max wait
-  }, 100);
-});
+    var thumb = document.querySelector('.linear-tree-thumb-wrap');
+    if (thumb && panel && getComputedStyle(panel).display === 'none') thumb.click();
+  }
+  function phyloHide(){
+    var panel = document.getElementById('cladogram-panel');
+    var thumb = document.querySelector('.linear-tree-thumb-wrap');
+    if (thumb && panel && getComputedStyle(panel).display !== 'none') thumb.click();
+  }
+
+  function collapse(key){
+    bodies[key].style.display = 'none';
+    var h = headFor(key); if (h){ h.style.borderColor='var(--border)'; setHint(h,false); }
+    if (key === 'phylo') phyloHide();
+    openKey = null;
+  }
+  function expand(key){
+    Object.keys(bodies).forEach(function(k){ if (k!==key && bodies[k].style.display!=='none') collapse(k); });
+    bodies[key].style.display = '';
+    var h = headFor(key); if (h){ h.style.borderColor='var(--accent)'; setHint(h,true); }
+    if (key === 'phylo') phyloShow();
+    if (key === 'chem' && window.__renderChemClado) window.__renderChemClado();
+    openKey = key;
+  }
+  function toggle(key){ if (openKey === key) collapse(key); else expand(key); }
+  heads.forEach(function(h){ h.addEventListener('click', function(){ toggle(h.getAttribute('data-tree')); }); });
+})();
 </script>
 {% endblock %}
