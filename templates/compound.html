@@ -127,6 +127,32 @@
     </div>
     <div class="card">
         <h3 class="card-title">Chemical classification</h3>
+        {% set _src = c.class_source %}
+        {% set _badge = {'curated': ('Curated', '#1a7f37', '#dafbe1'),
+                         'npclassifier': ('NPClassifier', '#0969da', '#ddf4ff'),
+                         'inferred_xgb': ('Inferred (XGBoost)', '#9a6700', '#fff8c5'),
+                         'placeholder': ('Placeholder (test)', '#cf222e', '#ffebe9')} %}
+        {% if _src and c.effective_class %}
+        {% set _b = _badge.get(_src, (_src, '#57606a', '#eaeef2')) %}
+        <div style="margin-bottom:0.75rem;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--bg-subtle,#f6f8fa);">
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <span style="font-weight:600;font-size:0.95rem;">{{ c.effective_class }}</span>
+                <span style="font-size:0.7rem;font-weight:600;padding:0.1rem 0.5rem;border-radius:10px;color:{{ _b[1] }};background:{{ _b[2] }};">{{ _b[0] }}</span>
+                {% if _src == 'inferred_xgb' and c.inferred_confidence is not none and c.inferred_confidence >= 0 %}
+                <span style="font-size:0.7rem;color:var(--text-muted);">confidence {{ '%.2f'|format(c.inferred_confidence) }}</span>
+                {% endif %}
+            </div>
+            {% if c.effective_superclass or c.effective_pathway %}
+            <div style="font-size:0.82rem;color:var(--text-muted);margin-top:0.3rem;">
+                {% if c.effective_superclass %}{{ c.effective_superclass }}{% endif %}
+                {% if c.effective_pathway %} &rarr; {{ c.effective_pathway }}{% endif %}
+            </div>
+            {% endif %}
+            <div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.35rem;">
+                Chemical class (see <a href="/help#classification" style="color:var(--text-muted);text-decoration:underline;">Help</a> for how classes are assigned)
+            </div>
+        </div>
+        {% endif %}
         <table class="prop-table">
             <tr><th>NPClassifier class</th><td>{{ c.np_class or '&mdash;'|safe }}</td></tr>
             <tr><th>NPClassifier superclass</th><td>{{ c.np_superclass or '&mdash;'|safe }}</td></tr>

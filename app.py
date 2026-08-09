@@ -31,6 +31,14 @@ except Exception as _e:
 
 app = Flask(__name__)
 
+@app.after_request
+def _security_headers(response):
+    # light hardening: MIME-sniff, clickjacking, referrer leakage
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
+
 @app.context_processor
 def inject_version():
     return {"theobroma_version": VERSION_DISPLAY,
@@ -3077,4 +3085,4 @@ def admin_refresh_cache():
                     "regions": len(_BROWSE_CACHE["all_regions"])})
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)
