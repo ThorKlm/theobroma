@@ -75,7 +75,7 @@
 
         <h3 class="card-title" style="margin-top:1.5rem;">Property Ranges</h3>
         <div class="prop-filters">
-        {% for prop, label in [("mw","Molecular Weight"),("logp","LogP"),("tpsa","TPSA"),("hba","HBA"),("hbd","HBD"),("n_rings","Rings"),("rotatable_bonds","Rotatable Bonds")] %}
+        {% for prop, label in [("mw","Exact mass"),("logp","LogP"),("tpsa","TPSA"),("hba","HBA"),("hbd","HBD"),("n_rings","Rings"),("rotatable_bonds","Rotatable Bonds")] %}
             <div class="prop-filter-item">
                 <label>{{ label }}</label>
                 {% if histograms.get(prop) %}

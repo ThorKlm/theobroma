@@ -13,7 +13,7 @@
     <div class="card">
         <h3 class="card-title">Mean physicochemical properties</h3>
         <table class="prop-table">
-            <tr><th>Molecular weight</th><td>{{ "%.1f"|format(prop_stats.avg_mw) if prop_stats.avg_mw else '&mdash;'|safe }}</td></tr>
+            <tr><th>Exact mass</th><td>{{ "%.1f"|format(prop_stats.avg_mw) if prop_stats.avg_mw else '&mdash;'|safe }}</td></tr>
             <tr><th>LogP</th><td>{{ "%.2f"|format(prop_stats.avg_logp) if prop_stats.avg_logp else '&mdash;'|safe }}</td></tr>
             <tr><th>TPSA</th><td>{{ "%.1f"|format(prop_stats.avg_tpsa) if prop_stats.avg_tpsa else '&mdash;'|safe }}</td></tr>
             <tr><th>HBA</th><td>{{ "%.1f"|format(prop_stats.avg_hba) if prop_stats.avg_hba else '&mdash;'|safe }}</td></tr>
