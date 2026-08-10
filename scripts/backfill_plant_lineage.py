@@ -618,8 +618,10 @@ SET taxorder = lower(pl.taxorder),
 FROM _plant_lineage pl
 WHERE LOWER(rt.family) = LOWER(pl.family)
   AND (rt.taxorder IS NULL OR rt.taxclass IS NULL OR rt.phylum IS NULL
-       OR LOWER(rt.taxclass) <> LOWER(pl.taxclass)
-       OR LOWER(rt.phylum)   <> LOWER(pl.phylum));
+       OR LOWER(rt.taxclass) <> LOWER(pl.taxclass))
+  AND (rt.phylum IS NULL
+       OR LOWER(rt.phylum) IN ('streptophyta','tracheophyta'))
+  AND LOWER(COALESCE(rt.taxclass,'')) NOT IN ('eudicots','magnoliids');
 
 SELECT 'Backfill complete' AS msg;
 SELECT 'Lineage coverage now:' AS msg,
