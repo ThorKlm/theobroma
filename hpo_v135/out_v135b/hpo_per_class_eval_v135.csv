@@ -1,0 +1,502 @@
+class,support,precision,recall,f1
+12-oxophytodienoic acid metabolites,7,0.6667,0.8571,0.75
+2-arylbenzofurans,65,0.8194,0.9077,0.8613
+2-pyrone derivatives,191,0.8564,0.8115,0.8333
+3-Decalinoyltetramic acids,32,1.0,0.9375,0.9677
+3-Spirotetramic acids,13,1.0,0.8462,0.9167
+3-acyl tetramic acids,32,0.75,0.9375,0.8333
+3-oligoenoyltetramic acids,25,0.9259,1.0,0.9615
+4-pyrone derivatives,50,0.8723,0.82,0.8454
+Abeoabietane diterpenoids,82,0.7654,0.7561,0.7607
+Abeolupane triterpenoids,9,1.0,0.7778,0.875
+Abeotaxane diterpenoids,12,0.6923,0.75,0.72
+Abietane diterpenoids,172,0.8352,0.8547,0.8448
+Acetogenins,204,0.9286,0.9559,0.942
+Acorane sesquiterpenoids,21,0.8421,0.7619,0.8
+Acridone alkaloids,73,0.8767,0.8767,0.8767
+Actinomycins,24,1.0,0.9583,0.9787
+Acyclic monoterpenoids,218,0.817,0.8807,0.8477
+Acyclic triterpenoids,34,0.7838,0.8529,0.8169
+Acyl phloroglucinols,130,0.8081,0.6154,0.6987
+Aeruginosins,19,1.0,1.0,1.0
+Aflatoxins,25,0.7,0.56,0.6222
+Africanane sesquiterpenoids,43,0.7619,0.3721,0.5
+Agarofuran sesquiterpenoids,154,0.9608,0.9545,0.9577
+Ahp-containing cyclodepsipeptides,49,0.8511,0.8163,0.8333
+Ahp-containing cyclodepsipeptides | Cyclic peptides | Depsipeptides | Lipopeptides,9,0.6923,1.0,0.8182
+Amarylidaceae alkaloids,107,0.8315,0.6916,0.7551
+Amino cyclitols,34,1.0,0.9412,0.9697
+Aminoacids,622,0.7394,0.7299,0.7346
+Aminosugars,47,0.875,0.8936,0.8842
+Amphilectane diterpenoids,14,0.9286,0.9286,0.9286
+Anabaenopeptins,28,1.0,0.9643,0.9818
+Androstane steroids,191,0.8814,0.8953,0.8883
+Angucyclines,153,0.8533,0.8366,0.8449
+Ansa macrolides,151,0.8,0.8212,0.8105
+Ansa peptide alkaloids,58,0.7931,0.7931,0.7931
+Anthocyanidins,151,0.8373,0.9205,0.877
+Anthracyclines,53,0.8929,0.9434,0.9174
+Anthranillic acid derivatives,59,0.6604,0.5932,0.625
+Anthraquinones and anthrones,514,0.8732,0.9241,0.8979
+Antimycins,25,0.9167,0.88,0.898
+Aphidicolane diterpenoids,18,0.8824,0.8333,0.8571
+Aplysiatoxins,12,0.8571,1.0,0.9231
+Apocarotenoids (β-),62,0.6623,0.8226,0.7338
+Apocarotenoids(ε-),42,0.8718,0.8095,0.8395
+Aporphine alkaloids,149,0.8377,0.8658,0.8515
+Aporphine alkaloids | Isoquinoline alkaloids,16,0.2727,0.1875,0.2222
+Apotirucallane triterpenoids,41,0.878,0.878,0.878
+Aristolane sesquiterpenoids,13,0.75,0.6923,0.72
+Aromadendrane sesquiterpenoids,74,0.8493,0.8378,0.8435
+Aromatic polyketides with side chains,25,0.95,0.76,0.8444
+Arteminisin,51,0.7812,0.4902,0.6024
+Arylnaphthalene and aryltetralin lignans,147,0.8611,0.8435,0.8522
+Asbestinane diterpenoids,12,1.0,1.0,1.0
+Ascarosides,38,0.9487,0.9737,0.961
+Ascomycins and Rapamycins,15,1.0,1.0,1.0
+Aspidosperma type,194,0.8769,0.8814,0.8792
+Aspidosperma-Iboga hybrid type (Vinca alkaloids),12,0.75,0.5,0.6
+Asteriscane sesquiterpenoids,10,0.8571,0.6,0.7059
+Atisane diterpenoids,29,0.9375,0.5172,0.6667
+Aurones,159,0.9286,0.9811,0.9541
+Avermectins,48,0.8542,0.8542,0.8542
+Azaphilones,149,0.8836,0.8658,0.8746
+Azo and Azoxy alkaloids,343,0.7258,0.656,0.6891
+Bafilomycins,67,0.8788,0.8657,0.8722
+Bauerane triterpenoids,11,0.8182,0.8182,0.8182
+Benzodiazepine alkaloids,38,0.6471,0.5789,0.6111
+Benzophenones,21,0.8125,0.619,0.7027
+Benzoquinones,30,0.8333,0.6667,0.7407
+Bergamotane sesquiterpenoids,15,1.0,0.6667,0.8
+Betalain alkaloids,17,0.8889,0.9412,0.9143
+Beyerane diterpenoids,22,0.95,0.8636,0.9048
+Biaryl type diarylheptanoids,56,0.7442,0.5714,0.6465
+Bicyclic guanidine alkaloids,12,0.8333,0.8333,0.8333
+Bicyclogermacrane sesquiterpenoids,24,1.0,0.75,0.8571
+Bisabolane sesquiterpenoids,203,0.8387,0.8966,0.8667
+Bisnaphthalenes,76,0.8028,0.75,0.7755
+Botryane sesquiterpenoids,17,1.0,0.8824,0.9375
+Branched fatty acids,329,0.7133,0.6201,0.6634
+Brasilane sesquiterpenoids,8,1.0,0.625,0.7692
+Briarane diterpenoids,119,0.9661,0.958,0.962
+Bryostatins,10,1.0,1.0,1.0
+Bufadienolides,52,1.0,1.0,1.0
+Cadinane sesquiterpenoids,207,0.8592,0.8551,0.8571
+Camphane monoterpenoids,49,0.7759,0.9184,0.8411
+Campherenane sesquiterpenoids,8,1.0,0.25,0.4
+Cannabinoids,33,0.7838,0.8788,0.8286
+Capnellane sesquiterpenoids,14,0.9,0.6429,0.75
+Capsaicins and Capsaicinoids,9,0.75,0.6667,0.7059
+Carabrane sesquiterpenoids,9,0.9,1.0,0.9474
+Carane monoterpenoids,31,0.8182,0.871,0.8438
+Carbapenems,13,0.8667,1.0,0.9286
+Carbazole alkaloids,160,0.8544,0.8438,0.8491
+Carbocyclic fatty acids,22,0.8,0.7273,0.7619
+Carboline alkaloids,489,0.6791,0.7055,0.6921
+Cardenolides,184,0.9519,0.9674,0.9596
+"Carotenoids (C40, Ψ-Ψ)",32,0.9394,0.9688,0.9538
+"Carotenoids (C40, β-Ψ)",23,0.7692,0.8696,0.8163
+"Carotenoids (C40, β-β)",91,0.8763,0.9341,0.9043
+"Carotenoids (C40, β-ε)",19,0.8889,0.8421,0.8649
+"Carotenoids (C40, β-κ)",11,0.8333,0.9091,0.8696
+Caryophyllane sesquiterpenoids,66,0.8571,0.9091,0.8824
+Casbane diterpenoids,11,0.8462,1.0,0.9167
+Cassane diterpenoids,82,0.9351,0.878,0.9057
+Catechols with side chains,146,0.8926,0.911,0.9017
+Cedrane and Isocedrane sesquiterpenoids,23,1.0,0.8696,0.9302
+Cembrane diterpenoids,270,0.8873,0.9037,0.8954
+Cephalosporins,15,0.7059,0.8,0.75
+Cephalotaxus alkaloids,17,0.9412,0.9412,0.9412
+Ceramides,57,0.8594,0.9649,0.9091
+Chalcones,512,0.8516,0.8965,0.8735
+Chamigrane sesquiterpenoids,49,0.7797,0.9388,0.8519
+Cheilanthane sesterterpenoids,16,0.9286,0.8125,0.8667
+Cholane steroids,35,0.875,0.8,0.8358
+Cholestane steroids,509,0.8668,0.8821,0.8744
+Chromones,297,0.8562,0.9024,0.8787
+Cinnamic acid amides,49,0.8846,0.9388,0.9109
+Cinnamic acids and derivatives,470,0.9163,0.9553,0.9354
+Cinnamic acids and derivatives | Phenylethanoids,8,0.5,0.125,0.2
+Cinnamoyl phenols,14,1.0,0.7143,0.8333
+Clavulones,20,1.0,0.95,0.9744
+Cleistanthane diterpenoids,15,0.8571,0.4,0.5455
+Clovane sesquiterpenoids,12,0.9091,0.8333,0.8696
+Colensane and Clerodane diterpenoids,421,0.8906,0.9477,0.9183
+Copaane sesquiterpenoids,13,0.8667,1.0,0.9286
+Corynanthe type,279,0.8221,0.828,0.825
+Coumarinolignans,13,1.0,0.9231,0.96
+Coumaronochromones,15,0.8667,0.8667,0.8667
+Coumestan,31,0.92,0.7419,0.8214
+Cryptophycins,8,0.8889,1.0,0.9412
+Cucurbitane triterpenoids,152,0.9416,0.9539,0.9477
+Cuparane sesquiterpenoids,26,0.7727,0.6538,0.7083
+Cyanogenic glycosides,27,1.0,0.9259,0.9615
+Cyathane diterpenoids,37,0.9714,0.9189,0.9444
+Cyclic peptides,816,0.872,0.935,0.9024
+Cyclic peptides | Depsipeptides,64,0.5,0.2344,0.3191
+Cyclic peptides | Depsipeptides | Lipopeptides,25,0.5,0.4,0.4444
+Cyclitols,26,1.0,0.8846,0.9388
+Cycloabietane diterpenoids,17,0.9375,0.8824,0.9091
+Cycloapotirucallane triterpenoids,19,0.8421,0.8421,0.8421
+Cycloartane triterpenoids,312,0.9281,0.9519,0.9399
+Cycloeudesmane sesquiterpenoids,44,0.9189,0.7727,0.8395
+Cyclofarnesane sesquiterpenoids,14,0.75,0.4286,0.5455
+Cyclophytane diterpenoids,32,0.6667,0.6875,0.6769
+Cyclopiazonic acid-tpye tetramate alkaloids,18,0.8667,0.7222,0.7879
+Cytochalasan alkaloids,188,0.8877,0.883,0.8853
+Dammarane and Protostane triterpenoids,265,0.9401,0.9472,0.9436
+Daphnane diterpenoids,46,0.9778,0.9565,0.967
+Daucane sesquiterpenoids,47,0.82,0.8723,0.8454
+Decalins with side chains,46,0.878,0.7826,0.8276
+Depsides,72,0.8493,0.8611,0.8552
+Depsidones,75,0.9091,0.9333,0.9211
+Depsipeptides,38,0.7778,0.5526,0.6462
+Diacylglycerols,231,0.9526,0.9567,0.9546
+Dialkylresorcinols,15,0.8824,1.0,0.9375
+Diarylether type diarylheptanoids,24,0.8148,0.9167,0.8627
+Dibenzocyclooctadienes lignans,122,0.8779,0.9426,0.9091
+Dibenzylbutane lignans,55,0.875,0.7636,0.8155
+Dibenzylbutyrolactone lignans,65,0.8788,0.8923,0.8855
+Dicarboxylic acids,30,0.913,0.7,0.7925
+Dihydroflavonols,140,0.9571,0.9571,0.9571
+Dimeric phloroglucinols,57,0.7586,0.7719,0.7652
+Dipeptides,160,0.8271,0.6875,0.7509
+Disaccharides,57,0.7812,0.8772,0.8264
+Dolabellane diterpenoids,47,0.8627,0.9362,0.898
+Dolastane diterpenoids,15,0.75,0.4,0.5217
+Drimane sesquiterpenoids,133,0.8676,0.8872,0.8773
+Duclauxin and derivatives,12,0.9167,0.9167,0.9167
+Ecdysteroids,71,0.9324,0.9718,0.9517
+Elemane sesquiterpenoids,65,0.9483,0.8462,0.8943
+Elfamycins,9,1.0,1.0,1.0
+Epothilones,21,1.0,1.0,1.0
+Epoxy fatty acids,12,0.9091,0.8333,0.8696
+Eremophilane sesquiterpenoids,251,0.9119,0.9482,0.9297
+Ergostane steroids,318,0.9196,0.8994,0.9094
+Ergot alkaloids,53,0.7778,0.6604,0.7143
+Ericamycins,25,0.7143,0.6,0.6522
+Erythromycins,43,0.8293,0.7907,0.8095
+Erythroxylane diterpenoids,15,0.9167,0.7333,0.8148
+Estrane steroids,52,0.7895,0.8654,0.8257
+Eudesmane sesquiterpenoids,423,0.86,0.9149,0.8866
+Eunicellane diterpenoids,46,0.9783,0.9783,0.9783
+Farnesane sesquiterpenoids,81,0.7778,0.6914,0.732
+Fasamycins and derivatives,13,0.8571,0.9231,0.8889
+Fatty acyl CoAs,52,0.9811,1.0,0.9905
+Fatty acyl carnitines,10,1.0,1.0,1.0
+Fatty acyl glycosides of mono- and disaccharides,36,0.8919,0.9167,0.9041
+Fatty alcohols,929,0.7044,0.69,0.6971
+Fatty aldehydes,162,0.8087,0.5741,0.6715
+Fenchane monoterpenoids,13,1.0,0.3846,0.5556
+Fernane and Arborinane triterpenoids,47,0.9574,0.9574,0.9574
+Flavan-3-ols,124,0.88,0.8871,0.8835
+Flavandiols (Leucoanthocyanidins),46,0.9318,0.8913,0.9111
+Flavanones,392,0.9335,0.9311,0.9323
+Flavans,34,0.8421,0.9412,0.8889
+Flavones,664,0.9226,0.9337,0.9281
+Flavonolignans,11,0.7143,0.4545,0.5556
+Flavonols,744,0.9719,0.9758,0.9738
+Friedelane triterpenoids,73,0.8961,0.9452,0.92
+Fukinane sesquiterpenoids,11,1.0,0.9091,0.9524
+Fungal DPEs,38,0.8378,0.8158,0.8267
+Fungal cyclic polyketides (Miscellaneous),19,0.8667,0.6842,0.7647
+Furanoabietane diterpenoids,9,0.8,0.4444,0.5714
+Furanoid lignans,97,0.8438,0.8351,0.8394
+Furans,59,0.625,0.5932,0.6087
+Furocoumarins,400,0.7151,0.6025,0.654
+Furocoumarins | Simple coumarins,41,0.3448,0.2439,0.2857
+Furofuranoid lignans,694,0.7819,0.7334,0.7569
+Furostane steroids,140,0.9701,0.9286,0.9489
+Fusicoccane diterpenoids,34,0.8889,0.9412,0.9143
+Fusidane triterpenoids,188,0.7372,0.6117,0.6686
+Gallotannins,241,0.9585,0.9585,0.9585
+Germacrane sesquiterpenoids,761,0.8996,0.9185,0.909
+Gibberellins,61,0.9048,0.9344,0.9194
+Glucosinolates,47,1.0,1.0,1.0
+Glutinane triterpenoids,9,1.0,1.0,1.0
+Glycerophosphates,24,0.96,1.0,0.9796
+Glycerophosphocholines,90,0.9175,0.9889,0.9519
+Glycerophosphoethanolamines,108,0.973,1.0,0.9863
+Glycerophosphoglycerols,14,1.0,1.0,1.0
+Glycerophosphoglycerophosphoglycerols,38,0.5161,0.4211,0.4638
+Glycerophosphoinositol phosphates,21,1.0,1.0,1.0
+Glycerophosphoinositols,13,0.9286,1.0,0.963
+Glycerophosphoserines,28,0.9333,1.0,0.9655
+Glycosyldiacylglycerols,34,0.9714,1.0,0.9855
+Grayanotoxane diterpenoids,29,0.9667,1.0,0.9831
+Griseofulvins,21,0.7727,0.8095,0.7907
+Guaiane sesquiterpenoids,473,0.8775,0.9387,0.907
+Guanacastane diterpenoids,9,0.8889,0.8889,0.8889
+Gymnomitrane sesquiterpenoids,10,0.8182,0.9,0.8571
+Halimane diterpenoids,59,0.8776,0.7288,0.7963
+Halogenated hydrocarbons,19,0.8824,0.7895,0.8333
+Hapalindole alkaloids,16,1.0,1.0,1.0
+Hasubanan alkaloids,21,0.8421,0.7619,0.8
+Himachalane sesquiterpenoids,18,0.9167,0.6111,0.7333
+Hirsutane sesquiterpenoids,18,0.8824,0.8333,0.8571
+Homoerythrina alkaloids,8,0.6667,0.75,0.7059
+Hopane and Moretane triterpenoids,54,0.8621,0.9259,0.8929
+Humulane sesquiterpenoids,48,0.8261,0.7917,0.8085
+Hydrocarbons,211,0.8389,0.8389,0.8389
+Hydroxy fatty acids,123,0.8018,0.7236,0.7607
+Hydroxy-hydroperoxyeicosatetraenoic acids,12,0.75,1.0,0.8571
+Hydroxy-hydroperoxyeicosatrienoic acids,46,0.6111,0.2391,0.3438
+Iboga type,79,0.8077,0.7975,0.8025
+Icetexane diterpenoids,14,0.9091,0.7143,0.8
+Illudalane sesquiterpenoids,45,0.85,0.7556,0.8
+Illudane sesquiterpenoids,16,0.9231,0.75,0.8276
+Imidazole alkaloids,284,0.7037,0.6021,0.649
+"Indole diketopiperazine alkaloids (L-Trp, L-Ala)",40,0.9268,0.95,0.9383
+"Indole diketopiperazine alkaloids (L-Trp, L-Pro)",43,0.8913,0.9535,0.9213
+"Indole diketopiperazine alkaloids (L-Trp, L-Trp)",13,0.6429,0.6923,0.6667
+Indole-Diterpenoid alkaloids (Penitrems),57,0.9167,0.9649,0.9402
+Indolizidine alkaloids,106,0.7812,0.7075,0.7426
+Ingenane diterpenoids,23,0.9565,0.9565,0.9565
+Iridoids monoterpenoids,425,0.9417,0.9506,0.9461
+Irregular monoterpenoids,12,0.8,0.3333,0.4706
+Isocoumarins,225,0.8551,0.8133,0.8337
+Isodaucane sesquiterpenoids,8,0.8889,1.0,0.9412
+Isoflavanones,121,0.8594,0.9091,0.8835
+Isoflavones,376,0.8511,0.9122,0.8806
+Isoindole alkaloids,37,0.871,0.7297,0.7941
+Isolactarane sesquiterpenoids,7,0.7778,1.0,0.875
+Isoquinoline alkaloids,597,0.7621,0.794,0.7777
+Isoquinoline alkaloids | Protoberberine alkaloids,16,0.4444,0.25,0.32
+Isoquinoline alkaloids | Tetrahydroisoquinoline alkaloids,26,0.3333,0.1154,0.1714
+Jasmonic acids,10,1.0,0.7,0.8235
+Jatrophane diterpenoids,59,0.9333,0.9492,0.9412
+Kaurane and Phyllocladane diterpenoids,305,0.8509,0.9541,0.8995
+Kavalactones and derivatives,55,0.8909,0.8909,0.8909
+Labdane diterpenoids,452,0.8571,0.9558,0.9038
+Lactam bearing macrolide lactones,9,1.0,0.7778,0.875
+Lactarane sesquiterpenoids,15,0.8462,0.7333,0.7857
+Lactones,49,0.8269,0.8776,0.8515
+Ladder polyethers,28,1.0,1.0,1.0
+"Lanostane, Tirucallane and Euphane triterpenoids",491,0.9193,0.9511,0.9349
+Lathyrane diterpenoids,46,0.7826,0.7826,0.7826
+Laurane sesquiterpenoids,21,0.8,0.7619,0.7805
+Leukotrienes,8,0.7143,0.625,0.6667
+Limonoids,333,0.9384,0.961,0.9496
+Linear diarylheptanoids,99,0.8557,0.8384,0.8469
+Linear peptides,206,0.8609,0.9612,0.9083
+Linear polyenes,22,0.8947,0.7727,0.8293
+Linear sesterterpenoids,42,0.7045,0.7381,0.7209
+Lipopeptides,29,0.875,0.7241,0.7925
+Long-Chain Bicyclic Phosphotriester,8,1.0,1.0,1.0
+Longifolane sesquiterpenoids,9,0.75,0.6667,0.7059
+Longipinane sesquiterpenoids,16,0.9333,0.875,0.9032
+Lupane triterpenoids,186,0.9489,0.8978,0.9227
+Macrocyclic tetramic acids,21,0.8571,0.5714,0.6857
+Macrolide lactams,43,0.9487,0.8605,0.9024
+Macrolide lactones,137,0.9389,0.8978,0.9179
+Macrotetrolides,15,0.7647,0.8667,0.8125
+Malabaricane triterpenoids,29,0.9655,0.9655,0.9655
+Marasmane sesquiterpenoids,8,0.875,0.875,0.875
+Marine-bacterial DPEs,13,0.9231,0.9231,0.9231
+Megastigmanes,69,0.8841,0.8841,0.8841
+Melithiazole and Myxothiazole derivatives,11,0.8182,0.8182,0.8182
+Menthane monoterpenoids,742,0.6667,0.5876,0.6246
+Merohemiterpenoids,25,0.6944,1.0,0.8197
+Meromonoterpenoids,43,0.6562,0.4884,0.56
+Merosesquiterpenoids,49,0.8627,0.898,0.88
+Methoxy fatty acids,11,0.9167,1.0,0.9565
+Methyl xanthones,101,0.7879,0.7723,0.78
+Minor lignans,37,0.8571,0.6486,0.7385
+Miscellaneous apocarotenoids,12,1.0,1.0,1.0
+Miscellaneous meroterpenoids,79,0.8553,0.8228,0.8387
+Miscellaneous polyketides,92,0.7407,0.6522,0.6936
+Monacolins and Monacolin derivatives,26,0.875,0.8077,0.84
+Monoacylglycerols,46,0.8269,0.9348,0.8776
+Monocarbocyclic sesterterpenoids,25,0.8077,0.84,0.8235
+Monocyclic monoterpenoids,42,0.7241,0.5,0.5915
+Monomeric stilbenes,160,0.8922,0.9313,0.9113
+Monosaccharides,55,0.7903,0.8909,0.8376
+Morphinan alkaloids,13,0.7778,0.5385,0.6364
+Mulinane diterpenoids,9,0.7778,0.7778,0.7778
+Multiflorane triterpenoids,17,0.9091,0.5882,0.7143
+Mycosporine and Mycosporine-like amino acids,13,1.0,1.0,1.0
+Myrsinane diterpenoids,18,0.8571,1.0,0.9231
+N-acyl amines,117,0.906,0.906,0.906
+Nagilactone diterpenoids,28,0.931,0.9643,0.9474
+Naphthalenes and derivatives,70,0.8824,0.6429,0.7438
+Naphthalenones,26,0.8333,0.7692,0.8
+Naphthoquinones,267,0.8156,0.8614,0.8379
+Nardosinane sesquiterpenoids,18,1.0,0.7222,0.8387
+Neoflavonoids,51,0.6923,0.5294,0.6
+Neolignans,311,0.8727,0.926,0.8986
+Neutral glycosphingolipids,142,0.993,0.993,0.993
+Nonadrides,10,0.9,0.9,0.9
+Noreudesmane sesquiterpenoids,10,0.875,0.7,0.7778
+Norkaurane diterpenoids,62,0.7451,0.6129,0.6726
+Norlabdane diterpenoids,72,0.6981,0.5139,0.592
+Norpimarane and Norisopimarane diterpenoids,33,0.7895,0.4545,0.5769
+Norsesterterpenoids,19,0.875,0.7368,0.8
+Oblogolides,7,0.75,0.8571,0.8
+Oleanane triterpenoids,1067,0.9619,0.97,0.9659
+Oligomeric phloroglucinols (phlorotannins),74,0.8689,0.7162,0.7852
+Oligomeric stibenes,142,0.9149,0.9085,0.9117
+Oligomycins,29,0.875,0.9655,0.918
+Onocerane triterpenoids,9,1.0,1.0,1.0
+Open-chain polyketides,315,0.8892,0.8921,0.8906
+Ophiobolane sesterterpenoids,28,1.0,1.0,1.0
+Oplopane sesquiterpenoids,20,0.8571,0.9,0.878
+Oppositane sesquiterpenoids,10,1.0,0.7,0.8235
+Other Octadecanoids,38,0.7949,0.8158,0.8052
+Other indole diketopiperazine alkaloids,31,0.7778,0.6774,0.7241
+Other polyketide meroterpenoids,14,1.0,0.8571,0.9231
+Oxasqualenoids,11,1.0,0.9091,0.9524
+Oxo fatty acids,40,0.75,0.45,0.5625
+Oxygenated hydrocarbons,125,0.9187,0.904,0.9113
+Pachydictyane diterpenoids,15,0.9167,0.7333,0.8148
+Panasinsane sesquiterpenoids,8,0.6667,0.5,0.5714
+Paraconic acids and derivatives,175,0.6405,0.56,0.5976
+Parguerane diterpenoids,8,1.0,1.0,1.0
+Patchoulane sesquiterpenoids,19,0.7273,0.8421,0.7805
+Paulomycins and derivatives,8,1.0,1.0,1.0
+Penicillins,16,0.6364,0.4375,0.5185
+Pentacyclic guanidine alkaloids,10,0.9091,1.0,0.9524
+Pentalenane sesquiterpenoids,9,0.8889,0.8889,0.8889
+Peptaibols,29,1.0,1.0,1.0
+Phenanthrenes,117,0.8,0.8889,0.8421
+Phenazine alkaloids,53,0.8636,0.717,0.7835
+Phenethylisoquinoline alkaloids,88,0.5714,0.4091,0.4768
+Phenoxazine alkaloids,10,0.8571,0.6,0.7059
+Phenylalanine-derived alkaloids,44,0.8788,0.6591,0.7532
+Phenylethanoids,41,0.9722,0.8537,0.9091
+Phenylethylamines,42,0.8148,0.5238,0.6377
+Phloroglucinol-terpene hybrids,14,0.8571,0.8571,0.8571
+Phoslactomycins or Phosphazomycins,11,0.9091,0.9091,0.9091
+Phthalide derivatives,94,0.8901,0.8617,0.8757
+Phytane diterpenoids,64,0.8667,0.8125,0.8387
+Picrotoxane sesquiterpenoids,31,0.8529,0.9355,0.8923
+Pimarane and Isopimarane diterpenoids,153,0.8758,0.9216,0.8981
+Pinane monoterpenoids,54,0.8431,0.7963,0.819
+Pinguisane sesquiterpenoids,15,0.8571,0.8,0.8276
+Piperidine alkaloids,359,0.6916,0.6685,0.6799
+Plant xanthones,261,0.9125,0.9195,0.916
+Platensimycin and Platencins,16,1.0,0.6875,0.8148
+Podocarpane diterpenoids,88,0.7571,0.6023,0.6709
+Polyamines,1231,0.689,0.7019,0.6954
+Polyene macrolides,75,0.8452,0.9467,0.8931
+Polyether ionophores,39,0.95,0.9744,0.962
+Polypodane triterpenoids,9,0.7273,0.8889,0.8
+Polyprenol derivatives,10,1.0,1.0,1.0
+Polyprenylated cyclic polyketides (Hop meroterpenoids),180,0.8306,0.8444,0.8375
+Polysaccharides,59,0.9302,0.678,0.7843
+Pregnane steroids,425,0.8652,0.9059,0.8851
+Prenyl quinone meroterpenoids,151,0.8913,0.8146,0.8512
+"Prenylated,geranylated phloroglucinols",32,0.6944,0.7812,0.7353
+Prezizaane sesquiterpenoids,28,0.8889,0.8571,0.8727
+Primary amides,19,0.7647,0.6842,0.7222
+Proanthocyanins,63,0.8592,0.9683,0.9104
+Prodigiosins,19,0.8571,0.9474,0.9
+Prostaglandins,26,0.7143,0.7692,0.7407
+Protoberberine alkaloids,19,0.6429,0.4737,0.5455
+Protoilludane sesquiterpenoids,37,0.8718,0.9189,0.8947
+Pseudoguaiane sesquiterpenoids,79,0.9136,0.9367,0.925
+Pseudopterane diterpenoids,12,0.9231,1.0,0.96
+Pterocarpan,123,0.88,0.8943,0.8871
+Pulvinones,46,0.8511,0.8696,0.8602
+Purine alkaloids,104,0.8416,0.8173,0.8293
+Purine nucleos(t)ides,79,0.8824,0.9494,0.9146
+Pyranocoumarins,84,0.9125,0.869,0.8902
+Pyranocoumarins | Simple coumarins,12,0.0,0.0,0.0
+Pyrazine and Piperazine alkaloids,46,0.9024,0.8043,0.8506
+Pyridine alkaloids,2390,0.6933,0.7699,0.7296
+Pyridine alkaloids | Quinolizidine alkaloids,22,0.1667,0.0455,0.0714
+Pyrimidine nucleos(t)ides,48,0.9216,0.9792,0.9495
+Pyrrocidine tetramate alkaloids,7,1.0,1.0,1.0
+Pyrrole alkaloids,54,0.8462,0.6111,0.7097
+Pyrrolidine alkaloids,363,0.7003,0.573,0.6303
+Pyrrolizidine alkaloids,146,0.8897,0.8288,0.8582
+Pyrroloindole alkaloids,17,0.8,0.9412,0.8649
+Pyrroloquinoline alkaloids,31,0.9032,0.9032,0.9032
+Quassinoids,121,0.9035,0.8512,0.8766
+Quinazoline alkaloids,165,0.7688,0.7455,0.7569
+Quinoline alkaloids,241,0.7512,0.639,0.6906
+Quinolizidine alkaloids,489,0.7783,0.6892,0.731
+Resin glycosides,65,0.9844,0.9692,0.9767
+RiPPs-Lanthipeptides,24,0.8,0.8333,0.8163
+RiPPs-Lasso peptides,10,0.875,0.7,0.7778
+RiPPs-Thiopeptides,12,0.6923,0.75,0.72
+Rotenoids,58,0.7708,0.6379,0.6981
+Sacculatane diterpenoids,13,1.0,0.9231,0.96
+Santalane sesquiterpenoids,11,1.0,0.8182,0.9
+Sativane sesquiterpenoids,10,0.9091,1.0,0.9524
+Scalarane sesterterpenoids,49,0.96,0.9796,0.9697
+Secoabietane diterpenoids,39,0.7,0.5385,0.6087
+Secogermacrane sesquiterpenoids,8,1.0,0.875,0.9333
+Secoiridoid monoterpenoids,120,0.9492,0.9333,0.9412
+Secokaurane diterpenoids,49,0.9091,0.8163,0.8602
+Secolabdane diterpenoids,19,0.9167,0.5789,0.7097
+Serratane triterpenoids,32,0.931,0.8438,0.8852
+Serrulatane and Biflorane diterpenoids,36,0.9444,0.9444,0.9444
+Shikimic acids and derivatives,43,0.6667,0.5581,0.6076
+Silphinane sesquiterpenoids,8,1.0,1.0,1.0
+Silphiperfolane sesquiterpenoids,10,0.9091,1.0,0.9524
+Simple amide alkaloids,92,0.7172,0.7717,0.7435
+Simple aromatic polyketides,40,0.8649,0.8,0.8312
+Simple coumarins,1164,0.7977,0.8978,0.8448
+Simple cyclic polyketides,23,0.7917,0.8261,0.8085
+Simple diketopiperazine alkaloids,45,0.7586,0.4889,0.5946
+Simple indole alkaloids,199,0.7908,0.7789,0.7848
+Simple oxindole alkaloids,17,0.875,0.4118,0.56
+Simple phenolic acids,199,0.7621,0.7889,0.7753
+Simple tetramate alkaloids,11,1.0,0.6364,0.7778
+Sorbicilinoids,37,0.9167,0.8919,0.9041
+Sphaerane diterpenoids,10,0.9091,1.0,0.9524
+Sphingoid bases,46,0.7949,0.6739,0.7294
+Spirodioxynaphthalenes,27,0.8182,1.0,0.9
+Spirostane steroids,230,0.9615,0.9783,0.9698
+Spirotetronate macrolides,42,1.0,0.9286,0.963
+Spirovetivane sesquiterpenoids,16,1.0,0.875,0.9333
+Spongiane diterpenoids,48,0.7755,0.7917,0.7835
+Spriromeroterpenoids,15,0.7333,0.7333,0.7333
+Stemona alkaloids,48,0.9388,0.9583,0.9485
+Steroidal alkaloids,200,0.8812,0.89,0.8856
+Stigmastane steroids,100,0.8148,0.88,0.8462
+Streptothricins and derivatives,10,1.0,0.9,0.9474
+Strobilurins and derivatives,11,0.9167,1.0,0.9565
+Strychnos type,35,0.6111,0.6286,0.6197
+Taraxerane triterpenoids,31,0.8125,0.8387,0.8254
+Taxane diterpenoids,99,0.9192,0.9192,0.9192
+Terpenoid alkaloids,357,0.8892,0.8992,0.8942
+Tetracyclic diterpenoids,83,0.7808,0.6867,0.7308
+Tetracyclines,13,0.9167,0.8462,0.88
+Tetrahydroisoquinoline alkaloids,35,0.76,0.5429,0.6333
+Tetraketide meroterpenoids,172,0.8362,0.8605,0.8481
+Tetrodotoxins,8,1.0,1.0,1.0
+Thapsane sesquiterpenoids,95,0.8333,0.4737,0.604
+Thiazole alkaloids,22,0.7917,0.8636,0.8261
+Thiodiketopiperazine alkaloids,51,0.9592,0.9216,0.94
+Thujane monoterpenoids,272,0.5754,0.5331,0.5534
+Tigliane diterpenoids,8,0.5714,0.5,0.5333
+Totarane diterpenoids,12,0.7778,0.5833,0.6667
+Trachylobane diterpenoids,15,0.9333,0.9333,0.9333
+Tremulane sesquiterpenoids,19,1.0,0.8421,0.9143
+Triacylglycerols,5140,0.9981,0.9986,0.9983
+Trichothecane sesquiterpenoids,95,0.9785,0.9579,0.9681
+Tricyclic guanidine alkaloids,18,0.75,0.5,0.6
+Triketide meroterpenoids,31,0.9655,0.9032,0.9333
+Trinervitane diterpenoids,8,1.0,1.0,1.0
+Tripeptides,2903,0.729,0.834,0.778
+Tropane alkaloids,79,0.8706,0.9367,0.9024
+Tropolones and derivatives (PKS),9,0.7778,0.7778,0.7778
+Tylosins,24,0.9545,0.875,0.913
+Unsaturated fatty acids,190,0.8771,0.8263,0.8509
+Ursane and Taraxastane triterpenoids,237,0.9399,0.9241,0.9319
+Usnic acid and derivatives,21,0.6667,0.8571,0.75
+Valerenane sesquiterpenoids,7,1.0,1.0,1.0
+Vancomycins and Teicoplanins,15,0.9286,0.8667,0.8966
+Verrucosane diterpenoids,8,0.875,0.875,0.875
+Verticillane diterpenoids,25,0.92,0.92,0.92
+Vitamin D3 and derivatives,9,0.8889,0.8889,0.8889
+Wax diesters,8,1.0,0.25,0.4
+Wax monoesters,327,0.8367,0.8777,0.8567
+Xeniaphyllane diterpenoids,13,0.9231,0.9231,0.9231
+Xenicane diterpenoids,48,0.9512,0.8125,0.8764
+Yohimbine-like alkaloids,24,0.6842,0.5417,0.6047
+Zearalenones,91,0.9674,0.978,0.9727
+m-Terphenyls,26,0.6429,0.3462,0.45
+p-Terphenyls,76,0.8148,0.8684,0.8408
+pteridine alkaloids,37,0.6829,0.7568,0.7179
