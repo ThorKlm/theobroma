@@ -617,7 +617,9 @@ SET taxorder = pl.taxorder,
     phylum = pl.phylum
 FROM _plant_lineage pl
 WHERE LOWER(rt.family) = LOWER(pl.family)
-  AND (rt.taxorder IS NULL OR rt.taxclass IS NULL OR rt.phylum IS NULL);
+  AND (rt.taxorder IS NULL OR rt.taxclass IS NULL OR rt.phylum IS NULL
+       OR LOWER(rt.taxclass) <> LOWER(pl.taxclass)
+       OR LOWER(rt.phylum)   <> LOWER(pl.phylum));
 
 SELECT 'Backfill complete' AS msg;
 SELECT 'Lineage coverage now:' AS msg,
