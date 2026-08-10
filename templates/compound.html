@@ -94,7 +94,7 @@
     <div class="card">
         <h3 class="card-title">Taxonomic classification</h3>
         <table class="prop-table">
-            <tr><th>Kingdom</th><td>{{ c.kingdom|kingdom_label }}{% if resolved_lineage and resolved_lineage.secondary_kingdoms %}{% for k in resolved_lineage.secondary_kingdoms %}<span class="kbadge k-{{ k|lower }}" title="also attested from {{ k }}">{{ k }}</span>{% endfor %}{% endif %}</td></tr>
+            <tr><th>Kingdom</th><td>{{ c.kingdom|kingdom_label }}{% if resolved_lineage and resolved_lineage.secondary_kingdoms %}{% for k in resolved_lineage.secondary_kingdoms %}<span class="ksec k-{{ k|lower }}" title="also attested from {{ k }}">{{ k }}</span>{% endfor %}{% endif %}</td></tr>
             {% if resolved_lineage %}
             {% if resolved_lineage.phylum %}<tr><th>Phylum</th><td>{{ resolved_lineage.phylum }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
             {% if resolved_lineage.taxclass %}<tr><th>Class</th><td>{{ resolved_lineage.taxclass }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}

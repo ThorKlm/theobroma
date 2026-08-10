@@ -281,3 +281,21 @@ a.showmore, a.showless {
 .k-fungi      { background: var(--kingdom-fungi, #9C27B0); }
 .k-bacteria   { background: var(--kingdom-bacteria, #FFB74D); color: #333; }
 .k-unresolved { background: var(--kingdom-unresolved, #BDBDBD); color: #333; }
+
+/* secondary kingdoms on the compound page: coloured text, no pill */
+.ksec {
+  display: inline; margin-left: 0.45em; font-size: 0.86em;
+  background: none; padding: 0; border-radius: 0;
+}
+.ksec.k-plant      { color: var(--kingdom-plant, #4CAF50); }
+.ksec.k-animal     { color: var(--kingdom-animal, #E57373); }
+.ksec.k-fungi      { color: var(--kingdom-fungi, #9C27B0); }
+.ksec.k-bacteria   { color: #C77700; }
+.ksec.k-unresolved { color: #8C8C8C; }
+
+/* secondary-attestation match in kingdom results: same geometry as the primary
+   badge, distinguished by a dashed outline rather than by size */
+.badge.badge-secondary-att {
+  margin-left: 0.35em;
+  opacity: 0.5;
+}

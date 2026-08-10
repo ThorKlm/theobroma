@@ -175,7 +175,7 @@
         <td><a href="/compound/{{ r.comp_id }}"><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></a></td>
         <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
         <td>{{ (r.name or '&mdash;')|normalize_name|safe }}</td>
-        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span>{% if search_type == 'kingdom' and query and r.kingdom and r.kingdom|lower != query|lower %}<span class="kbadge k-{{ query|lower }}" title="matched on a secondary attestation">{{ query|lower }}</span>{% endif %}</td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span>{% if search_type == 'kingdom' and query and r.kingdom and r.kingdom|lower != query|lower %}<span class="badge badge-{{ query|lower }} badge-secondary-att" title="matched on a secondary attestation">{{ query|lower }}</span>{% endif %}</td>
         <td>{{ r.source_db or '&mdash;'|safe }}</td>
         <td class="organism-cell" title="{{ r.source_organism }}">{{ r.source_organism_curated or r.source_organism or '&mdash;'|safe }}</td>
         <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>

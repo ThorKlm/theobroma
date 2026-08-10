@@ -1196,7 +1196,7 @@ def compound_detail(comp_id):
                 license_attestations = cur_lic.fetchall()
             except Exception:
                 conn_lic.rollback()
-    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, resolved_lineage=resolved_lineage, class_hierarchy=class_hierarchy, stereoisomers=stereoisomers, stereoisomer_groups=stereoisomer_groups, license_attestations=license_attestations)
+    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, resolved_lineage=resolved_lineage, class_hierarchy=class_hierarchy, stereoisomers=stereoisomers, stereoisomer_groups=stereoisomer_groups, license_attestations=license_attestations, regions_all=regions_all)
 
 @app.route("/statistics")
 def statistics():

@@ -16,7 +16,11 @@ catch, plus one existing test that passes for the wrong reason:
   H55  npc_class_parents.parent_rank populated and rank 1 unique per class.
        The precedence convention must not depend on physical row order.
   H56  effective_pathway tokens are the seven canonical NPClassifier pathways.
-  H57  no double-space separator artifacts in effective_class.
+  H57  no separator artifacts in effective_class, inferred_class,
+       np_superclass or np_pathway. That column family has been
+       corrupted twice, and the guard previously watched one of four.
+       Note the separator convention differs by rank: effective_superclass
+       and effective_pathway use ' | ', the class and np_* columns use '|'.
   H58  tier 3 classes are a subset of tier 1, since the model can only predict
        classes present in its training labels.
   G45b license resolver, with the case-insensitive join. The suite's G45 joins
@@ -98,8 +102,16 @@ bad = toks - set(CANONICAL)
 check("H56", not bad, f"{len(toks)} distinct pathway tokens, non-canonical: {sorted(bad) or 'none'}")
 
 # --- H57 separator hygiene ---------------------------------------------------
-n = q1("SELECT count(*) FROM compounds WHERE effective_class LIKE '%  %' "
-       "OR effective_pathway LIKE '%  %' OR effective_superclass LIKE '%  %'")
+_cols = ("effective_class", "effective_superclass", "effective_pathway",
+         "np_class", "np_superclass", "np_pathway", "inferred_class")
+# The pipe separator is spaced in effective_superclass and effective_pathway and
+# tight elsewhere. Only double spaces and edge whitespace are artifacts everywhere;
+# a spaced pipe is an artifact only in the tight-separator columns.
+_tight = ("effective_class", "np_class", "np_superclass", "np_pathway", "inferred_class")
+_pred = " OR ".join("%s LIKE '%%  %%' OR %s LIKE ' %%' OR %s LIKE '%% '" % (c, c, c)
+                    for c in _cols)
+_pred += " OR " + " OR ".join("%s LIKE '%% | %%'" % c for c in _tight)
+n = q1("SELECT count(*) FROM compounds WHERE " + _pred)
 check("H57", n == 0, f"double-space separator artifacts: {n:,}")
 
 # --- H58 tier 3 vocabulary is a subset of tier 1 -----------------------------
