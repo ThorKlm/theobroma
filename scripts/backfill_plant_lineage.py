@@ -612,9 +612,9 @@ INSERT INTO _plant_lineage VALUES
   {values_sql};
 
 UPDATE resolved_taxonomy rt
-SET taxorder = pl.taxorder,
-    taxclass = pl.taxclass,
-    phylum = pl.phylum
+SET taxorder = lower(pl.taxorder),
+    taxclass = lower(pl.taxclass),
+    phylum   = lower(pl.phylum)
 FROM _plant_lineage pl
 WHERE LOWER(rt.family) = LOWER(pl.family)
   AND (rt.taxorder IS NULL OR rt.taxclass IS NULL OR rt.phylum IS NULL
