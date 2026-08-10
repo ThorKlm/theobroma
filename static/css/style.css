@@ -270,3 +270,14 @@ footer { background: var(--surface); border-top: 1px solid var(--border); margin
 a.showmore, a.showless {
   cursor: pointer; color: var(--accent); font-size: 0.85em; white-space: nowrap;
 }
+
+/* kingdom badges, palette shared with Figure S7 */
+.kbadge {
+  display: inline-block; padding: 0.05em 0.45em; margin-left: 0.3em;
+  border-radius: 0.8em; font-size: 0.78em; color: #fff; white-space: nowrap;
+}
+.k-plant      { background: var(--kingdom-plant, #4CAF50); }
+.k-animal     { background: var(--kingdom-animal, #E57373); }
+.k-fungi      { background: var(--kingdom-fungi, #9C27B0); }
+.k-bacteria   { background: var(--kingdom-bacteria, #FFB74D); color: #333; }
+.k-unresolved { background: var(--kingdom-unresolved, #BDBDBD); color: #333; }

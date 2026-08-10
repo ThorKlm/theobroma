@@ -50,7 +50,7 @@
         <p style="font-size:0.95rem;color:var(--text-muted);margin:0 0 0.8rem 0;line-height:1.4;">Use this page to query the corpus by compound name, structure, taxonomy, geography, or chemistry. Combine filters with the <strong>+ Add filter</strong> button to compose AND-conditions.</p>
 <div class="search-row" id="search-row-0">
             <select name="type" id="search-type" onchange="onTypeChange(this, 0)">
-                {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Primary kingdom"),("genus","Genus"),("family","Family"),("order","Order"),("tax_class","Class"),("phylum","Phylum"),("classification","Chemical classification"),("property","Chemical property")] %}
+                {% for val, label in [("name","Compound name"),("smiles","SMILES"),("inchikey","InChIKey"),("organism","Source organism"),("source","Source database"),("region","Geographic region"),("kingdom","Kingdom (any attestation)"),("genus","Genus"),("family","Family"),("order","Order"),("tax_class","Class"),("phylum","Phylum"),("classification","Chemical classification"),("property","Chemical property")] %}
                 <option value="{{ val }}" {{ 'selected' if search_type == val }}>{{ label }}</option>
                 {% endfor %}
             </select>
@@ -163,7 +163,7 @@
         <th style="width:60px;">Structure</th>
         <th>{{ sort_header("comp_id", "ID", sort, order) }}</th>
         <th>{{ sort_header("name", "Name", sort, order) }}</th>
-        <th>{{ sort_header("kingdom", "Primary kingdom", sort, order) }}</th>
+        <th>{{ sort_header("kingdom", "Kingdom (primary)", sort, order) }}</th>
         <th>{{ sort_header("source_db", "Source", sort, order) }}</th>
         <th>{{ sort_header("source_organism", "Organism", sort, order) }}</th>
         <th>{{ sort_header("mw", "MW", sort, order) }}</th>
@@ -175,7 +175,7 @@
         <td><a href="/compound/{{ r.comp_id }}"><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></a></td>
         <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
         <td>{{ (r.name or '&mdash;')|normalize_name|safe }}</td>
-        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span>{% if search_type == 'kingdom' and query and r.kingdom and r.kingdom|lower != query|lower %}<span class="kbadge k-{{ query|lower }}" title="matched on a secondary attestation">{{ query|lower }}</span>{% endif %}</td>
         <td>{{ r.source_db or '&mdash;'|safe }}</td>
         <td class="organism-cell" title="{{ r.source_organism }}">{{ r.source_organism_curated or r.source_organism or '&mdash;'|safe }}</td>
         <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
@@ -510,7 +510,7 @@ function addFilter() {
         '<option value="organism">Source organism</option>' +
         '<option value="source">Source database</option>' +
         '<option value="region">Geographic region</option>' +
-        '<option value="kingdom">Primary kingdom</option>' +
+        '<option value="kingdom">Kingdom (any attestation)</option>' +
         '<option value="genus">Genus</option>' +
         '<option value="family">Family</option>' +
         '<option value="order">Order</option>' +
