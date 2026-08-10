@@ -539,7 +539,7 @@ def search():
                WHERE sn.name_norm = %s
              ) matched
              JOIN compounds c ON c.comp_id = matched.comp_id
-             ORDER BY c.name""", (normalize_query(q),)) if exact else (f"""SELECT c.*, matched.rank_key,
+             ORDER BY c.name, c.comp_id""", (normalize_query(q),)) if exact else (f"""SELECT c.*, matched.rank_key,
                CASE WHEN (c.chebi_name IS NOT NULL AND c.chebi_name <> '')
                       OR (c.name IS NOT NULL AND c.name <> ''
                           AND c.name !~* '^(mol_|npo|sa_|npc|npo|schembl|orb|kbio|refchem|ncimech|mls[0-9]|cid[0-9]|chembl|zinc|hmdb|nan)')
@@ -1107,6 +1107,18 @@ def compound_detail(comp_id):
                 taxonomy = cur4.fetchall()
             except Exception:
                 conn4.rollback()
+    # All mapped macro-regions. compounds.region holds a single legacy value while
+    # compound_region_map is multi-valued and is what the region filter queries, so
+    # the page must render the map or a region hit looks like a false positive.
+    regions_all = []
+    with get_db() as conn5:
+        with conn5.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur5:
+            try:
+                cur5.execute("""SELECT macro_region FROM compound_region_map
+                                WHERE comp_id = %s ORDER BY macro_region""", (c["comp_id"],))
+                regions_all = [r["macro_region"] for r in cur5.fetchall()]
+            except Exception:
+                conn5.rollback()
     # Resolved taxonomic lineage from resolved_taxonomy: kingdom-restricted
     # majority-voted lineage, distinct from the full multi-attestation list
     # in `taxonomy`. Rendered as a "Resolved lineage" block on the compound
@@ -1813,6 +1825,8 @@ def api_search():
     st = request.args.get("type","name")
     limit = min(10000, max(1, int(request.args.get("limit",50))))
     offset = max(0, int(request.args.get("offset",0)))
+    if "page" in request.args and "offset" not in request.args:
+        offset = (max(1, int(request.args.get("page", 1))) - 1) * limit
     fmt = request.args.get("format","json")
     if not q: return jsonify({"error":"query parameter 'q' required", "usage":{
         "endpoint": "/api/search",
@@ -1834,7 +1848,7 @@ def api_search():
               WHERE sn.name_norm = %s
             ) matched
             JOIN compounds c ON c.comp_id = matched.comp_id
-            ORDER BY c.name"""
+            ORDER BY c.name, c.comp_id"""
             pm_tuple = (nq,)
         else:
             base = f"""SELECT {cols} FROM (
@@ -1964,7 +1978,7 @@ def api_search():
                     lic_clause = " AND tier_rank <= 4"
                 cur.execute(f"SELECT COUNT(*) FROM compounds WHERE ({cl}){extra_sql}{lic_clause}", params)
                 total = cur.fetchone()["count"]
-                cur.execute(f"SELECT {cols} FROM compounds WHERE ({cl}){extra_sql}{lic_clause} LIMIT %s OFFSET %s", params + (limit, offset))
+                cur.execute(f"SELECT {cols} FROM compounds WHERE ({cl}){extra_sql}{lic_clause} ORDER BY comp_id LIMIT %s OFFSET %s", params + (limit, offset))
                 results = cur.fetchall()
     if fmt == "csv":
         si = io.StringIO()

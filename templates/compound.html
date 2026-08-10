@@ -61,7 +61,7 @@
                 {% endif %}
             </td></tr>
             <tr><th>Source organism</th><td style="font-size:0.85rem;">{{ capped((c.source_organism_curated or c.source_organism or '').split('; '), '; ') }}</td></tr>
-            <tr><th>Geographic region</th><td>{{ c.region|region_label }}</td></tr>
+            <tr><th>Geographic regions</th><td style="font-size:0.85rem;">{% if regions_all %}{{ capped(regions_all) }}{% else %}{{ c.region|region_label }}{% endif %}</td></tr>
             <tr><th>References</th><td>
                 {% if c.reference_doi %}{% set dois = c.reference_doi.split("; ") %}{% for doi in dois[:3] %}<a href="https://doi.org/{{ doi }}" target="_blank" style="font-size:0.78rem;">{{ doi }}</a> {% endfor %}{% if dois|length > 3 %}<span id="extra-dois" style="display:none;">{% for doi in dois[3:] %}<a href="https://doi.org/{{ doi }}" target="_blank" style="font-size:0.78rem;">{{ doi }}</a> {% endfor %}</span><a href="#" onclick="document.getElementById('extra-dois').style.display='';this.style.display='none';return false;" style="font-size:0.78rem;color:var(--accent);">(+{{ dois|length - 3 }} more, show all)</a>{% endif %}{% endif %}
                 {% if c.chebi_pmids %}
