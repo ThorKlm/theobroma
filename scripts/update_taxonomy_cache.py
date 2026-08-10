@@ -14,9 +14,12 @@ def run_sql(q):
 
 LINEAGE_SQL = """
 WITH base AS (
-    SELECT comp_id, kingdom AS primary_k, secondary_kingdoms,
-           phylum, taxclass, taxorder, family, genus
-    FROM resolved_taxonomy
+    SELECT rt.comp_id,
+           COALESCE(pm.lineage_kingdom, rt.kingdom) AS primary_k,
+           rt.secondary_kingdoms,
+           rt.phylum, rt.taxclass, rt.taxorder, rt.family, rt.genus
+    FROM resolved_taxonomy rt
+    LEFT JOIN phylum_kingdom_map pm ON pm.phylum = rt.phylum
 ),
 expanded AS (
     SELECT comp_id, primary_k AS k, phylum, taxclass, taxorder, family, genus FROM base

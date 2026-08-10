@@ -592,6 +592,7 @@ def search():
             "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
+            "npclassifier_superclass": "np_superclass ILIKE %s",
             "classyfire_class": "classyfire_superclass ILIKE %s",
             "pathway": "np_pathway ILIKE %s",
             "genus":  "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.genus) = LOWER(%s))",
@@ -601,6 +602,20 @@ def search():
             "clade": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.taxclass) = LOWER(%s))",
             "phylum": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.phylum) = LOWER(%s))",
         }
+        # "classification" is the search page's generic label; the concrete
+        # property arrives in extra_prop_type_N. Resolve it so the published
+        # Figure 2 query form filters instead of being silently dropped.
+        if et == "classification":
+            _p = request.args.get(f"extra_prop_type_{i}", "").strip().lower()
+            et = {"class": "npclassifier_class", "chem_class": "npclassifier_class",
+                  "chemical_class": "npclassifier_class", "np_class": "npclassifier_class",
+                  "npc_class": "npclassifier_class", "npclassifier_class": "npclassifier_class",
+                  "npclassifier_superclass": "npclassifier_superclass",
+                  "np_superclass": "npclassifier_superclass",
+                  "npclassifier_pathway": "pathway", "np_pathway": "pathway",
+                  "pathway": "pathway",
+                  "classyfire_superclass": "classyfire_class",
+                  "classyfire_class": "classyfire_class"}.get(_p, "npclassifier_class")
         # Fuzzy resolution for taxonomic ranks in extras as well.
         if et in ("genus", "family", "order", "tax_class", "clade", "phylum"):
             resolved = resolve_taxon(et, eq)
@@ -614,7 +629,7 @@ def search():
             if et in ("class", "npclassifier_class"):
                 extra_clauses.append(esql)
                 extra_params.extend([f"%{eq}%", f"%{eq}%"])
-            elif et == "classyfire_class":
+            elif et in ("classyfire_class", "pathway", "npclassifier_superclass"):
                 extra_clauses.append(esql)
                 extra_params.append(f"%{eq}%")
             elif exact and et in ("name", "organism"):
@@ -792,9 +807,11 @@ def search():
     try:
         lt_sql = f"""
             WITH result_set AS ({query})
-            SELECT rt.taxorder AS name, rt.kingdom AS kingdom,
+            SELECT rt.taxorder AS name,
+                   COALESCE(pm.lineage_kingdom, rt.kingdom) AS kingdom,
                    COUNT(DISTINCT rs.comp_id) AS count
             FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
+            LEFT JOIN phylum_kingdom_map pm ON pm.phylum = rt.phylum
             WHERE rt.taxorder IS NOT NULL
             GROUP BY 1, 2 ORDER BY count DESC LIMIT 15"""
         with get_db() as conn_lt:
@@ -893,10 +910,11 @@ def compute_linear_tree(where_sql=None, where_params=None, limit=15):
                 pass
     sql = """
         SELECT rt.taxorder AS name,
-               rt.kingdom AS kingdom,
+               COALESCE(pm.lineage_kingdom, rt.kingdom) AS kingdom,
                COUNT(DISTINCT c.comp_id) AS count
         FROM compounds c
         JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id
+        LEFT JOIN phylum_kingdom_map pm ON pm.phylum = rt.phylum
         WHERE rt.taxorder IS NOT NULL
     """
     params = list(where_params or [])
@@ -905,7 +923,7 @@ def compute_linear_tree(where_sql=None, where_params=None, limit=15):
         # builders that assume table name) to the local alias `c.`
         where_sql_local = where_sql.replace('compounds.', 'c.')
         sql += " AND " + where_sql_local
-    sql += """ GROUP BY rt.taxorder, rt.kingdom ORDER BY count DESC LIMIT %s"""
+    sql += """ GROUP BY rt.taxorder, COALESCE(pm.lineage_kingdom, rt.kingdom) ORDER BY count DESC LIMIT %s"""
     params.append(limit)
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -1496,7 +1514,22 @@ def api_taxonomy_tree():
             "tax_class": (("LOWER(rt.taxclass) = LOWER(%s)", (eq,)) if exact else ("rt.taxclass ILIKE %s", (f"%{eq}%",))),
             "clade": (("LOWER(rt.taxclass) = LOWER(%s)", (eq,)) if exact else ("rt.taxclass ILIKE %s", (f"%{eq}%",))),
             "phylum": (("LOWER(rt.phylum) = LOWER(%s)", (eq,)) if exact else ("rt.phylum ILIKE %s", (f"%{eq}%",))),
+            "npclassifier_class": ("(c.np_class ILIKE %s OR c.inferred_class ILIKE %s)", (f"%{eq}%", f"%{eq}%")),
+            "npclassifier_superclass": ("c.np_superclass ILIKE %s", (f"%{eq}%",)),
+            "npclassifier_pathway": ("c.np_pathway ILIKE %s", (f"%{eq}%",)),
+            "classyfire_superclass": ("c.classyfire_superclass ILIKE %s", (f"%{eq}%",)),
         }
+        # "classification" is the search page's generic label; the concrete
+        # property arrives in extra_prop_type_N. Resolve it to a real key so
+        # the published Figure 2 query form keeps working.
+        if et == "classification":
+            et = request.args.get(f"extra_prop_type_{i}", "").strip().lower() or "npclassifier_class"
+        et = {"pathway": "npclassifier_pathway", "np_pathway": "npclassifier_pathway",
+              "classyfire_class": "classyfire_superclass",
+              "class": "npclassifier_class", "np_class": "npclassifier_class",
+              "npc_class": "npclassifier_class", "chem_class": "npclassifier_class",
+              "chemical_class": "npclassifier_class",
+              "np_superclass": "npclassifier_superclass"}.get(et, et)
         # Fuzzy resolution for taxonomic ranks
         if et in ("genus", "family", "order", "tax_class", "clade", "phylum"):
             resolved = resolve_taxon(et, eq)
@@ -1646,10 +1679,12 @@ def api_taxonomy_tree():
     )
     sql = f"""
         WITH base AS (
-            SELECT c.comp_id, rt.kingdom AS primary_k, rt.secondary_kingdoms,
+            SELECT c.comp_id, COALESCE(pm.lineage_kingdom, rt.kingdom) AS primary_k,
+                   rt.secondary_kingdoms,
                    rt.phylum, rt.taxclass, rt.taxorder, rt.family, rt.genus
             FROM compounds c
             LEFT JOIN resolved_taxonomy rt ON c.comp_id = rt.comp_id{admet_join_sql}
+            LEFT JOIN phylum_kingdom_map pm ON pm.phylum = rt.phylum
             {where_sql}
         ),
         expanded AS (
@@ -1878,11 +1913,22 @@ def api_search():
             "clade": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))",
             "phylum": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.phylum) = LOWER(%s))",
         }
+        _et_aliases = {
+            "classification": "npclassifier_class",
+            "npclassifier_pathway": "pathway", "np_pathway": "pathway",
+            "np_superclass": "npclassifier_superclass",
+            "classyfire_superclass": "classyfire_class",
+            "np_class": "npclassifier_class", "npc_class": "npclassifier_class",
+            "chem_class": "npclassifier_class", "chemical_class": "npclassifier_class",
+        }
         for _i in range(1, 11):
             _et = request.args.get(f"extra_type_{_i}", "")
             _eq = request.args.get(f"extra_q_{_i}", "").strip()
             if not _et or not _eq:
                 continue
+            if _et == "classification":
+                _et = request.args.get(f"extra_prop_type_{_i}", "").strip().lower() or "npclassifier_class"
+            _et = _et_aliases.get(_et, _et)
             if _et in ("genus", "family", "order", "tax_class", "clade", "phylum"):
                 _res = resolve_taxon(_et, _eq)
                 if _res is not None and _res != _eq:
