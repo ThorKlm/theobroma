@@ -130,8 +130,7 @@
         {% set _src = c.class_source %}
         {% set _badge = {'curated': ('Curated', '#1a7f37', '#dafbe1'),
                          'npclassifier': ('NPClassifier', '#0969da', '#ddf4ff'),
-                         'inferred_xgb': ('Inferred (XGBoost)', '#9a6700', '#fff8c5'),
-                         'placeholder': ('Placeholder (test)', '#cf222e', '#ffebe9')} %}
+                         'inferred_xgb': ('Inferred (XGBoost)', '#9a6700', '#fff8c5')} %}
         {% if _src and c.effective_class %}
         {% set _b = _badge.get(_src, (_src, '#57606a', '#eaeef2')) %}
         <div style="margin-bottom:0.75rem;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--bg-subtle,#f6f8fa);">

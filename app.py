@@ -1114,7 +1114,7 @@ def compound_detail(comp_id):
                     try:
                         placeholders = ",".join(["%s"] * len(atomic_classes))
                         cur5.execute(
-                            f"SELECT DISTINCT class_name, superclass_name, pathway_name FROM npc_class_parents WHERE class_name IN ({placeholders}) ORDER BY class_name",
+                            f"SELECT class_name, superclass_name, pathway_name FROM npc_class_parents WHERE parent_rank = 1 AND class_name IN ({placeholders}) ORDER BY class_name",
                             tuple(atomic_classes)
                         )
                         class_hierarchy = cur5.fetchall()

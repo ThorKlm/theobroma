@@ -22,7 +22,7 @@ def bulk_counts(col):
 
 def main():
     super_rows = run_sql("SELECT pathway_name, superclass_name FROM npc_super_parents")
-    class_rows = run_sql("SELECT superclass_name, class_name FROM npc_class_parents")
+    class_rows = run_sql("SELECT superclass_name, class_name FROM npc_class_parents WHERE parent_rank = 1")
     pw_cnt = bulk_counts("np_pathway")
     sc_cnt = bulk_counts("np_superclass")
     cl_cnt = bulk_counts("np_class")
