@@ -264,3 +264,9 @@ footer { background: var(--surface); border-top: 1px solid var(--border); margin
 .linear-tree-thumb-wrap:hover { cursor: pointer; }
 .linear-tree-thumb-wrap:hover svg path { stroke: #6a6a6a !important; }
 .linear-tree-thumb-wrap:hover svg g { fill: #6a6a6a !important; }
+
+/* collapsible long attestation lists */
+.longmore { display: none; }
+a.showmore, a.showless {
+  cursor: pointer; color: var(--accent); font-size: 0.85em; white-space: nowrap;
+}

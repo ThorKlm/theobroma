@@ -29,7 +29,7 @@ WITH raw_tokens AS (
     WHERE c.source_organism IS NOT NULL AND c.source_organism<>''
 ),
 extracted AS (
-  SELECT comp_id, (regexp_match(token, '^([A-Za-z]+)[[:space:]]+([A-Za-z]+)')) AS m
+  SELECT comp_id, (regexp_match(token, '^([A-Za-z]+)[[:space:]]+([A-Za-z-]+)')) AS m
   FROM raw_tokens
 )
 SELECT DISTINCT comp_id, initcap(m[1]) || ' ' || lower(m[2]) AS binom

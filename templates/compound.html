@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ c.name or c.comp_id }} &mdash; THEOBROMA{% endblock %}
 {% block content %}
+{% macro capped(seq, sep=', ', cap=25) -%}
+  {%- set xs = seq | select | list | unique | list -%}
+  {%- if xs -%}
+    {{ xs[:cap] | join(sep) }}
+    {%- if xs | length > cap -%}
+      <span class="longmore" style="display:none;">{{ sep }}{{ xs[cap:] | join(sep) }} <a href="#" class="showless" onclick="var s=this.parentNode;s.style.display='none';s.nextElementSibling.style.display='inline';return false;">&minus; show less</a></span><a href="#" class="showmore" onclick="this.previousElementSibling.style.display='inline';this.style.display='none';return false;">&nbsp;+{{ xs|length - cap }} more, show all</a>
+    {%- endif -%}
+  {%- else -%}&mdash;{%- endif -%}
+{%- endmacro %}
 <div class="back-link"><a href="javascript:history.back();">&larr; Back to results</a></div>
 <p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 0.5rem 0;line-height:1.35;">Per-compound provenance: structure, identifiers, taxonomy, license tier, ChemBERTa-similar neighbors, ADMET predictions, and external cross-references.</p>
 <div class="compound-header">
@@ -51,7 +60,7 @@
                     <span class="source-chip source-primary">{{ c.source_db }}</span> (unique to this source)
                 {% endif %}
             </td></tr>
-            <tr><th>Source organism</th><td>{{ c.source_organism_curated or c.source_organism or '&mdash;'|safe }}</td></tr>
+            <tr><th>Source organism</th><td style="font-size:0.85rem;">{{ capped((c.source_organism_curated or c.source_organism or '').split('; '), '; ') }}</td></tr>
             <tr><th>Geographic region</th><td>{{ c.region|region_label }}</td></tr>
             <tr><th>References</th><td>
                 {% if c.reference_doi %}{% set dois = c.reference_doi.split("; ") %}{% for doi in dois[:3] %}<a href="https://doi.org/{{ doi }}" target="_blank" style="font-size:0.78rem;">{{ doi }}</a> {% endfor %}{% if dois|length > 3 %}<span id="extra-dois" style="display:none;">{% for doi in dois[3:] %}<a href="https://doi.org/{{ doi }}" target="_blank" style="font-size:0.78rem;">{{ doi }}</a> {% endfor %}</span><a href="#" onclick="document.getElementById('extra-dois').style.display='';this.style.display='none';return false;" style="font-size:0.78rem;color:var(--accent);">(+{{ dois|length - 3 }} more, show all)</a>{% endif %}{% endif %}
@@ -94,8 +103,8 @@
             {% if resolved_lineage.genus %}<tr><th>Genus</th><td>{{ resolved_lineage.genus }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
             {% endif %}
             {% if taxonomy and taxonomy[0].genus %}
-            <tr><th>All attested genera</th><td style="font-size:0.85rem;">{{ taxonomy|map(attribute='genus')|select|list|unique|join(', ') or '&mdash;'|safe }}</td></tr>
-            <tr><th>All attested families</th><td style="font-size:0.85rem;">{{ taxonomy|map(attribute='family')|select|list|unique|join(', ') or '&mdash;'|safe }}</td></tr>
+            <tr><th>All attested genera</th><td style="font-size:0.85rem;">{{ capped(taxonomy|map(attribute='genus')) }}</td></tr>
+            <tr><th>All attested families</th><td style="font-size:0.85rem;">{{ capped(taxonomy|map(attribute='family')) }}</td></tr>
             {% set continents = [] %}
             {% set regions = [] %}
             {% for t in taxonomy %}
@@ -109,19 +118,13 @@
               {% endif %}
             {% endfor %}
             {% if continents %}
-            <tr><th>Native to (continents)</th><td style="font-size:0.85rem;">{{ continents|map('lower')|map('capitalize')|join(', ') }} <span style="font-size:0.7rem;color:var(--text-muted);">(WCVP)</span></td></tr>
+            <tr><th>Native to (continents)</th><td style="font-size:0.85rem;">{{ capped(continents|map('lower')|map('capitalize')) }} <span style="font-size:0.7rem;color:var(--text-muted);">(WCVP)</span></td></tr>
             {% endif %}
             {% if regions %}
-            <tr><th>Native to (regions)</th><td style="font-size:0.8rem;">{{ regions|join(', ') }} <span style="font-size:0.7rem;color:var(--text-muted);">(WCVP TDWG level 2)</span></td></tr>
+            <tr><th>Native to (regions)</th><td style="font-size:0.8rem;">{{ capped(regions) }} <span style="font-size:0.7rem;color:var(--text-muted);">(WCVP TDWG level 2)</span></td></tr>
             {% endif %}
             {% else %}
             <tr><th>Genus / Family</th><td><span style="color:var(--text-muted);">not resolved via WCVP</span></td></tr>
-            {% endif %}
-            {% if c.source_organism_curated %}
-            <tr><th>Source organism(s)</th><td style="font-size:0.85rem;">{{ c.source_organism_curated }}</td></tr>
-            {% endif %}
-            {% if c.source_organism and c.source_organism != c.source_organism_curated %}
-            <tr><th>As reported (raw)</th><td style="font-size:0.8rem;color:var(--text-muted);">{{ c.source_organism }}</td></tr>
             {% endif %}
         </table>
     </div>
