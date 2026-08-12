@@ -1846,8 +1846,11 @@ def api_search():
     """JSON API for programmatic access. Supports name, smiles, inchikey, kingdom, organism, region, source searches."""
     q = request.args.get("q","").strip()
     st = request.args.get("type","name")
-    limit = min(10000, max(1, int(request.args.get("limit",50))))
-    offset = max(0, int(request.args.get("offset",0)))
+    try:
+        limit = min(10000, max(1, int(request.args.get("limit", 50))))
+        offset = max(0, int(request.args.get("offset", 0)))
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit and offset must be integers"}), 400
     if "page" in request.args and "offset" not in request.args:
         offset = (max(1, int(request.args.get("page", 1))) - 1) * limit
     fmt = request.args.get("format","json")
