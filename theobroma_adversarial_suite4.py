@@ -133,6 +133,28 @@ def r04(c):
         "a badge on a primary-matched row would misreport how the hit was made"
 
 
+@test("R09", "browse marks secondary-attestation matches like search does")
+def r09(c):
+    st, html, _ = c.get("/browse?kingdom=fungi")
+    ids = list(dict.fromkeys(re.findall(r"/compound/(THEO_\d+)", html)))
+    if not ids:
+        return "ERROR", "no browse rows parsed", ""
+    expect = c.q1("""SELECT count(*) FROM resolved_taxonomy
+                     WHERE comp_id = ANY(%s) AND lower(kingdom) <> 'fungi'
+                       AND 'fungi' = ANY(secondary_kingdoms)""", (ids,))
+    got = html.count("badge-secondary-att")
+    return got == expect, "%s rows, %s badges, %s expected" % (len(ids), got, expect), \
+        "browse and search must not diverge in how they report why a row matched"
+
+
+@test("R10", "unfiltered browse carries no secondary-attestation marks")
+def r10(c):
+    st, html, _ = c.get("/browse")
+    return st == 200 and html.count("badge-secondary-att") == 0, \
+        "unfiltered browse marks: %s" % html.count("badge-secondary-att"), \
+        "with no kingdom filter there is no question the mark could answer"
+
+
 @test("R05", "a non-kingdom search shows no secondary-attestation marks in results")
 def r05(c):
     st, html, _ = c.get("/search?type=npclassifier_class&q=Flavonols")

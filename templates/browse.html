@@ -95,7 +95,7 @@
         <td><a href="/compound/{{ r.comp_id }}"><canvas class="smi-thumb" data-smiles="{{ r.smiles }}" width="80" height="60"></canvas></a></td>
         <td><a href="/compound/{{ r.comp_id }}">{{ r.comp_id }}</a></td>
         <td>{{ r.name or '&mdash;'|safe }}</td>
-        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span></td>
+        <td><span class="badge badge-{{ r.kingdom|lower|default('unknown') }}">{{ r.kingdom|kingdom_label }}</span>{% if kingdom and r.kingdom and r.kingdom|lower != kingdom|lower %}<span class="badge badge-{{ kingdom|lower }} badge-secondary-att" style="margin-left:0.35rem;" title="also attested from {{ kingdom }}">{{ kingdom|lower }}</span>{% endif %}</td>
         <td>{{ r.source_db or '&mdash;'|safe }}</td>
         <td>{{ r.region|region_label }}</td>
         <td>{{ "%.1f"|format(r.mw) if r.mw else '&mdash;'|safe }}</td>
