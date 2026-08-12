@@ -341,7 +341,7 @@
       legendG.append('text')
         .attr('x', legendX + 14).attr('y', rowY)
         .style('font-size', '11px').style('fill', '#444')
-        .text(c.name + ' ' + c.value.toLocaleString() + ' (' + pct + '%)');
+        .text(c.name + ' ' + c.value.toLocaleString('en-US') + ' (' + pct + '%)');
     });
 
     // Per-wedge clockwise alpha gradients live in <defs>.
@@ -648,9 +648,9 @@
         document.getElementById('tax-breadcrumb').textContent = trail;
         document.getElementById('tax-detail').innerHTML =
           '<strong>' + _displayName(d) + '</strong> (' + rings[d.depth - 1] + '): ' +
-          d.value.toLocaleString() + ' compound-organism associations';
+          d.value.toLocaleString('en-US') + ' compound-organism associations';
         var tip = document.getElementById('tax-floating-tip');
-        tip.textContent = _displayName(d) + ' (' + rings[d.depth - 1] + ', ' + d.value.toLocaleString() + ') \u2014 click to search';
+        tip.textContent = _displayName(d) + ' (' + rings[d.depth - 1] + ', ' + d.value.toLocaleString('en-US') + ') \u2014 click to search';
         tip.style.display = '';
         tip.style.left = (event.clientX + 12) + 'px';
         tip.style.top = (event.clientY + 12) + 'px';
