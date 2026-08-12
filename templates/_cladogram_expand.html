@@ -84,10 +84,16 @@
 
   // Strip "(unresolved)" branches and apply per-depth caps.
   // depth 0=root, 1=kingdom, 2=phylum, 3=class, 4=order, 5=family, 6=genus.
-  function pruneWithCaps(node, depth, caps){
+  // Paths of nodes whose residual marker was clicked. These show all their
+  // children regardless of the global per-depth cap.
+  var expandedPaths = new Set();
+
+  function pruneWithCaps(node, depth, caps, path){
+    path = (path === undefined) ? (node.name || 'root') : path;
     if (!node.children) return;
     node.children = node.children.filter(function(c){ return c.name !== '(unresolved)'; });
     var cap = caps[depth + 1];  // cap on this node's children
+    if (expandedPaths.has(path)) cap = undefined;
     // cap === 0 means hide this entire rank: drop all children, no residual marker.
     if (cap === 0){
       delete node.children;
@@ -103,12 +109,13 @@
       kept.push({
         name: '+' + nDropped + ' more',
         value: residualValue,
-        _is_residual: true
+        _is_residual: true,
+        _parentPath: path
       });
       node.children = kept;
     }
     node.children.forEach(function(c){
-      if (!c._is_residual) pruneWithCaps(c, depth + 1, caps);
+      if (!c._is_residual) pruneWithCaps(c, depth + 1, caps, path + '/' + c.name);
     });
   }
 
@@ -508,6 +515,15 @@
     // corresponding rank. Preserves all existing URL params (chem properties,
     // region/license filters, etc.) so the filter context propagates.
     var DEPTH_TO_TYPE = {1: 'kingdom', 2: 'phylum', 3: 'tax_class', 4: 'order', 5: 'family', 6: 'genus', 7: 'name'};
+    node.filter(function(d){ return d.data._is_residual && d.data._parentPath; })
+      .style('cursor','pointer')
+      .on('click', function(event, d){
+        event.stopPropagation();
+        event.preventDefault();
+        if (expandedPaths.has(d.data._parentPath)) expandedPaths.delete(d.data._parentPath);
+        else expandedPaths.add(d.data._parentPath);
+        applyCapsAndRerender();
+      });
     node.filter(function(d){ return d.depth >= 1 && d.depth <= 7 && !d.data._is_residual; })
       .style('cursor','pointer')
       .on('click', function(event, d){
