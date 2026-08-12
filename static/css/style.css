@@ -299,3 +299,6 @@ a.showmore, a.showless {
   margin-left: 0.35em;
   opacity: 0.5;
 }
+
+/* keep the secondary-attestation badge clear of the primary one */
+td .badge + .badge.badge-secondary-att { margin-left: 0.4em; }

@@ -1097,6 +1097,7 @@ def compound_detail(comp_id):
             except:
                 conn3.rollback()
     taxonomy = []
+    lineages = []
     with get_db() as conn4:
         with conn4.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur4:
             try:
@@ -1105,6 +1106,27 @@ def compound_detail(comp_id):
                                 WHERE comp_id = %s
                                 ORDER BY (genus IS NULL), token""", (c["comp_id"],))
                 taxonomy = cur4.fetchall()
+                cur4.execute("""SELECT DISTINCT
+                       CASE lower(coalesce(nullif(ct.kingdom_any,''), m.lineage_kingdom, ''))
+                            WHEN 'animalia'  THEN 'animal'
+                            WHEN 'metazoa'   THEN 'animal'
+                            WHEN 'bacillati' THEN 'bacteria'
+                            WHEN 'pseudomonadati' THEN 'bacteria'
+                            WHEN 'viridiplantae' THEN 'plant'
+                            WHEN 'plantae'   THEN 'plant'
+                            WHEN 'archaea'  THEN 'bacteria'
+                            WHEN 'methanobacteriati' THEN 'bacteria'
+                            WHEN 'thermoproteati'    THEN 'bacteria'
+                            WHEN 'thermotogati'      THEN 'bacteria'
+                            WHEN 'chromista' THEN 'unresolved'
+                            ELSE lower(coalesce(nullif(ct.kingdom_any,''), m.lineage_kingdom, 'unresolved'))
+                       END AS kingdom_any,
+                       ct.phylum_any, ct.class_any, ct.order_any, ct.family, ct.genus
+                     FROM compound_taxonomy ct
+                     LEFT JOIN phylum_kingdom_map m ON m.phylum = lower(ct.phylum_any)
+                     WHERE ct.comp_id = %s AND coalesce(ct.family,'') <> ''
+                     ORDER BY 1, 5""", (c["comp_id"],))
+                lineages = cur4.fetchall()
             except Exception:
                 conn4.rollback()
     # All mapped macro-regions. compounds.region holds a single legacy value while
@@ -1196,7 +1218,7 @@ def compound_detail(comp_id):
                 license_attestations = cur_lic.fetchall()
             except Exception:
                 conn_lic.rollback()
-    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, resolved_lineage=resolved_lineage, class_hierarchy=class_hierarchy, stereoisomers=stereoisomers, stereoisomer_groups=stereoisomer_groups, license_attestations=license_attestations, regions_all=regions_all)
+    return render_template("compound.html", c=c, all_sources_list=src_list, synonyms=synonyms, admet=admet_data, taxonomy=taxonomy, resolved_lineage=resolved_lineage, class_hierarchy=class_hierarchy, stereoisomers=stereoisomers, stereoisomer_groups=stereoisomer_groups, license_attestations=license_attestations, regions_all=regions_all, lineages=lineages)
 
 @app.route("/statistics")
 def statistics():
@@ -1811,6 +1833,7 @@ def download_file(filename):
     d = app.config["DATA_DIR"]
     if not os.path.exists(os.path.join(d, filename)): abort(404)
     return send_from_directory(d, filename, as_attachment=True)
+
 
 @app.route("/help")
 def help_page():
