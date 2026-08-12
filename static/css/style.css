@@ -302,3 +302,6 @@ a.showmore, a.showless {
 
 /* keep the secondary-attestation badge clear of the primary one */
 td .badge + .badge.badge-secondary-att { margin-left: 0.4em; }
+
+/* secondary kingdoms in the compound title chip row */
+.chip .ksec, .badges .ksec { margin-left: 0.5em; }
