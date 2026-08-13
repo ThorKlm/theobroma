@@ -8,7 +8,7 @@
     <table class="prop-table">
     {% for key, val in admet.items() %}
         {% if key != 'comp_id' and val is not none %}
-        <tr><th>{{ key }}</th><td>{{ "%.4f"|format(val) }}</td></tr>
+        <tr><th>{{ key }}</th><td>{{ val|admet_value(key) }}</td></tr>
         {% endif %}
     {% endfor %}
     </table>

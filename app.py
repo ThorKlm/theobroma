@@ -658,6 +658,41 @@ def search():
                 extra_clauses.append(esql)
                 extra_params.append(f"%{eq}%")
     # Handle property range filters (physchem + ADMET)
+
+# Physical ranges for the five ADMET-AI regression endpoints reported on native
+# scales. Chemprop regression heads are unconstrained, so predictions can leave
+# the physical domain: 354,826 negative VDss, 274,202 negative half-lives, and
+# 295,309 plasma protein binding values above 100 percent. The stored value is
+# the model output and is deposited unchanged. The page renders the clamped
+# value with the raw one alongside so nothing is silently altered.
+ADMET_BOUNDS = {
+    "VDss_Lombardo":           (0.0, None),
+    "Half_Life_Obach":         (0.0, None),
+    "Clearance_Microsome_AZ":  (0.0, None),
+    "Clearance_Hepatocyte_AZ": (0.0, None),
+    "PPBR_AZ":                 (0.0, 100.0),
+}
+
+@app.template_filter("admet_value")
+def admet_value(value, key=None):
+    """Render an ADMET value, clamping the five native-scale regression
+    endpoints to their physical range and showing the raw model output."""
+    if value is None:
+        return ""
+    lo, hi = ADMET_BOUNDS.get(key, (None, None))
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    c = v
+    if lo is not None and v < lo:
+        c = lo
+    if hi is not None and v > hi:
+        c = hi
+    if c == v:
+        return "%.4f" % v
+    return "%.4f (raw: %.4f)" % (c, v)
+
     admet_cols = {"Lipinski","QED","stereo_centers","PAINS_alert","BRENK_alert","NIH_alert","AMES","BBB_Martins","Bioavailability_Ma","CYP1A2_Veith","CYP2C19_Veith","CYP2C9_Substrate_CarbonMangels","CYP2C9_Veith","CYP2D6_Substrate_CarbonMangels","CYP2D6_Veith","CYP3A4_Substrate_CarbonMangels","CYP3A4_Veith","Carcinogens_Lagunin","ClinTox","DILI","HIA_Hou","NR_AR_LBD","NR_AR","NR_AhR","NR_Aromatase","NR_ER_LBD","NR_ER","NR_PPAR_gamma","PAMPA_NCATS","Pgp_Broccatelli","SR_ARE","SR_ATAD5","SR_HSE","SR_MMP","SR_p53","Skin_Reaction","hERG","Caco2_Wang","Clearance_Hepatocyte_AZ","Clearance_Microsome_AZ","Half_Life_Obach","HydrationFreeEnergy_FreeSolv","LD50_Zhu","Lipophilicity_AstraZeneca","PPBR_AZ","Solubility_AqSolDB","VDss_Lombardo"}
     needs_admet_join = False
     for prop in ["mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds",

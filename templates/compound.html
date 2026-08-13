@@ -508,7 +508,7 @@
         <table class="prop-table" style="font-size:0.78rem;">
             {% for key, val in admet.items() %}
             {% if key != 'comp_id' and val is not none %}
-            <tr><th style="width:50%;">{{ key }}</th><td>{{ "%.4f"|format(val) }}</td></tr>
+            <tr><th style="width:50%;">{{ key }}</th><td>{{ val|admet_value(key) }}</td></tr>
             {% endif %}
             {% endfor %}
         </table>
