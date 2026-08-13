@@ -4,6 +4,7 @@
    The `linear_tree` context var is no longer used for rendering but kept as a
    presence flag (server populates it whenever cladogram data is available). #}
 {% if linear_tree %}
+<div style="display:flex;flex-direction:column;align-items:center;width:156px;flex-shrink:0;{% if right_gravitate %}margin-left:auto;{% endif %}">
 <a href="#cladogram-panel" class="linear-tree-thumb-wrap" style="display:flex;flex-direction:column;align-items:center;gap:0.15rem;font-size:0.72rem;line-height:1.1;text-decoration:none;color:inherit;width:156px;flex-shrink:0;{% if right_gravitate %}margin-left:auto;{% endif %}">
   
   <svg viewBox="0 0 156 100" xmlns="http://www.w3.org/2000/svg" style="width:156px;height:100px;">
@@ -23,6 +24,8 @@
       <circle cx="108" cy="70" r="4" />
     </g>
   </svg>
-  <div style="font-size:0.78rem;color:var(--accent);font-style:italic;text-align:center;line-height:1.15;">(click to generate cladogram/<br>corresponding linear tree)</div>
+  <div style="font-size:0.78rem;color:var(--accent);font-style:italic;text-align:center;line-height:1.15;">(click to generate cladogram/<br>taxonomic linear tree)</div>
 </a>
+<div style="font-size:0.78rem;text-align:center;line-height:1.15;margin-top:0.25rem;"><a href="/tree" style="color:#1565c0;text-decoration:none;">(click here for the<br>chemical classification tree)</a></div>
+</div>
 {% endif %}

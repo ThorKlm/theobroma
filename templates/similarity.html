@@ -89,7 +89,7 @@
     {% endif %}
     {% with right_gravitate=false %}{% include "_linear_tree_thumb.html" %}{% endwith %}
     {% if thumb and thumb.svg %}
-    <a href="#" class="kingdom-thumb-wrap" style="display:flex;align-items:center;gap:0.75rem;font-size:0.78rem;line-height:1.3;text-decoration:none;color:inherit;">
+    <a href="/tree" class="kingdom-thumb-wrap" style="display:flex;align-items:center;gap:0.75rem;font-size:0.78rem;line-height:1.3;text-decoration:none;color:inherit;">
       {{ thumb.svg|safe }}
       <div class="kingdom-legend" style="display:grid;grid-template-columns:auto auto auto;gap:0.15rem 0.4rem;text-align:left;width:max-content;">
         {% for kingdom, count, pct in thumb.legend %}

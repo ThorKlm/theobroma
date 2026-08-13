@@ -133,3 +133,5 @@ hpo_v135/*.db
 hpo_v135/out_v135b/*.db
 hpo_v135/out_v135b/*.ubj
 hpo_v135/*.zip
+templates/_bak/
+templates/*.bak*

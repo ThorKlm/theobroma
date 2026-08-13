@@ -1,15 +1,15 @@
 meta:
   database: THEOBROMA
-  version: 1.0.1
-  compounds: 1133004
-  freeze_date: '2026-05-14'
+  version: '1.35'
+  compounds: 1132805
+  freeze_date: '2026-08-12'
   maintainer: Thor Klamt <Thor.Klamt@gmail.com>
   repository: https://github.com/ThorKlm/theobroma
   dataset: https://huggingface.co/datasets/ThorKl/theobroma
   website: https://theobroma.l3s.uni-hannover.de
 deduplication:
   method: Full 27-character InChIKey
-  note: Stereoisomers kept as separate entries (304k stereo families)
+  note: Stereoisomers kept as separate entries (486,032 connectivity families)
   canonicalization: RDKit MolToSmiles(MolFromSmiles(smi))
 sources:
 - name: COCONUT 2.0
@@ -19,7 +19,7 @@ sources:
   version: September 2024
   format: CSV (coconut-09-2024.csv.zip) + SQL dump (coconut-09-2024.sql.zip)
   raw_compounds: 1061258
-  in_theobroma: 920039
+  in_theobroma: 919873
   converter: merge_with_coconut.py
   license_article: CC BY 4.0
   license_data: CC BY 4.0 (Zenodo) / CC0 (download page)
@@ -31,7 +31,7 @@ sources:
   version: '1.0'
   format: JSON (compounds.json, Content.json, Food.json)
   raw_compounds: 70000
-  in_theobroma: 58067
+  in_theobroma: 58050
   converter: convert_foodb.py
   license_data: CC BY-NC 4.0
   citation: https://foodb.ca
@@ -43,7 +43,7 @@ sources:
   version: '2.0'
   format: CSV
   raw_compounds: 17500
-  in_theobroma: 17301
+  in_theobroma: 17293
   converter: convert.py (via COCONUT)
   license_data: CC BY-NC 4.0
   citation: 10.1093/nar/gkae1063
@@ -54,7 +54,7 @@ sources:
   version: '2.0'
   format: CSV
   raw_compounds: 12500
-  in_theobroma: 12045
+  in_theobroma: 12041
   converter: convert.py (via COCONUT)
   license_data: CC BY-NC 4.0
   citation: 10.1186/s12906-023-04331-y
@@ -65,7 +65,7 @@ sources:
   version: '2.0'
   format: CSV
   raw_compounds: 17967
-  in_theobroma: 10892
+  in_theobroma: 10891
   converter: convert.py imppat
   license_article: CC BY-NC-ND 4.0 (ACS Omega)
   license_data: CC BY-NC 4.0 (PMC version)
@@ -78,7 +78,7 @@ sources:
   version: '2023'
   format: CSV
   raw_compounds: 7000
-  in_theobroma: 6697
+  in_theobroma: 6695
   converter: convert.py csiro
   license_data: CC BY-NC 4.0
   citation: 10.25919/58665
@@ -101,7 +101,7 @@ sources:
   version: 3.0 (2023)
   format: CSV
   raw_compounds: 96000
-  in_theobroma: 19455
+  in_theobroma: 19454
   converter: convert.py npass
   license_data: CC BY-NC 4.0
   citation: 10.1093/nar/gkac1069
@@ -135,7 +135,7 @@ sources:
   version: '2023'
   format: CSV (semicolon-delimited)
   raw_compounds: 4100
-  in_theobroma: 3920
+  in_theobroma: 1601
   converter: convert.py micotoxilico
   license_data: Unspecified
   citation: https://micotoxilico.com
@@ -180,7 +180,7 @@ sources:
   version: '2022'
   format: CSV
   raw_compounds: 1200
-  in_theobroma: 1161
+  in_theobroma: 1158
   converter: convert.py mefsat
   license_data: CC BY 4.0
   citation: 10.1093/nar/gkab1099
@@ -191,7 +191,7 @@ sources:
   version: 3.0 (September 2024)
   format: CSV
   raw_compounds: 3084
-  in_theobroma: 1534
+  in_theobroma: 1507
   converter: integrate_cyanometdb_v3.py
   license_data: CC BY 4.0
   citation: 10.1016/j.watres.2021.117017
@@ -280,7 +280,7 @@ sources:
   version: '2023'
   format: API/JSON
   raw_compounds: 260
-  in_theobroma: 253
+  in_theobroma: 175
   converter: convert.py fdp
   license_data: Unspecified
   citation: N/A
@@ -302,7 +302,7 @@ sources:
   version: '2023'
   format: API/JSON
   raw_compounds: 75
-  in_theobroma: 70
+  in_theobroma: 68
   converter: convert.py fdp
   license_data: Unspecified
   citation: N/A
@@ -326,7 +326,7 @@ sources:
   raw_compounds: 7615
   in_theobroma: 471
   converter: convert_tipdb.py
-  license_data: CC BY-NC 4.0 (placeholder, awaiting written confirmation from C.-W. Tung)
+  license_data: CC BY-NC 4.0 (conservative; C.-W. Tung confirmed CC BY 4.0 terms in correspondence, May 2026, reclassification deferred to the next release)
   citation: 10.1186/1758-2946-1-15
   notes: 'Manual recovery of structures from the 2015 TIPdb-3D archive after server decommissioning. Structures only: per-compound
     names, source organisms, and ethnobotanical metadata not present in archive. To be re-integrated when a successor TIPdb
@@ -338,7 +338,7 @@ sources:
   version: v11 (April 13, 2026)
   format: Frozen Wikidata extract, tabular CSV exports
   raw_compounds: 227298
-  in_theobroma: 53862
+  in_theobroma: 53859
   overlap_with_corpus: 173436
   converter: convert_lotus.py + merge_lotus.py
   license_data: CC BY 4.0 (Zenodo) / CC0 (Wikidata)
