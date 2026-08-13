@@ -154,6 +154,12 @@ def get_sort(default="comp_id"):
     if o not in ("asc","desc"): o = "asc"
     return s, o, f"ORDER BY {s} {o} NULLS LAST"
 
+def _rng(name):
+    """Range bounds can arrive twice when a property extra reuses the global
+    parameter names. Take the last non-empty value rather than the first."""
+    vals = [v for v in request.args.getlist(name) if v.strip() != ""]
+    return vals[-1] if vals else ""
+
 def get_per_page():
     try:
         pp = int(request.args.get("per_page", Config.PER_PAGE))
@@ -454,7 +460,7 @@ def search():
         }
         st = prop_type_aliases.get(raw_prop_type, "npclassifier_class")
     has_extra = any(request.args.get(f"extra_type_{i}") and request.args.get(f"extra_q_{i}") for i in range(1, 11))
-    has_range = any(request.args.get(f"{p}_min") or request.args.get(f"{p}_max")
+    has_range = any(_rng(f"{p}_min") or _rng(f"{p}_max")
                     for p in ["mw","logp","tpsa","hba","hbd","n_rings","rotatable_bonds",
                               "Lipinski","QED","stereo_centers","PAINS_alert","BRENK_alert","NIH_alert",
                               "AMES","BBB_Martins","Bioavailability_Ma",
@@ -656,8 +662,8 @@ def search():
     needs_admet_join = False
     for prop in ["mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds",
                   "Lipinski", "QED", "stereo_centers", "PAINS_alert", "BRENK_alert", "NIH_alert", "AMES", "BBB_Martins", "Bioavailability_Ma", "CYP1A2_Veith", "CYP2C19_Veith", "CYP2C9_Substrate_CarbonMangels", "CYP2C9_Veith", "CYP2D6_Substrate_CarbonMangels", "CYP2D6_Veith", "CYP3A4_Substrate_CarbonMangels", "CYP3A4_Veith", "Carcinogens_Lagunin", "ClinTox", "DILI", "HIA_Hou", "NR_AR_LBD", "NR_AR", "NR_AhR", "NR_Aromatase", "NR_ER_LBD", "NR_ER", "NR_PPAR_gamma", "PAMPA_NCATS", "Pgp_Broccatelli", "SR_ARE", "SR_ATAD5", "SR_HSE", "SR_MMP", "SR_p53", "Skin_Reaction", "hERG", "Caco2_Wang", "Clearance_Hepatocyte_AZ", "Clearance_Microsome_AZ", "Half_Life_Obach", "HydrationFreeEnergy_FreeSolv", "LD50_Zhu", "Lipophilicity_AstraZeneca", "PPBR_AZ", "Solubility_AqSolDB", "VDss_Lombardo"]:
-        pmin = request.args.get(f"{prop}_min", "")
-        pmax = request.args.get(f"{prop}_max", "")
+        pmin = _rng(f"{prop}_min")
+        pmax = _rng(f"{prop}_max")
         if pmin or pmax:
             if prop in admet_cols:
                 needs_admet_join = True
@@ -1637,8 +1643,8 @@ def api_taxonomy_tree():
     admet_cols_taxapi = {"Lipinski","QED","stereo_centers","PAINS_alert","BRENK_alert","NIH_alert","AMES","BBB_Martins","Bioavailability_Ma","CYP1A2_Veith","CYP2C19_Veith","CYP2C9_Substrate_CarbonMangels","CYP2C9_Veith","CYP2D6_Substrate_CarbonMangels","CYP2D6_Veith","CYP3A4_Substrate_CarbonMangels","CYP3A4_Veith","Carcinogens_Lagunin","ClinTox","DILI","HIA_Hou","NR_AR_LBD","NR_AR","NR_AhR","NR_Aromatase","NR_ER_LBD","NR_ER","NR_PPAR_gamma","PAMPA_NCATS","Pgp_Broccatelli","SR_ARE","SR_ATAD5","SR_HSE","SR_MMP","SR_p53","Skin_Reaction","hERG","Caco2_Wang","Clearance_Hepatocyte_AZ","Clearance_Microsome_AZ","Half_Life_Obach","HydrationFreeEnergy_FreeSolv","LD50_Zhu","Lipophilicity_AstraZeneca","PPBR_AZ","Solubility_AqSolDB","VDss_Lombardo"}
     needs_admet_join = False
     for prop in ["mw","logp","tpsa","hba","hbd","n_rings","rotatable_bonds"] + list(admet_cols_taxapi):
-        pmin = request.args.get(f"{prop}_min", "")
-        pmax = request.args.get(f"{prop}_max", "")
+        pmin = _rng(f"{prop}_min")
+        pmax = _rng(f"{prop}_max")
         if not pmin and not pmax:
             continue
         if prop in admet_cols_taxapi:
@@ -2540,8 +2546,8 @@ def admet_browser():
         ("VDss_Lombardo", "Volume of distribution", 0, 10),
     ]
     for col, label, default_min, default_max in filter_defs:
-        lo = request.args.get(f"{col}_min", "")
-        hi = request.args.get(f"{col}_max", "")
+        lo = _rng(f"{col}_min")
+        hi = _rng(f"{col}_max")
         if lo:
             clauses.append(f'a."{col}" >= %s')
             params.append(float(lo))
@@ -2636,8 +2642,8 @@ def advanced_search():
         clauses.append("tier_rank <= 4")
     # Property range filters
     for prop in ["mw", "logp", "tpsa", "hba", "hbd", "n_rings", "rotatable_bonds"]:
-        lo = request.args.get(f"{prop}_min", "")
-        hi = request.args.get(f"{prop}_max", "")
+        lo = _rng(f"{prop}_min")
+        hi = _rng(f"{prop}_max")
         if lo:
             clauses.append(f"{prop} >= %s")
             params.append(float(lo))

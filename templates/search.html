@@ -126,9 +126,9 @@
                 <div id="autocomplete-list" class="autocomplete-list"></div>
             </div>
             <div class="range-input" id="range-input-0" style="display:none;">
-                <input type="number" name="mw_min" id="range-min-0" placeholder="min" step="any">
+                <input type="number" name="mw_min" id="range-min-0" placeholder="min" step="any" disabled>
                 <span style="font-size:0.8rem;color:var(--text-muted);margin:0 0.3rem;">to</span>
-                <input type="number" name="mw_max" id="range-max-0" placeholder="max" step="any">
+                <input type="number" name="mw_max" id="range-max-0" placeholder="max" step="any" disabled>
             </div>
         </div>
         <div class="search-row" id="search-row-license" style="margin-top:0.5rem;display:flex;align-items:center;gap:1rem;">
@@ -333,6 +333,14 @@ function loadOptions() {
     });
 }
 
+function setRangeEnabled(wrap, on) {
+    // Mirrors the prop_type pattern: hidden inputs must not serialize, or an
+    // empty mw_min/mw_max pair is submitted on every query and collides with
+    // the same names emitted by a property extra.
+    if (!wrap) return;
+    wrap.style.display = on ? 'flex' : 'none';
+    wrap.querySelectorAll('input').forEach(function(el) { el.disabled = !on; });
+}
 function onTypeChange(sel, idx) {
     var t = sel.value;
     var row = sel.closest('.search-row');
@@ -364,7 +372,7 @@ function onTypeChange(sel, idx) {
 
     if (propSel) { propSel.style.display = 'none'; propSel.disabled = true; }  // hidden -> do not serialize
     if (textWrap) textWrap.style.display = '';
-    if (rangeWrap) rangeWrap.style.display = 'none';
+    setRangeEnabled(rangeWrap, false);
 
     var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
     if (!input) return;
@@ -414,7 +422,7 @@ function onPropChange(sel, idx) {
     };
     if (pt in classProps) {
         if (textWrap) textWrap.style.display = '';
-        if (rangeWrap) rangeWrap.style.display = 'none';
+        setRangeEnabled(rangeWrap, false);
         var input = textWrap ? textWrap.querySelector('input[type="text"]') : null;
         var typesel = row.querySelector('select[name^="type"], select[name^="extra_type"]');
         if (typesel) typesel.value = 'property';
@@ -488,7 +496,7 @@ function onPropChange(sel, idx) {
             rangeWrap.id = 'range-input-' + idx;
             row.appendChild(rangeWrap);
         }
-        rangeWrap.style.display = 'flex';
+        setRangeEnabled(rangeWrap, true);
         var r = propRanges[pt] || {min:0, max:100, mean:50};
         rangeWrap.innerHTML =
             '<input type="number" name="' + pt + '_min" placeholder="' + r.min + '" step="any" value="">' +
@@ -519,7 +527,7 @@ function addFilter() {
         '<option value="classification">Chemical classification</option>' +
         '<option value="property">Chemical property</option>' +
         '</select>' +
-        '<select name="extra_prop_' + filterCount + '" class="prop-subselect" style="display:none;" disabled onchange="onPropChange(this,' + filterCount + ')">' +
+        '<select name="extra_prop_type_' + filterCount + '" class="prop-subselect" style="display:none;" disabled onchange="onPropChange(this,' + filterCount + ')">' +
         '<option value="npclassifier_class">NPClassifier class</option>' +
         '<option value="classyfire_class">ClassyFire superclass</option>' +
         '<option value="npclassifier_superclass">NPClassifier superclass</option>' +
@@ -669,7 +677,7 @@ document.addEventListener('click', function(e) {
     for (var i = 1; i <= 10; i++) {
         var et = params.get('extra_type_' + i);
         var eq = params.get('extra_q_' + i);
-        var ep = params.get('extra_prop_' + i);
+        var ep = params.get('extra_prop_type_' + i);
         if (!et) continue;
         if (et || eq) {
             addFilter();
