@@ -1353,7 +1353,13 @@ def statistics():
             ]
             for col, label in key_admet:
                 try:
-                    cur.execute(f'SELECT AVG("{col}"), MIN("{col}"), MAX("{col}") FROM admet WHERE "{col}" IS NOT NULL')
+                    lo_b, hi_b = ADMET_BOUNDS.get(col, (None, None))
+                    expr = f'"{col}"'
+                    if lo_b is not None:
+                        expr = f'GREATEST({expr}, {lo_b})'
+                    if hi_b is not None:
+                        expr = f'LEAST({expr}, {hi_b})'
+                    cur.execute(f'SELECT AVG({expr}), MIN({expr}), MAX({expr}) FROM admet WHERE "{col}" IS NOT NULL')
                     row = cur.fetchone()
                     if row and row["avg"] is not None:
                         admet_stats[label] = {"avg": round(float(row["avg"]), 3), "min": round(float(row["min"]), 3), "max": round(float(row["max"]), 3)}

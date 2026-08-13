@@ -6,6 +6,17 @@ import json, os, time, subprocess
 
 OUT = "/home/thorben.klamt/theobroma/static/statistics_cache.json"
 
+# Physical ranges for the five native-scale ADMET-AI regression endpoints.
+# Must match ADMET_BOUNDS in app.py: the cached summary is clamped so it
+# agrees with the per-compound rendering.
+ADMET_BOUNDS = {
+    "VDss_Lombardo":           (0.0, None),
+    "Half_Life_Obach":         (0.0, None),
+    "Clearance_Microsome_AZ":  (0.0, None),
+    "Clearance_Hepatocyte_AZ": (0.0, None),
+    "PPBR_AZ":                 (0.0, 100.0),
+}
+
 def run_sql(q):
     r = subprocess.run(
         ['sudo','-u','postgres','psql','-d','theobroma','-At','-F','\t','-c', q],
@@ -82,7 +93,13 @@ admet_keys = [
 cache['admet_stats'] = {}
 for col, label in admet_keys:
     try:
-        r = run_sql(f'SELECT AVG("{col}"), MIN("{col}"), MAX("{col}"), COUNT(*) FROM admet WHERE "{col}" IS NOT NULL')
+        lo_b, hi_b = ADMET_BOUNDS.get(col, (None, None))
+        expr = f'"{col}"'
+        if lo_b is not None:
+            expr = f'GREATEST({expr}, {lo_b})'
+        if hi_b is not None:
+            expr = f'LEAST({expr}, {hi_b})'
+        r = run_sql(f'SELECT AVG({expr}), MIN({expr}), MAX({expr}), COUNT(*) FROM admet WHERE "{col}" IS NOT NULL')
         if r and r[0][0]:
             cache['admet_stats'][col] = {
                 'label': label,
