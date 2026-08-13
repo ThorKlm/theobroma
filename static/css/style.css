@@ -305,3 +305,7 @@ td .badge + .badge.badge-secondary-att { margin-left: 0.4em; }
 
 /* secondary kingdoms in the compound title chip row */
 .chip .ksec, .badges .ksec { margin-left: 0.5em; }
+
+/* collapsed connectivity-family members in name search results */
+.fam-more { font-size: 0.82em; color: #6b6b6b; text-decoration: none; white-space: nowrap; }
+.fam-more:hover { text-decoration: underline; }

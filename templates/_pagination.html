@@ -27,7 +27,7 @@
     {% set _ = base.__setitem__('page', page + 1) %}
     <a href="?{% for k,v in base.items() %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}">Next &raquo;</a>
     {% endif %}
-    <span class="info">{{ "{:,}".format(total) }} results</span>
+    <span class="info">{{ "{:,}".format(total) }} result{{ 's' if total != 1 }}</span>
     <select class="per-page-select" onchange="var u=new URL(window.location);u.searchParams.set('per_page',this.value);u.searchParams.set('page','1');window.location=u;">
         {% for pp in [25,50,100,1000] %}
         <option value="{{ pp }}" {{ 'selected' if per_page == pp }}>{{ pp }}/page</option>

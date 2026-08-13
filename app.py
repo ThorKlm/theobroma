@@ -401,7 +401,7 @@ def index():
                            home_region_css=home_region_css,
                            home_region_counts=home_region_counts,
                            home_region_titles=home_region_titles,
-                           linear_tree=linear_tree)
+                           linear_tree=linear_tree, show_chem_tree_link=True)
 
 def _exact_flag():
     """Return True if the request asks for exact-match semantics."""
@@ -732,14 +732,37 @@ def search():
         else:
             query = f"SELECT * FROM ({query}) AS base WHERE {extra_where}{rank_order}"
         params = params + tuple(extra_params)
+    # Kingdom thumbnail and linear tree summarise the same rows the table shows,
+    # so name searches feed them the deduplicated set rather than the raw match.
+    tree_query = query
+    if st == "name":
+        tree_query = ("SELECT DISTINCT ON (left(d.inchikey,14), "
+                      "lower(regexp_replace(translate(coalesce(d.name,''), "
+                      "'\u03b1\u03b2\u03b3\u03b4\u03b5\u03c9\u03bc', 'abgdewm'), '[ -]', '', 'g'))) "
+                      "d.* FROM (" + query + ") d")
     with get_db() as conn:
         results, total, pages = paginate(query, params, page, per_page, conn)
+        # The name branch collapses hyphenation and spacing variants within a
+        # connectivity family, so the reported total must use the same key as
+        # the row-level dedup below rather than the raw match count.
+        if st == "name":
+            with conn.cursor() as cur_dc:
+                cur_dc.execute(
+                    "SELECT count(*) FROM (SELECT DISTINCT left(b.inchikey,14) AS f, "
+                    "lower(regexp_replace(translate(coalesce(b.name,''), '\u03b1\u03b2\u03b3\u03b4\u03b5\u03c9\u03bc', 'abgdewm'), '[ -]', '', 'g')) AS n "
+                    "FROM (" + query + ") b) z", params)
+                total = cur_dc.fetchone()[0]
+                pages = max(1, math.ceil(total / per_page))
     if st == "name" and results:
         seen = {}
         deduped = []
         for r in results:
             ik14 = (r.get("inchikey") or "")[:14]
-            name_key = (r.get("name") or "").lower().strip()
+            _n = (r.get("name") or "").lower()
+            for _g, _a in (("\u03b1","a"),("\u03b2","b"),("\u03b3","g"),("\u03b4","d"),
+                           ("\u03b5","e"),("\u03c9","w"),("\u03bc","m")):
+                _n = _n.replace(_g, _a)
+            name_key = _n.replace(" ", "").replace("-", "")
             dedup_key = (ik14, name_key) if ik14 else (name_key,)
             if dedup_key in seen:
                 continue
@@ -810,7 +833,7 @@ def search():
             # secondary-kingdom attestations. (The browse/search kingdom FILTER still
             # matches primary+secondary for findability; this is the visualization.)
             kingdom_sql = f"""
-                WITH result_set AS ({query})
+                WITH result_set AS ({tree_query})
                 SELECT rt.kingdom AS kingdom, COUNT(DISTINCT rs.comp_id) AS cnt
                 FROM result_set rs JOIN resolved_taxonomy rt ON rt.comp_id = rs.comp_id
                 WHERE rt.kingdom IS NOT NULL AND rt.kingdom != ''
@@ -849,7 +872,7 @@ def search():
     # Recompute linear_tree scoped to the search result-set
     try:
         lt_sql = f"""
-            WITH result_set AS ({query})
+            WITH result_set AS ({tree_query})
             SELECT rt.taxorder AS name,
                    COALESCE(pm.lineage_kingdom, rt.kingdom) AS kingdom,
                    COUNT(DISTINCT rs.comp_id) AS count
@@ -863,7 +886,16 @@ def search():
                 linear_tree = [{"name": r[0], "kingdom": r[1], "count": r[2]} for r in cur_lt.fetchall()]
     except Exception:
         pass
-    return render_template("search.html", results=results, query=q, search_type=st,
+    # The kingdom a row may have matched on, whether given as the primary type
+    # or as an extra filter, so the results table can mark secondary attestations.
+    kingdom_q = q if st == "kingdom" else None
+    if kingdom_q is None:
+        for _i in range(1, 11):
+            if request.args.get("extra_type_%d" % _i, "").strip() == "kingdom":
+                kingdom_q = request.args.get("extra_q_%d" % _i, "").strip() or None
+                break
+
+    return render_template("search.html", results=results, query=q, search_type=st, kingdom_q=kingdom_q,
                            searched=bool(q or has_extra or has_range),
                            page=page, total=total, pages=pages, sort=sort, order=order, per_page=per_page,
                            thumb=thumb, linear_tree=linear_tree,
@@ -1483,17 +1515,25 @@ def api_cladogram():
 
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
     conn_join = ("AND" if where_sql else "WHERE")
+    # Name searches collapse hyphenation and spacing variants within a connectivity
+    # family. The dedup runs after the filter, so the surviving row always matches.
+    _dd = ("" if search_type != "name" else
+           "SELECT DISTINCT ON (left(f.inchikey,14), " + "lower(regexp_replace(translate(coalesce(f.name,''), 'αβγδεωμ', 'abgdewm'), '[ -]', '', 'g'))" + ") f.* FROM (" )
+    _dd_tail = ("" if search_type != "name" else
+                ") f ORDER BY left(f.inchikey,14), " + "lower(regexp_replace(translate(coalesce(f.name,''), 'αβγδεωμ', 'abgdewm'), '[ -]', '', 'g'))" + ", f.comp_id")
+    _base = ("SELECT c.comp_id, c.inchikey, c.name, rt.taxorder, rt.kingdom, rt.family "
+             "FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id "
+             + where_sql)
+    _src = "(" + _dd + _base + _dd_tail + ") s"
     order_sql = (
-        "SELECT rt.taxorder, rt.kingdom, COUNT(DISTINCT c.comp_id) AS n "
-        "FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id "
-        + where_sql + " " + conn_join + " rt.taxorder IS NOT NULL "
-        "GROUP BY rt.taxorder, rt.kingdom ORDER BY n DESC LIMIT 50"
+        "SELECT s.taxorder, s.kingdom, COUNT(DISTINCT s.comp_id) AS n FROM "
+        + _src + " WHERE s.taxorder IS NOT NULL "
+        "GROUP BY s.taxorder, s.kingdom ORDER BY n DESC LIMIT 50"
     )
     family_sql = (
-        "SELECT rt.taxorder, rt.family, COUNT(DISTINCT c.comp_id) AS n "
-        "FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id "
-        + where_sql + " " + conn_join + " rt.taxorder IS NOT NULL AND rt.family IS NOT NULL "
-        "GROUP BY rt.taxorder, rt.family ORDER BY rt.taxorder, n DESC"
+        "SELECT s.taxorder, s.family, COUNT(DISTINCT s.comp_id) AS n FROM "
+        + _src + " WHERE s.taxorder IS NOT NULL AND s.family IS NOT NULL "
+        "GROUP BY s.taxorder, s.family ORDER BY s.taxorder, n DESC"
     )
     orders, families_by_order, total = [], {}, 0
     with get_db() as conn:
@@ -1656,6 +1696,17 @@ def api_taxonomy_tree():
             clause_sql, clause_params = clause_pair
             where.append(clause_sql)
             params.extend(clause_params)
+        # Name searches collapse hyphenation and spacing variants within a
+        # connectivity family, matching the /search result table. The subquery
+        # repeats the name filter so the surviving row always matches.
+        if search_type == "name":
+            _nk = "lower(regexp_replace(translate(coalesce(x.name,''), 'αβγδεωμ', 'abgdewm'), '[ -]', '', 'g'))"
+            _pred = ("LOWER(x.name) = LOWER(%s)" if exact else "x.name ILIKE %s")
+            where.append(
+                "c.comp_id IN (SELECT DISTINCT ON (left(x.inchikey,14), " + _nk + ") "
+                "x.comp_id FROM compounds x WHERE " + _pred + " "
+                "ORDER BY left(x.inchikey,14), " + _nk + ", x.comp_id)")
+            params.append(search_q if exact else "%" + search_q + "%")
     # Detect if extras already provide kingdom/source/region; if so, skip the
     # legacy single-param to avoid AND-combining the same dimension twice
     # (which leads to empty results when values differ, e.g. region=East+Asia
@@ -1819,11 +1870,21 @@ def api_taxonomy_tree():
     compounds_by_path = {}
     show_compounds = total > 0 and total <= 250
     if show_compounds:
+        # Secondary attestations appear in the tree as a kingdom node with an
+        # unresolved lineage. Emit a matching compound row so the leaf renders
+        # there too, rather than the node standing empty.
+        secondary_compound_union = "" if api_tax_filter_active else (
+            "UNION ALL SELECT c.comp_id, COALESCE(c.name,''), unnest(rt.secondary_kingdoms), "
+            "NULL, NULL, NULL, NULL, NULL "
+            "FROM compounds c LEFT JOIN resolved_taxonomy rt ON c.comp_id = rt.comp_id"
+            + admet_join_sql + " " + where_sql +
+            (" AND " if where_sql else " WHERE ") +
+            "rt.secondary_kingdoms IS NOT NULL AND rt.secondary_kingdoms <> '{}'")
         sql_compounds = f"""
             SELECT
                 c.comp_id,
                 COALESCE(c.name, '') AS name,
-                rt.kingdom AS theobroma_kingdom,
+                COALESCE(pm.lineage_kingdom, rt.kingdom) AS theobroma_kingdom,
                 rt.phylum AS phylum,
                 rt.taxclass AS class,
                 rt.taxorder AS taxon_order,
@@ -1831,12 +1892,15 @@ def api_taxonomy_tree():
                 rt.genus AS genus
             FROM compounds c
             LEFT JOIN resolved_taxonomy rt ON c.comp_id = rt.comp_id{admet_join_sql}
+            LEFT JOIN phylum_kingdom_map pm ON pm.phylum = rt.phylum
             {where_sql}
-            ORDER BY c.comp_id
+            {secondary_compound_union}
+            ORDER BY 1
         """
         with get_db() as conn2:
             with conn2.cursor() as cur2:
-                cur2.execute(sql_compounds, params_base)
+                cur2.execute(sql_compounds,
+                             params_base if api_tax_filter_active else params_base * 2)
                 seen_per_path = set()
                 for row in cur2.fetchall():
                     cid, nm, tk, ph, cl, od, fa, gn = row
