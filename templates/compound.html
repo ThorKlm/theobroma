@@ -20,7 +20,7 @@
     <p style="font-size:0.82rem;color:var(--text-muted);margin:0.25rem 0 0.5rem;"><strong>Synonyms:</strong> <span style="font-weight:normal;">No synonyms reported</span></p>
     {% endif %}
     <span class="compound-id">{{ c.comp_id }}</span>
-    {% if c.kingdom %}<span class="badge badge-{{ c.kingdom|lower|default('unknown') }}" style="margin-left:0.5rem;">{{ c.kingdom|kingdom_label }}</span>{% endif %}{% if resolved_lineage and resolved_lineage.secondary_kingdoms %}{% for k in resolved_lineage.secondary_kingdoms %}<span class="badge badge-{{ k|lower }} badge-secondary-att" style="margin-left:0.35rem;" title="also attested from {{ k }}">{{ k }}</span>{% endfor %}{% endif %}
+    {% if c.kingdom %}<span class="badge badge-{{ c.kingdom|lower|default('unknown') }}" style="margin-left:0.5rem;">{{ c.kingdom|kingdom_label }}</span>{% endif %}
     <span class="license-badge license-{{ 'open' if c.license_tier in ('CC0','CC BY 4.0') else ('unknown' if c.license_tier == 'Unspecified' else 'nc') }}" style="margin-left:0.5rem;">{{ c.license_tier or 'CC BY 4.0' }}</span>
 </div>
 <div class="compound-grid">
@@ -60,7 +60,7 @@
                     <span class="source-chip source-primary">{{ c.source_db }}</span> (unique to this source)
                 {% endif %}
             </td></tr>
-            <tr><th>Source organism</th><td style="font-size:0.85rem;">{{ capped((c.source_organism_curated or c.source_organism or '').split('; '), '; ') }}</td></tr>
+            <tr><th>Attested species</th><td style="font-size:0.85rem;">{{ capped((c.source_organism_curated or c.source_organism or '').split('; '), '; ', 10) }}</td></tr>
             <tr><th>Geographic regions</th><td style="font-size:0.85rem;">{% if regions_all %}{{ capped(regions_all) }}{% else %}{{ c.region|region_label }}{% endif %}</td></tr>
             <tr><th>References</th><td>
                 {% if c.reference_doi %}{% set dois = c.reference_doi.split("; ") %}{% for doi in dois[:3] %}<a href="https://doi.org/{{ doi }}" target="_blank" style="font-size:0.78rem;">{{ doi }}</a> {% endfor %}{% if dois|length > 3 %}<span id="extra-dois" style="display:none;">{% for doi in dois[3:] %}<a href="https://doi.org/{{ doi }}" target="_blank" style="font-size:0.78rem;">{{ doi }}</a> {% endfor %}</span><a href="#" onclick="document.getElementById('extra-dois').style.display='';this.style.display='none';return false;" style="font-size:0.78rem;color:var(--accent);">(+{{ dois|length - 3 }} more, show all)</a>{% endif %}{% endif %}
@@ -94,7 +94,7 @@
     <div class="card">
         <h3 class="card-title">Taxonomic classification</h3>
         <table class="prop-table">
-            <tr><th>Kingdom</th><td>{{ c.kingdom|kingdom_label }}{% if resolved_lineage and resolved_lineage.secondary_kingdoms %}{% for k in resolved_lineage.secondary_kingdoms %}<span class="ksec k-{{ k|lower }}" style="margin-left:0.45em;" title="also attested from {{ k }}">{{ k }}</span>{% endfor %}{% endif %}</td></tr>
+            <tr><th>Kingdom</th><td>{{ c.kingdom|kingdom_label }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>
             {% if resolved_lineage %}
             {% if resolved_lineage.phylum %}<tr><th>Phylum</th><td>{{ resolved_lineage.phylum }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
             {% if resolved_lineage.taxclass %}<tr><th>Class</th><td>{{ resolved_lineage.taxclass }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
@@ -104,14 +104,30 @@
             {% endif %}
             {% if taxonomy and taxonomy[0].genus %}
             {% if lineages and lineages|map(attribute='kingdom_any')|select|unique|list|length > 1 %}
+            {% set att_k = [c.kingdom] + (lineages|map(attribute='kingdom_any')|select|reject('equalto', c.kingdom)|unique|list) %}
+            <tr><th>Attested kingdoms</th><td style="font-size:0.85rem;">{{ att_k|select|join(', ') }}</td></tr>
+            {% set rf = (resolved_lineage.family if resolved_lineage else '') or '' %}
+            {% set lin_fam = lineages|selectattr('kingdom_any','equalto', c.kingdom)|selectattr('family','equalto', rf)|list %}
+            {% set lin_res = lineages|selectattr('kingdom_any','equalto', c.kingdom)|rejectattr('family','equalto', rf)|list %}
+            {% set lin_oth = lineages|rejectattr('kingdom_any','equalto', c.kingdom)|list %}
+            {% set lin = lin_fam + lin_res + lin_oth %}
             <tr><th>Attested lineages</th><td style="font-size:0.8rem;">
-              {% for l in lineages %}
+              {% for l in lin[:5] %}
                 <div style="margin-bottom:0.15em;"><span class="ksec k-{{ (l.kingdom_any or 'unresolved')|lower }}" style="margin-left:0;">{{ l.kingdom_any or '&mdash;'|safe }}</span> &rsaquo; {{ l.phylum_any }} &rsaquo; {{ l.class_any }} &rsaquo; {{ l.order_any }} &rsaquo; {{ l.family }} &rsaquo; <i>{{ l.genus }}</i></div>
               {% endfor %}
+              {% if lin|length > 5 %}
+              <span class="longmore" style="display:none;">
+                {% for l in lin[5:] %}
+                <div style="margin-bottom:0.15em;"><span class="ksec k-{{ (l.kingdom_any or 'unresolved')|lower }}" style="margin-left:0;">{{ l.kingdom_any or '&mdash;'|safe }}</span> &rsaquo; {{ l.phylum_any }} &rsaquo; {{ l.class_any }} &rsaquo; {{ l.order_any }} &rsaquo; {{ l.family }} &rsaquo; <i>{{ l.genus }}</i></div>
+                {% endfor %}
+                <a href="#" class="showless" onclick="var s=this.parentNode;s.style.display='none';s.nextElementSibling.style.display='inline';return false;">&minus; show less</a></span><a href="#" class="showmore" onclick="this.previousElementSibling.style.display='inline';this.style.display='none';return false;">&nbsp;+{{ lin|length - 5 }} more, show all</a>
+              {% endif %}
             </td></tr>
             {% endif %}
-            <tr><th>All attested genera</th><td style="font-size:0.85rem;">{{ capped(taxonomy|map(attribute='genus')) }}</td></tr>
-            <tr><th>All attested families</th><td style="font-size:0.85rem;">{{ capped(taxonomy|map(attribute='family')) }}</td></tr>
+            {% set g_res = (lineages|selectattr('kingdom_any','equalto', c.kingdom)|selectattr('family','equalto', rf)|map(attribute='genus')|select|list) + (lineages|selectattr('kingdom_any','equalto', c.kingdom)|rejectattr('family','equalto', rf)|map(attribute='genus')|select|list) %}
+            {% set g_oth = taxonomy|map(attribute='genus')|select|reject('in', g_res)|list %}
+            <tr><th>Attested genera</th><td style="font-size:0.85rem;">{{ capped(g_res + g_oth, ', ', 12) }}</td></tr>
+            <tr><th>Attested families</th><td style="font-size:0.85rem;">{{ capped(taxonomy|map(attribute='family'), ', ', 12) }}</td></tr>
             {% set continents = [] %}
             {% set regions = [] %}
             {% for t in taxonomy %}
