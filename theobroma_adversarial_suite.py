@@ -174,9 +174,9 @@ def b06(c):
     n = c.q1("""SELECT count(*) FROM resolved_taxonomy rt
         JOIN phylum_kingdom_map m ON m.phylum = rt.phylum
         WHERE m.lineage_kingdom IS DISTINCT FROM rt.kingdom""")
-    return ("KNOWN" if n is not None and 4000 < n < 9000 else "FAIL"), \
+    return (n == 0), \
         "compounds where the two disagree %s" % n, \
-        "the tree groups by lineage, Table S1 reports the vote, S2 must say so"
+        "6,115 rows carried a kingdom contradicting their own phylum until 14 Aug 2026"
 
 
 @test("B07", "plant rows still missing a class")
