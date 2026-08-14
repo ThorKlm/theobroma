@@ -304,6 +304,12 @@ def region_label(v):
 def kingdom_label(v):
     return "unresolved" if not v or v in ("nan","") else v
 
+@app.template_filter("taxon_label")
+def taxon_label(v):
+    """Capitalize formal ranks above genus. Storage stays lowercase because the
+    filters and the APG IV backfill join on lower(), and guard B02 asserts it."""
+    return (v[:1].upper() + v[1:]) if v else v
+
 
 # User-agents whose crawling traffic dominated v32 server time with no user
 # benefit. GPTBot alone hit /admet 856k times in two months. The robots.txt

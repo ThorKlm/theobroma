@@ -96,9 +96,9 @@
         <table class="prop-table">
             <tr><th>Kingdom</th><td>{{ c.kingdom|kingdom_label }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>
             {% if resolved_lineage %}
-            {% if resolved_lineage.phylum %}<tr><th>Phylum</th><td>{{ resolved_lineage.phylum }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
-            {% if resolved_lineage.taxclass %}<tr><th>Class</th><td>{{ resolved_lineage.taxclass }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
-            {% if resolved_lineage.taxorder %}<tr><th>Order</th><td>{{ resolved_lineage.taxorder }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
+            {% if resolved_lineage.phylum %}<tr><th>Phylum</th><td>{{ resolved_lineage.phylum|taxon_label }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
+            {% if resolved_lineage.taxclass %}<tr><th>Class</th><td>{{ resolved_lineage.taxclass|taxon_label }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
+            {% if resolved_lineage.taxorder %}<tr><th>Order</th><td>{{ resolved_lineage.taxorder|taxon_label }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
             {% if resolved_lineage.family %}<tr><th>Family</th><td>{{ resolved_lineage.family }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
             {% if resolved_lineage.genus %}<tr><th>Genus</th><td>{{ resolved_lineage.genus }} <span style="font-size:0.7rem;color:var(--text-muted);">(resolved)</span></td></tr>{% endif %}
             {% endif %}
@@ -113,12 +113,12 @@
             {% set lin = lin_fam + lin_res + lin_oth %}
             <tr><th>Attested lineages</th><td style="font-size:0.8rem;">
               {% for l in lin[:5] %}
-                <div style="margin-bottom:0.15em;"><span class="ksec k-{{ (l.kingdom_any or 'unresolved')|lower }}" style="margin-left:0;">{{ l.kingdom_any or '&mdash;'|safe }}</span> &rsaquo; {{ l.phylum_any }} &rsaquo; {{ l.class_any }} &rsaquo; {{ l.order_any }} &rsaquo; {{ l.family }} &rsaquo; <i>{{ l.genus }}</i></div>
+                <div style="margin-bottom:0.15em;"><span class="ksec k-{{ (l.kingdom_any or 'unresolved')|lower }}" style="margin-left:0;">{{ l.kingdom_any or '&mdash;'|safe }}</span> &rsaquo; {{ l.phylum_any|taxon_label }} &rsaquo; {{ l.class_any|taxon_label }} &rsaquo; {{ l.order_any|taxon_label }} &rsaquo; {{ l.family }} &rsaquo; <i>{{ l.genus }}</i></div>
               {% endfor %}
               {% if lin|length > 5 %}
               <span class="longmore" style="display:none;">
                 {% for l in lin[5:] %}
-                <div style="margin-bottom:0.15em;"><span class="ksec k-{{ (l.kingdom_any or 'unresolved')|lower }}" style="margin-left:0;">{{ l.kingdom_any or '&mdash;'|safe }}</span> &rsaquo; {{ l.phylum_any }} &rsaquo; {{ l.class_any }} &rsaquo; {{ l.order_any }} &rsaquo; {{ l.family }} &rsaquo; <i>{{ l.genus }}</i></div>
+                <div style="margin-bottom:0.15em;"><span class="ksec k-{{ (l.kingdom_any or 'unresolved')|lower }}" style="margin-left:0;">{{ l.kingdom_any or '&mdash;'|safe }}</span> &rsaquo; {{ l.phylum_any|taxon_label }} &rsaquo; {{ l.class_any|taxon_label }} &rsaquo; {{ l.order_any|taxon_label }} &rsaquo; {{ l.family }} &rsaquo; <i>{{ l.genus }}</i></div>
                 {% endfor %}
                 <a href="#" class="showless" onclick="var s=this.parentNode;s.style.display='none';s.nextElementSibling.style.display='inline';return false;">&minus; show less</a></span><a href="#" class="showmore" onclick="this.previousElementSibling.style.display='inline';this.style.display='none';return false;">&nbsp;+{{ lin|length - 5 }} more, show all</a>
               {% endif %}

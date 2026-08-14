@@ -14,7 +14,7 @@ deduplication:
 sources:
 - name: COCONUT 2.0
   url: https://coconut.naturalproducts.net
-  download_url: https://zenodo.org/records/13373880
+  download_url: https://zenodo.org/records/13692394
   download_date: '2024-09-15'
   version: September 2024
   format: CSV (coconut-09-2024.csv.zip) + SQL dump (coconut-09-2024.sql.zip)
@@ -33,7 +33,7 @@ sources:
   raw_compounds: 70000
   in_theobroma: 58050
   converter: convert_foodb.py
-  license_data: CC BY-NC 4.0
+  license_data: CC BY-NC 4.0 (site footer states CC BY-NC 4.0; commercial redistribution requires author permission)
   citation: https://foodb.ca
   notes: Species/kingdom attributed via Content.json -> Food.json join
 - name: HERB 2.0
@@ -46,7 +46,7 @@ sources:
   in_theobroma: 17293
   converter: convert.py (via COCONUT)
   license_data: CC BY-NC 4.0
-  citation: 10.1093/nar/gkae1063
+  citation: 10.1093/nar/gkae1037
 - name: TM-MC 2.0
   url: https://tm-mc.kr
   download_url: https://tm-mc.kr
@@ -56,7 +56,7 @@ sources:
   raw_compounds: 12500
   in_theobroma: 12041
   converter: convert.py (via COCONUT)
-  license_data: CC BY-NC 4.0
+  license_data: CC0 (BMC data waiver, https://creativecommons.org/publicdomain/zero/1.0/, stated in Kim et al. 2015 and carried in the 2.0 release)
   citation: 10.1186/s12906-023-04331-y
 - name: IMPPAT 2.0
   url: https://cb.imsc.res.in/imppat
@@ -80,8 +80,8 @@ sources:
   raw_compounds: 7000
   in_theobroma: 6695
   converter: convert.py csiro
-  license_data: CC BY-NC 4.0
-  citation: 10.25919/58665
+  license_data: CC BY-NC 4.0 (conservative; DAP record states CC BY 4.0)
+  citation: N/A (CSIRO DAP collection csiro:58665, no associated publication)
   notes: Australian phytochemistry dataset, not Aboriginal traditional medicine
 - name: ANPDB
   url: https://african-compounds.org/anpdb
@@ -93,7 +93,7 @@ sources:
   in_theobroma: 6486
   converter: convert.py anpdb
   license_data: CC BY-NC 4.0
-  citation: 10.1038/s41598-023-33617-1
+  citation: 10.1093/nar/gkaf1186
 - name: NPASS 3.0
   url: https://bidd.group/NPASS
   download_url: https://bidd.group/NPASS/downloadFiles/
@@ -126,11 +126,11 @@ sources:
   raw_compounds: 5200
   in_theobroma: 4562
   converter: convert.py phytochemdb
-  license_data: CC BY-NC 4.0
-  citation: https://phytochemdb.com
+  license_data: CC BY-NC 4.0 (no signal recorded distinguishing this source from those assigned to unspecified; retained pending re-audit)
+  citation: 10.1093/database/baac002
 - name: MicotoXilico
-  url: https://micotoxilico.com
-  download_url: https://micotoxilico.com
+  url: https://chemopredictionsuite.com/MicotoXilico
+  download_url: https://chemopredictionsuite.com/MicotoXilico
   download_date: '2024-10-10'
   version: '2023'
   format: CSV (semicolon-delimited)
@@ -138,11 +138,11 @@ sources:
   in_theobroma: 1601
   converter: convert.py micotoxilico
   license_data: Unspecified
-  citation: https://micotoxilico.com
+  citation: 10.3390/toxins15060355
   notes: 4,092 corrupted names fixed (semicolon delimiter issue)
 - name: StreptomeDB
-  url: https://streptomedb.pharmaceutical-bioinformatics.de
-  download_url: https://streptomedb.pharmaceutical-bioinformatics.de
+  url: https://streptomedb.vm.uni-freiburg.de/streptomedb
+  download_url: https://streptomedb.vm.uni-freiburg.de/streptomedb
   download_date: '2024-10-05'
   version: '3.0'
   format: SDF
@@ -150,7 +150,7 @@ sources:
   in_theobroma: 3311
   converter: convert_microbial.py streptomedb
   license_data: CC BY 4.0
-  citation: 10.1093/nar/gkaa226
+  citation: 10.1093/nar/gkaa868
 - name: MIBiG
   url: https://mibig.secondarymetabolites.org
   download_url: https://mibig.secondarymetabolites.org
@@ -172,7 +172,7 @@ sources:
   in_theobroma: 3035
   converter: convert.py emnpd
   license_data: CC BY 4.0
-  citation: 10.1093/nar/gkac1053
+  citation: 10.1186/s13321-023-00779-9
 - name: MeFSAT
   url: https://cb.imsc.res.in/mefsat
   download_url: https://cb.imsc.res.in/mefsat
@@ -183,7 +183,7 @@ sources:
   in_theobroma: 1158
   converter: convert.py mefsat
   license_data: CC BY 4.0
-  citation: 10.1093/nar/gkab1099
+  citation: 10.1039/d0ra10322e
 - name: CyanoMetDB
   url: https://nrc-digital-repository.canada.ca
   download_url: https://zenodo.org/records/13854577
@@ -206,7 +206,7 @@ sources:
   in_theobroma: 651
   converter: convert.py mycocentral
   license_data: CC BY 4.0
-  citation: https://mycocentral.org
+  citation: 10.1016/j.foodcont.2024.110273
 - name: NaturAr
   url: https://github.com/digichem-unr/NaturAr
   download_url: https://github.com/digichem-unr/NaturAr
@@ -217,7 +217,7 @@ sources:
   in_theobroma: 553
   converter: convert.py naturar
   license_data: CC BY 4.0
-  citation: 10.1021/acs.jnatprod.3c00265
+  citation: 10.1021/acs.jcim.4c01507
 - name: LMDB_Lichen
   url: FDP API
   download_url: FDP API endpoint
@@ -239,7 +239,7 @@ sources:
   in_theobroma: 561
   converter: convert.py amdb
   license_data: CC BY 4.0
-  citation: https://amdb.online
+  citation: 10.3390/metabo13101088
 - name: Phyto4Health
   url: https://phyto4health.org
   download_url: https://phyto4health.org
@@ -250,7 +250,7 @@ sources:
   in_theobroma: 406
   converter: convert.py phyto4health
   license_data: CC BY-NC 4.0
-  citation: https://phyto4health.org
+  citation: 10.1021/acs.jcim.2c01521
 - name: AfroDb
   url: https://african-compounds.org/afrodb
   download_url: https://african-compounds.org/afrodb
@@ -307,7 +307,7 @@ sources:
   license_data: Unspecified
   citation: N/A
 - name: CMAUPv2
-  url: https://cmaup.ciitec.ipn.mx
+  url: https://bidd.group/CMAUP
   download_date: '2024-10-05'
   version: '2.0'
   format: CSV
@@ -315,10 +315,10 @@ sources:
   in_theobroma: 292
   converter: convert.py cmaupv2
   license_data: CC BY 4.0
-  citation: 10.1093/nar/gkad1012
+  citation: 10.1093/nar/gkad921
   notes: Primarily metadata enrichment, some unique compounds
 - name: TIPdb-3D
-  url: http://cb.imsc.res.in/tipdb-3d (offline)
+  url: 'original server cwtung.kmu.edu.tw/tipdb no longer maintained; structure files supplied directly by C.-W. Tung, April 2026'
   download_url: Manual archive via correspondence (tipdb_chemical.zip, August 2015)
   download_date: '2026-05-08'
   version: 2015 archive (TIPdb-3D era)
@@ -327,7 +327,7 @@ sources:
   in_theobroma: 471
   converter: convert_tipdb.py
   license_data: CC BY-NC 4.0 (conservative; C.-W. Tung confirmed CC BY 4.0 terms in correspondence, May 2026, reclassification deferred to the next release)
-  citation: 10.1186/1758-2946-1-15
+  citation: 10.1093/database/bau055
   notes: 'Manual recovery of structures from the 2015 TIPdb-3D archive after server decommissioning. Structures only: per-compound
     names, source organisms, and ethnobotanical metadata not present in archive. To be re-integrated when a successor TIPdb
     release becomes available.'
@@ -406,18 +406,6 @@ enrichment:
   method: Max Morgan Tanimoto against known ligand sets
   targets: 25
   threshold: Tc >= 0.5
-pipeline:
-  python: '3.13'
-  rdkit: '2024.03'
-  pandas: '2.2'
-  scipy: '1.13'
-  xgboost: '2.1'
-  transformers: '4.40'
-  faiss: '1.8'
-  optuna: '3.6'
-  admet_ai: '1.3'
-  postgresql: '17'
-
 - name: ChEBI 3-stars
   type: enrichment
   url: https://www.ebi.ac.uk/chebi
@@ -439,3 +427,14 @@ pipeline:
   license_data: CC BY 4.0
   citation: 10.1093/nar/gkad1031
   notes: Enrichment layer; does not alter compound license_tier. Cross-references to 21 external databases packed as JSONB in chebi_xrefs column.
+pipeline:
+  python: '3.13'
+  rdkit: '2024.03'
+  pandas: '2.2'
+  scipy: '1.13'
+  xgboost: '2.1'
+  transformers: '4.40'
+  faiss: '1.8'
+  optuna: '3.6'
+  admet_ai: '1.3'
+  postgresql: '17'

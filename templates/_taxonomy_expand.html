@@ -43,7 +43,7 @@
   var loaded = false, data = null, expanded = false;
   function _displayName(d){
     var nm = d.data && d.data.name ? d.data.name : '';
-    if (d.depth === 1 && nm.length > 0) nm = nm.charAt(0).toUpperCase() + nm.slice(1);
+    if (d.depth >= 1 && d.depth <= 4 && nm.length > 0) nm = nm.charAt(0).toUpperCase() + nm.slice(1);
     return nm;
   }
   var wrap = document.querySelector('.kingdom-thumb-wrap');
@@ -705,8 +705,9 @@
       .style('pointer-events', 'none')
       .text(function(d){
         var nm = d.data.name || '';
-        // Kingdom names stored lowercase in DB; capitalize at depth 1 for display
-        if (d.depth === 1 && nm.length > 0){
+        // Ranks above genus are stored lowercase for join normalization.
+        // Capitalize kingdom through order; family and genus already are.
+        if (d.depth >= 1 && d.depth <= 4 && nm.length > 0){
           nm = nm.charAt(0).toUpperCase() + nm.slice(1);
         }
         return nm;

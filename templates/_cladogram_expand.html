@@ -453,8 +453,10 @@
       var dy = d.children ? -6 : 4;
       var rawName = d.data.name || '';
       var displayName = rawName.length > 50 ? (rawName.slice(0, 45) + '...') : rawName;
-      // Kingdom names stored lowercase in DB; capitalize for display
-      if (d.depth === 1 && displayName.length > 0){
+      // Ranks above genus are stored lowercase in the DB for join normalization.
+      // Capitalize kingdom through order for display; family and genus are already
+      // capitalized, and compound leaves below them must not be touched.
+      if (d.depth >= 1 && d.depth <= 4 && displayName.length > 0){
         displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
       }
       var t = grp.append('text')
@@ -496,7 +498,7 @@
           .attr('font-size','10px')
           .attr('fill','var(--text-muted)')
           .attr('font-variant-numeric','tabular-nums')
-          .text(d.data.value.toLocaleString());
+          .text(d.data.value.toLocaleString('en-US'));
         // Wrap the count in its own background rect for readability
         try {
           var bb = bg.node().getBBox();
@@ -574,7 +576,7 @@
       var rankName = RANK_DEPTH[d.depth] || ('depth ' + d.depth);
       tip.style.display = '';
       tip.innerHTML = '<strong>' + d.data.name + '</strong> (' + rankName + ', ' +
-                      (d.data.value ? d.data.value.toLocaleString() : 0) + ' compounds)';
+                      (d.data.value ? d.data.value.toLocaleString('en-US') : 0) + ' compounds)';
     }).on('mousemove', function(event){
       tip.style.left = (event.clientX + 12) + 'px';
       tip.style.top  = (event.clientY + 12) + 'px';
@@ -606,7 +608,7 @@
     var totalC = (data && data.total_compounds) || 0;
     var compoundBtn;
     if (totalC > COMPOUND_HARD_LIMIT){
-      compoundBtn = '<button id="cladogram-toggle-compounds" type="button" disabled style="' + btnStyleDisabled + '">Compounds (' + totalC.toLocaleString() + ', disabled)</button>';
+      compoundBtn = '<button id="cladogram-toggle-compounds" type="button" disabled style="' + btnStyleDisabled + '">Compounds (' + totalC.toLocaleString('en-US') + ', disabled)</button>';
     } else {
       compoundBtn = '<button id="cladogram-toggle-compounds" type="button" style="' + btnStyle + '">' + COMPOUND_MODES[compoundMode].label_next + '</button>';
     }
