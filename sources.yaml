@@ -2,15 +2,19 @@ meta:
   database: THEOBROMA
   version: '1.35'
   compounds: 1132805
-  freeze_date: '2026-08-12'
-  maintainer: Thor Klamt <Thor.Klamt@gmail.com>
+  freeze_date: '2026-08-15'
+  maintainer: Thor Klamt <thor.klamt@l3s.de>
   repository: https://github.com/ThorKlm/theobroma
   dataset: https://huggingface.co/datasets/ThorKl/theobroma
   website: https://theobroma.l3s.uni-hannover.de
+# in_theobroma counts primary attribution under sequential ingestion, not the number of
+# compounds a source contains. A compound already present from an earlier source becomes a
+# co-attestation rather than a primary attribution.
 deduplication:
   method: Full 27-character InChIKey
   note: Stereoisomers kept as separate entries (486,032 connectivity families)
-  canonicalization: RDKit MolToSmiles(MolFromSmiles(smi))
+  canonicalization: SMILES canonicalised with RDKit MolToSmiles(MolFromSmiles(smi)); the
+    deduplication key is the full InChIKey computed from the standardised molecule
 sources:
 - name: COCONUT 2.0
   url: https://coconut.naturalproducts.net
@@ -69,7 +73,7 @@ sources:
   converter: convert.py imppat
   license_article: CC BY-NC-ND 4.0 (ACS Omega)
   license_data: CC BY-NC 4.0 (PMC version)
-  citation: 10.1021/acsomega.2c07667
+  citation: 10.1021/acsomega.3c00156
   notes: Article vs data license distinction verified via PMC
 - name: CSIRO Australian Natural Products
   url: https://data.csiro.au/collection/csiro:58665
@@ -197,16 +201,16 @@ sources:
   citation: 10.1016/j.watres.2021.117017
   notes: Upgraded from v2 (2023) to v3 (2024). 162 novel + 921 organism + 375 class enrichments
 - name: MycoCentral
-  url: https://mycocentral.org
-  download_url: https://mycocentral.org
+  url: https://www.mycocentral.eu
+  download_url: https://www.mycocentral.eu
   download_date: '2024-10-10'
   version: '2023'
   format: CSV
-  raw_compounds: 600
+  raw_compounds: null  # download-time count not recorded reliably
   in_theobroma: 651
   converter: convert.py mycocentral
   license_data: CC BY 4.0
-  citation: 10.1016/j.foodcont.2024.110273
+  citation: 10.1016/j.foodcont.2023.110273
 - name: NaturAr
   url: https://github.com/digichem-unr/NaturAr
   download_url: https://github.com/digichem-unr/NaturAr
@@ -235,14 +239,14 @@ sources:
   download_date: '2024-10-08'
   version: '2023'
   format: CSV
-  raw_compounds: 520
+  raw_compounds: null  # download-time count not recorded reliably
   in_theobroma: 561
   converter: convert.py amdb
   license_data: CC BY 4.0
   citation: 10.3390/metabo13101088
 - name: Phyto4Health
-  url: https://phyto4health.org
-  download_url: https://phyto4health.org
+  url: https://way2drug.com/phyto4health/
+  download_url: https://way2drug.com/phyto4health/
   download_date: '2024-10-08'
   version: '2023'
   format: CSV
@@ -250,7 +254,7 @@ sources:
   in_theobroma: 406
   converter: convert.py phyto4health
   license_data: CC BY-NC 4.0
-  citation: 10.1021/acs.jcim.2c01521
+  citation: 10.1021/acs.jcim.2c01567
 - name: AfroDb
   url: https://african-compounds.org/afrodb
   download_url: https://african-compounds.org/afrodb
@@ -347,7 +351,10 @@ sources:
     for integration; LOTUS web-search applies additional curation filters not reflected in the dump.
 removed_sources:
 - name: CMNPD
-  reason: CC BY-NC-SA 4.0 share-alike clause forces entire derivative work to adopt same license
+  reason: 'CC BY-NC-SA 4.0. Excluded under the conservative operational interpretation adopted
+    here: the NonCommercial term alone places it outside the commercially reusable fraction, and
+    ShareAlike would additionally propagate if the integration were treated as an adaptation
+    rather than a collection.'
   exclusive_compounds_removed: 3847
   multi_source_stripped: 27003
 enrichment:
@@ -357,7 +364,7 @@ enrichment:
   method: InChIKey matching
   added: 64k organisms, 146k names, 176k DOIs, 155k NP classes, 174k ClassyFire
 - name: COCONUT 2.0 SQL dump
-  source: https://zenodo.org/records/13373880
+  source: https://zenodo.org/records/13692394
   file: coconut-09-2024.sql.zip (1.9 GB)
   method: Streaming COPY block extraction to TSV
   script: extract_coconut_meta.py
@@ -375,31 +382,43 @@ enrichment:
   models: NP_classifier_class_V1.hdf5, NP_classifier_superclass_V1.hdf5, NP_classifier_pathway_V1.hdf5
   method: Dual-input fingerprints (2048-d formula + 4096-d binary)
   added: 196,201 class annotations, 1,042,831 pathway annotations
+  note: batch output before tier assignment; 206,042 compounds carry an NPClassifier class in the
+    deployed corpus, the remainder having a source-supplied class that takes precedence
 - name: XGBoost inferred classification
-  method: Per-class XGBoost on Morgan 2048-d + MACCS 167-d + ChemBERTa 256-d PCA
-  hpo: Optuna, 2 seeds (0,1), 50 trials each, 30 representative classes
+  method: Per-class XGBoost on Morgan 2048-d + MACCS 167-d + ChemBERTa 256-d PCA (2,471-d)
+  classes: 501
+  labelled: 384006
+  split: 57,601 stratified holdout, then 267,652 search / 58,753 validation
+  hpo: Optuna, 75 trials, four workers, seed 0
   best_params:
     max_depth: 9
-    learning_rate: 0.21
-    subsample: 1.0
-    colsample_bytree: 0.3
-    min_child_weight: 2
-    lambda: 6.8
-    alpha: 6.7
-    weight_mode: sqrt
-    n_rounds: 100
+    learning_rate: 0.0888
+    subsample: 0.8759
+    colsample_bytree: 0.6922
+    min_child_weight: 3
+    reg_lambda: 1.4123
+    reg_alpha: 0.005978
+    gamma: 0.1840
+    weight_mode: none
+    rounds: 467
   evaluation:
-    micro_f1: 0.7806
-    macro_f1: 0.7457
-  added: 495,143 inferred class annotations
+    search_macro_f1: 0.8120
+    cv_macro_f1_mean: 0.8090
+    cv_macro_f1_std: 0.0018
+    cv_micro_f1_mean: 0.8360
+    holdout_macro_f1: 0.8246
+    holdout_micro_f1: 0.8455
+    majority_class_baseline_macro_f1: 0.000327
+  added: 300,141 inferred class annotations
+  note: values taken from hpo_results_v135.json in classifier_reproducibility.zip
 - name: ADMET-AI
   source: https://github.com/swansonk14/admet_ai
   method: Chemprop D-MPNN ensemble
-  endpoints: 104
+  endpoints: 41 ADMET-AI endpoints (47 stored columns including 6 RDKit-computed flags)
   added: ADMET predictions for all compounds
 - name: ChemBERTa embeddings
   model: seyonec/ChemBERTa-zinc-base-v1
-  method: CLS token extraction, 768-d
+  method: Mean pooling over non-padding tokens, 768-d
   index: FAISS HNSW (M=32, efConstruction=200, efSearch=128)
 - name: SEA-style target predictions
   source: ChEMBL v34 known actives
@@ -428,13 +447,19 @@ enrichment:
   citation: 10.1093/nar/gkad1031
   notes: Enrichment layer; does not alter compound license_tier. Cross-references to 21 external databases packed as JSONB in chebi_xrefs column.
 pipeline:
-  python: '3.13'
-  rdkit: '2024.03'
-  pandas: '2.2'
-  scipy: '1.13'
-  xgboost: '2.1'
-  transformers: '4.40'
-  faiss: '1.8'
-  optuna: '3.6'
-  admet_ai: '1.3'
-  postgresql: '17'
+  corpus_host:
+    note: integration, standardisation, deduplication, taxonomy and licence resolution
+    python: '3.13.5'
+    rdkit: '2026.03.1'
+    pandas: '3.0.2'
+    scipy: '1.17.1'
+    transformers: '5.5.4'
+    faiss: '1.13.2'
+    postgresql: 17.11 (Debian)
+  training_host:
+    note: hyperparameter search, model fitting and embedding computation, GPU instance
+    python: '3.12.13'
+    xgboost: '3.2.0'
+    optuna: 4.9.0 (recorded in optuna_v135.db version_info)
+    transformers: '5.5.4'
+    admet_ai: 2.0.1
