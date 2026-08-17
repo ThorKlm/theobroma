@@ -61,12 +61,13 @@
     <h2>Geographic regions</h2>
     <p>Geographic region is <strong>multi-valued</strong>: a compound belongs to every macro-region in which it is attributed, not one. The region set for each compound is the union of two signals &mdash; (i) the native distribution of its source organisms, taken from WCVP and mapped from finer botanical regions onto 13 macro-regions, and (ii) the curated geographic scope of region-specific source databases (for example ANPDB, AfroDb and SANCDB for Africa; IMPPAT for South Asia; TIPdb-3D for East Asia; CSIRO for Australia; NaturAr for Latin America). Global aggregator databases contribute geography only through their organisms' WCVP distribution, never a fixed tag. Of 1,132,805 compounds, 264,039 carry at least one region and 136,047 span more than one; the earlier single-region field, which forced one arbitrary value per compound, has been replaced by this set. Because compounds can belong to several regions, region counts and the world map sum beyond the region-covered total &mdash; the same multi-attribution behaviour as kingdoms. On the world map, a country shared by two macro-regions (for example the Central Asian states, which are both Central Asia and Russia/CIS) is shaded by its stronger region rather than the sum.</p>
     <h2 id="cite">How to cite</h2>
-    <pre>Thor Klamt, Anne Jaczkowski, Prof. Dr. rer. nat. Jakob Franke,
-and Prof. Dr. techn. Wolfgang Nejdl (2026).
-THEOBROMA: an open multi-kingdom natural products database
-with per-compound license tiers for legally-aware drug discovery.
+    <pre>Thor Klamt, Anne Jaczkowski, Jakob Franke
+and Wolfgang Nejdl (2026).
+THEOBROMA: an aggregated open database of 1.13 million natural products
+with per-compound license auditing, three-tier classification,
+and stereochemistry-aware deduplication.
 Preprint: https://doi.org/10.64898/2026.06.12.731585
-Dataset: https://doi.org/10.5281/zenodo.21907421</pre>
+Dataset: https://doi.org/10.5281/zenodo.21947744</pre>
     <p>Please also cite the original source databases for any compounds you use. Source database citations and licenses are listed on the <a href="/statistics#sources">Statistics page</a>.</p>
     <h2>API</h2>
     <pre>GET /api/search?q=QUERY&amp;type=TYPE&amp;limit=N&amp;offset=M&amp;format=FORMAT&amp;license=LIC
@@ -152,6 +153,6 @@ GET /api/bulk?cols=...&amp;license=commercial|academic|all &mdash; streaming bul
     <h2>Database update cadence</h2>
     <p>THEOBROMA tracks source-database releases and re-integrates on a roughly biannual cycle. Per-source download dates and version strings are tracked in <a href="https://github.com/ThorKlm/theobroma/blob/main/sources.yaml"><code>sources.yaml</code></a>. Major releases are tagged in the GitHub repository and deposited on Zenodo for long-term archival.</p>
     <h2>Contact</h2>
-    <p>For bug reports and feature requests, please open an issue on <a href="https://github.com/ThorKlm/theobroma/issues">GitHub</a>. For other inquiries, contact the corresponding author Thor Klamt at <a href="mailto:Thor.Klamt@gmail.com">Thor.Klamt@gmail.com</a>.</p>
+    <p>For bug reports and feature requests, please open an issue on <a href="https://github.com/ThorKlm/theobroma/issues">GitHub</a>. For other inquiries, contact the corresponding author Thor Klamt at <a href="mailto:thor.klamt@l3s.de">thor.klamt@l3s.de</a> or <a href="mailto:Thor.Klamt@gmail.com">Thor.Klamt@gmail.com</a>.</p>
 </div>
 {% endblock %}
