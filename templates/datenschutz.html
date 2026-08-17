@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Datenschutzerklärung &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Datenschutzerklärung</h1>
+<div class="help-content">
+
+<p style="color:var(--text-muted);"><em>This page is provided in German as the legally
+operative version. A summary in English is given under
+<a href="/help">Help, Visitor logging</a>.</em></p>
+
+<h2>1. Verantwortlicher</h2>
+<p>Verantwortlich im Sinne der Datenschutz-Grundverordnung (DSGVO) ist die<br>
+Gottfried Wilhelm Leibniz Universität Hannover, Welfengarten 1, 30167 Hannover,<br>
+Körperschaft des öffentlichen Rechts, gesetzlich vertreten durch den Präsidenten.<br>
+Telefon +49 511 762-0, <a href="https://www.uni-hannover.de">www.uni-hannover.de</a></p>
+<p>Betrieben wird dieses Angebot vom Forschungszentrum L3S, Appelstraße 9a,
+30167 Hannover.</p>
+
+<h2>2. Datenschutzbeauftragter</h2>
+<p>Stabsstelle Datenschutz der Leibniz Universität Hannover,
+<a href="mailto:datenschutz@uni-hannover.de">datenschutz@uni-hannover.de</a>,
+Telefon +49 511 762-8132.</p>
+
+<h2>3. Bereitstellung der Website und Protokollierung</h2>
+<p>Bei jedem Aufruf dieser Website werden automatisiert Daten erfasst und in einer
+Protokolltabelle gespeichert:</p>
+<ul style="margin-left:1.5rem;">
+    <li>Datum und Uhrzeit des Zugriffs</li>
+    <li>die angeforderte Adresse (Request-URL) und die HTTP-Methode</li>
+    <li>ein tagesbezogenes Pseudonym anstelle der IP-Adresse (siehe Ziffer 4)</li>
+    <li>ein Ländercode (ISO 3166-1 alpha-2), lokal auf dem Server ermittelt</li>
+    <li>die vom Browser übermittelte Kennung (User-Agent), auf 200 Zeichen gekürzt</li>
+</ul>
+<p>Die Speicherung erfolgt, um die Funktionsfähigkeit der Website sicherzustellen,
+missbräuchliche Nutzung zu erkennen und eine aggregierte Reichweitenstatistik auf
+Länderebene zu führen. Eine Auswertung zu Marketingzwecken findet nicht statt. Eine
+Zusammenführung dieser Daten mit anderen personenbezogenen Daten erfolgt nicht.</p>
+<p>Rechtsgrundlage für die Speicherung der Daten und der Protokolle ist Art. 6 Abs. 1
+lit. e), Abs. 3 DSGVO i.V.m. § 3 NDSG und § 3 NHG.</p>
+
+<h2>4. Keine Speicherung von IP-Adressen</h2>
+<p>Die IP-Adresse des aufrufenden Rechners wird nicht gespeichert. An ihre Stelle tritt
+ein aus der Adresse berechnetes Pseudonym (SHA-256). Der dafür verwendete Schlüssel wird
+im Arbeitsspeicher erzeugt, täglich gewechselt und zu keinem Zeitpunkt auf einen
+Datenträger geschrieben. Nach dem Schlüsselwechsel lässt sich ein Pseudonym keiner
+IP-Adresse mehr zuordnen; eine Verknüpfung über Tagesgrenzen hinweg ist ebenfalls
+ausgeschlossen.</p>
+
+<h2>5. Keine Cookies, keine Analysedienste</h2>
+<p>Dieser Webauftritt setzt keine Cookies und greift nicht auf Informationen in Ihrer
+Endeinrichtung zu. Eine Einwilligung nach § 25 TDDDG ist deshalb nicht erforderlich. Es
+werden keine Analyse- oder Werbedienste eingebunden und keine Nutzerkonten geführt. Die
+Zuordnung des Ländercodes erfolgt ausschließlich lokal auf dem Server anhand einer offline
+vorgehaltenen Datenbank; eine Übermittlung an externe Dienste findet nicht statt.</p>
+
+<h2>6. Empfänger und Drittländer</h2>
+<p>Eine Weitergabe der Daten an Dritte findet nicht statt. Übermittlungen in Drittländer
+erfolgen nicht.</p>
+
+<h2>7. Speicherdauer</h2>
+<p>Die Protokolldaten werden nach RETENTION_PLACEHOLDER gelöscht. Die daraus abgeleiteten
+aggregierten Länderzahlen enthalten keinen Personenbezug und werden dauerhaft
+vorgehalten.</p>
+
+<h2>8. Kontaktaufnahme per E-Mail</h2>
+<p>Bei einer Kontaktaufnahme per E-Mail werden die übermittelten personenbezogenen Daten
+gespeichert und ausschließlich zur Bearbeitung der Anfrage verwendet. Eine Weitergabe an
+Dritte erfolgt nicht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. e), Abs. 3 DSGVO i.V.m.
+§ 3 NDSG und § 3 NHG.</p>
+
+<h2>9. Ihre Rechte</h2>
+<p>Sie haben gegenüber der Verantwortlichen das Recht auf Auskunft (Art. 15 DSGVO),
+Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18),
+Datenübertragbarkeit (Art. 20) sowie das Recht, der Verarbeitung zu widersprechen
+(Art. 21 DSGVO). Wenden Sie sich dafür an die unter Ziffer 2 genannte Stelle.</p>
+<p>Unabhängig davon steht Ihnen ein Beschwerderecht bei einer Aufsichtsbehörde zu.
+Zuständig ist die Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5,
+30159 Hannover, <a href="mailto:poststelle@lfd.niedersachsen.de">poststelle@lfd.niedersachsen.de</a>.</p>
+
+<h2>10. Verwendete Datenquelle für die Länderzuordnung</h2>
+<p>Die Zuordnung eines Ländercodes erfolgt anhand der Datenbank
+<a href="https://db-ip.com">IP to Country Lite von DB-IP</a>, lizenziert unter
+Creative Commons Attribution 4.0 International.</p>
+
+</div>
+{% endblock %}

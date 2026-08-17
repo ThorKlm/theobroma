@@ -2015,6 +2015,14 @@ def download_file(filename):
 def help_page():
     return render_template("help.html")
 
+@app.route("/datenschutz")
+def datenschutz_page():
+    return render_template("datenschutz.html")
+
+@app.route("/impressum")
+def impressum_page():
+    return render_template("impressum.html")
+
 # --- API routes ---
 
 @app.route("/api/search")
