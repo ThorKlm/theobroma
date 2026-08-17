@@ -152,6 +152,9 @@ GET /api/bulk?cols=...&amp;license=commercial|academic|all &mdash; streaming bul
     </ul>
     <h2>Database update cadence</h2>
     <p>THEOBROMA tracks source-database releases and re-integrates on a roughly biannual cycle. Per-source download dates and version strings are tracked in <a href="https://github.com/ThorKlm/theobroma/blob/main/sources.yaml"><code>sources.yaml</code></a>. Major releases are tagged in the GitHub repository and deposited on Zenodo for long-term archival.</p>
+    <h2>Visitor logging</h2>
+    <p>Requests are logged for service operation and abuse detection, on the legal basis of Art. 6(1)(e) GDPR in conjunction with &sect;&nbsp;3 NDSG and &sect;&nbsp;3 NHG. No IP address is stored: each request carries a token derived from the client address under a key that is generated in memory, rotated daily and never written to disk, so tokens cannot be linked back to an address or across days. A country code resolved from a local table, the request path, the timestamp and the user-agent string are stored alongside it. The site sets no cookies and neither writes to nor reads from your device, so no consent under &sect;&nbsp;25 TDDDG is required. No analytics or advertising service is used, and the visitor map on the Statistics page is built from country codes only.</p>
+
     <h2>Contact</h2>
     <p>For bug reports and feature requests, please open an issue on <a href="https://github.com/ThorKlm/theobroma/issues">GitHub</a>. For other inquiries, contact the corresponding author Thor Klamt at <a href="mailto:thor.klamt@l3s.de">thor.klamt@l3s.de</a> or <a href="mailto:Thor.Klamt@gmail.com">Thor.Klamt@gmail.com</a>.</p>
 </div>
