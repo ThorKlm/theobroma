@@ -331,20 +331,77 @@ def block_heavy_bots():
                             headers={"Retry-After": "86400"})
 
 
+# Access logging stores a pseudonymous per-day token rather than the client
+# address. The salt is generated in process, rotated daily and never written to
+# disk, so tokens from past days cannot be linked back to an address once the
+# salt is gone. Country is resolved from a local table only; no request-time
+# call to any external geolocation service is made.
+_GEO_DB = None
+
+def _open_geo_db(path="data/geoip/dbip-country-lite.mmdb"):
+    """Offline country lookup. No address leaves the server.
+    Data: DB-IP IP to Country Lite, CC BY 4.0, https://db-ip.com"""
+    import os
+    if not os.path.exists(path):
+        return None
+    try:
+        import maxminddb
+        return maxminddb.open_database(path)
+    except Exception:
+        return None
+
+_GEO_DB = _open_geo_db()
+
+def _country_of(ip):
+    if not ip or _GEO_DB is None:
+        return None
+    try:
+        rec = _GEO_DB.get(ip)
+        return (rec or {}).get("country", {}).get("iso_code")
+    except Exception:
+        return None
+
+def _client_ip():
+    """Rightmost non-loopback element of the forwarded chain. The local proxy
+    prepends its own address, so the leftmost element is not the client."""
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        for p in reversed(parts):
+            if p not in ("127.0.0.1", "::1"):
+                return p
+        return parts[-1] if parts else ""
+    return request.remote_addr or ""
+
+def _visitor_token(ip):
+    """Daily-rotating salted hash. Returns '' for an empty address."""
+    global _SALT
+    if not ip:
+        return ""
+    import datetime, secrets, hashlib
+    today = datetime.date.today().toordinal()
+    if _SALT[0] != today:
+        _SALT = (today, secrets.token_bytes(32))
+    return hashlib.sha256(_SALT[1] + ip.encode()).hexdigest()[:32]
+
 @app.after_request
 def log_access(response):
     if request.path.startswith("/static/"):
         return response
     try:
-        ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        ip = _client_ip()
+        token = _visitor_token(ip)
+        country = _country_of(ip)
         with get_db() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO access_log (path, method, ip, user_agent) VALUES (%s,%s,%s,%s)",
-                    (request.path, request.method, ip, request.headers.get("User-Agent","")[:200])
+                    "INSERT INTO access_log (path, method, ip, country, user_agent) "
+                    "VALUES (%s,%s,%s,%s,%s)",
+                    (request.path, request.method, token, country,
+                     request.headers.get("User-Agent", "")[:200])
                 )
             conn.commit()
-    except:
+    except Exception:
         pass
     return response
 
