@@ -113,33 +113,42 @@ ISO2_TO_3 = {
     "ZM":"ZMB","ZW":"ZWE",
 }
 
-countries_iso3 = []
-for cc2, n in sorted(country_counts.items(), key=lambda x:-x[1]):
-    iso3 = ISO2_TO_3.get(cc2, cc2)
-    countries_iso3.append({"iso3": iso3, "iso2": cc2, "visitors": n, "hits": country_hits[cc2]})
 
-# Tripwire: refuse to overwrite the output JSON if country_counts is empty.
-# An empty result indicates the IP resolution path or the DB query failed
-# in a way that did not raise (e.g., empty access_log query, all IPs
-# unresolved, ipinfo rate limit). The prior valid JSON is preserved.
-if not country_counts:
-    sys.stderr.write("ERROR: country_counts is empty; refusing to overwrite output files\n")
+# Aggregate country totals, independent of access_log retention.
+with psycopg2.connect(DB_URI) as conn:
+    with conn.cursor() as cur:
+        cur.execute("""SELECT country, sum(hits)::bigint, sum(tokens)::bigint
+                       FROM visitor_country_totals
+                       WHERE country IS NOT NULL AND country <> ''
+                       GROUP BY 1 ORDER BY 2 DESC""")
+        rows = cur.fetchall()
+print("countries from visitor_country_totals:", len(rows))
+
+countries_iso3 = []
+for cc2, hits, tokens in rows:
+    if not cc2:
+        continue
+    countries_iso3.append({"iso3": ISO2_TO_3.get(cc2, cc2), "iso2": cc2,
+                           "visitors": int(tokens), "hits": int(hits)})
+countries_iso3.sort(key=lambda c: -c["visitors"])
+
+# Tripwire: refuse to overwrite if the result is empty or implausibly small.
+if len(countries_iso3) < 50:
+    sys.stderr.write("ERROR: only %d countries; refusing to overwrite\n" % len(countries_iso3))
     sys.exit(1)
 
-# Save
 os.makedirs(OUT_DIR, exist_ok=True)
-with open(OUT_DATA, "w") as f: json.dump(countries_iso3, f, indent=2)
-with open(OUT_META, "w") as f: json.dump({
-    "last_updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    "distinct_visitor_ips": len(ip_rows),
-    "ips_resolved": sum(1 for ip,_ in ip_rows if cache.get(ip,{}).get("cc")),
-    "countries": len(country_counts),
-    "ips_unresolved": unresolved,
-}, f, indent=2)
+with open(OUT_DATA, "w") as f:
+    json.dump(countries_iso3, f, indent=2)
+with open(OUT_META, "w") as f:
+    json.dump({
+        "last_updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "source": "visitor_country_totals",
+        "countries": len(countries_iso3),
+        "visitor_days": sum(c["visitors"] for c in countries_iso3),
+        "hits": sum(c["hits"] for c in countries_iso3),
+    }, f, indent=2)
 
-print(f"\nresolved {len(country_counts):,} countries, {len(ip_rows)-unresolved:,} IPs")
-print(f"unresolved: {unresolved}")
-print(f"top 10:")
+print("wrote %s and %s" % (OUT_DATA, OUT_META))
 for c in countries_iso3[:10]:
-    print(f"  {c['iso2']} ({c['iso3']}): {c['visitors']} visitors, {c['hits']:,} hits")
-print(f"\nwrote {OUT_DATA} and {OUT_META}")
+    print("  %s (%s): %s visitor-days, %s hits" % (c["iso2"], c["iso3"], c["visitors"], c["hits"]))
