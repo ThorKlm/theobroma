@@ -337,6 +337,7 @@ def block_heavy_bots():
 # salt is gone. Country is resolved from a local table only; no request-time
 # call to any external geolocation service is made.
 _GEO_DB = None
+_SALT = (None, None)
 
 def _open_geo_db(path="data/geoip/dbip-country-lite.mmdb"):
     """Offline country lookup. No address leaves the server.
@@ -401,8 +402,10 @@ def log_access(response):
                      request.headers.get("User-Agent", "")[:200])
                 )
             conn.commit()
-    except Exception:
-        pass
+    except Exception as exc:
+        import traceback, sys
+        print("[access_log] %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
+        traceback.print_exc()
     return response
 
 
