@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Erklärung zur Barrierefreiheit &mdash; THEOBROMA{% endblock %}
+{% block content %}
+<h1 class="section-title">Erklärung zur Barrierefreiheit</h1>
+<div class="help-content">
+
+<p style="color:var(--text-muted);"><em>Accessibility statement under &sect;&nbsp;9b NBGG,
+provided in German.</em></p>
+
+<p>Informationen über die Zugänglichkeit dieser Webseiten gemäß &sect;&nbsp;9b NBGG sowie
+über diesbezügliche Kontaktmöglichkeiten.</p>
+
+<p>Diese Erklärung zur Barrierefreiheit gilt für
+<a href="https://theobroma.l3s.uni-hannover.de">https://theobroma.l3s.uni-hannover.de</a>.</p>
+
+<p>Diese Webseiten sind mit den Vorgaben der harmonisierten europäischen Norm
+EN&nbsp;301&nbsp;549 <strong>teilweise vereinbar</strong>.</p>
+
+<h2>Nicht barrierefreie Inhalte</h2>
+<ul style="margin-left:1.5rem;">
+<li><strong>Interaktive Stammbaum-Darstellungen</strong> (lineares und radiales Kladogramm
+    auf der Seite <code>/tree</code> sowie in den Suchergebnissen). Diese werden im Browser
+    als SVG erzeugt und verfügen über keine Textalternative. Die dargestellte Information
+    ist über die Suchfunktion und die REST-Schnittstelle in Textform zugänglich.</li>
+<li><strong>Diagramme auf der Statistik-Seite</strong>, insbesondere die Ringdiagramme zur
+    Lizenz- und Stoffklassenverteilung sowie die Weltkarte. Eine Kartografie ist ihrem
+    Wesen nach eine bildliche Darstellung und kann den Anforderungen der
+    Barrierefreie-Informationstechnik-Verordnung nicht vollständig entsprechen. Die
+    zugrunde liegenden Zahlen sind über <code>/api/stats</code> maschinenlesbar
+    abrufbar.</li>
+<li><strong>Bedienelemente ohne Beschriftung.</strong> Einzelne Schaltflächen, insbesondere
+    die Steuerelemente zur Schrift- und Bildgröße in den Stammbaum-Ansichten, sind nur
+    durch ein Symbol gekennzeichnet.</li>
+<li><strong>Tastaturbedienung.</strong> Die interaktiven Darstellungen sind auf Bedienung
+    mit der Maus ausgelegt. Eine vollständige Bedienung ohne Zeigegerät ist dort nicht
+    gewährleistet.</li>
+<li><strong>Farbkontraste.</strong> Die Einhaltung der geforderten Kontrastwerte wurde
+    bisher nicht systematisch geprüft.</li>
+</ul>
+
+<h2>Gründe für die Nichtbarrierefreiheit</h2>
+<p>Die Anwendung wurde als wissenschaftliche Fachdatenbank im Rahmen eines
+Forschungsvorhabens entwickelt. Die genannten Mängel wurden im Rahmen einer
+Selbstbewertung festgestellt und sollen schrittweise behoben werden. Die grafischen
+Darstellungen dienen der Veranschaulichung; die jeweils zugrunde liegenden Daten sind
+durchgängig auch in textlicher und maschinenlesbarer Form über die Suchfunktion und die
+REST-Schnittstelle zugänglich.</p>
+
+<h2>Erstellung dieser Erklärung</h2>
+<p>Diese Erklärung wurde am 20.&nbsp;August 2026 erstellt. Die Einschätzung basiert auf
+einer Selbstbewertung.</p>
+
+<h2>Feedback und Kontaktangaben</h2>
+<p>Über folgenden Kontakt können Sie Mängel in Bezug auf die Einhaltung der
+Barrierefreiheitsanforderungen mitteilen:<br>
+Thorben Klamt, <a href="mailto:thor.klamt@l3s.de">thor.klamt@l3s.de</a>,
+Forschungszentrum L3S, Appelstraße 9a, 30167 Hannover.</p>
+
+<h2>Schlichtungsverfahren</h2>
+<p>Bei nicht zufriedenstellenden Antworten aus oben genannter Kontaktmöglichkeit können Sie
+bei der Schlichtungsstelle, eingerichtet bei der Landesbeauftragten für Menschen mit
+Behinderungen in Niedersachsen, einen Antrag auf Einleitung eines Schlichtungsverfahrens
+nach dem Niedersächsischen Behindertengleichstellungsgesetz (NBGG) stellen.</p>
+<p>Die Schlichtungsstelle nach &sect;&nbsp;9&nbsp;d NBGG hat die Aufgabe, Streitigkeiten
+zwischen Menschen mit Behinderungen und öffentlichen Stellen des Landes Niedersachsen zum
+Thema Barrierefreiheit in der IT beizulegen. Das Schlichtungsverfahren ist kostenlos. Es
+muss kein Rechtsbeistand eingeschaltet werden.</p>
+<p>Direkt kontaktieren können Sie die Schlichtungsstelle unter:<br>
+Telefon: 0511/120-4010<br>
+E-Mail: <a href="mailto:schlichtungsstelle@ms.niedersachsen.de">schlichtungsstelle@ms.niedersachsen.de</a></p>
+
+<h2>Datum der Veröffentlichung</h2>
+<p>Die Anwendung ist seit April 2026 öffentlich zugänglich.</p>
+
+</div>
+{% endblock %}

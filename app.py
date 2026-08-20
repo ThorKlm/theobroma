@@ -2026,6 +2026,10 @@ def datenschutz_page():
 def impressum_page():
     return render_template("impressum.html")
 
+@app.route("/barrierefreiheit")
+def barrierefreiheit_page():
+    return render_template("barrierefreiheit.html")
+
 # --- API routes ---
 
 @app.route("/api/search")
@@ -2939,6 +2943,10 @@ def api_depict():
     import re
     svg = re.sub(r"<rect[^>]*fill:#FFFFFF[^<]*</rect>", "", svg, flags=re.DOTALL)
     svg = re.sub(r"<rect[^>]*fill:#FFFFFF[^/]*/>", "", svg)
+    # Accessible name for screen readers: inline SVG has no alt attribute.
+    from html import escape
+    title = "<title>Chemical structure: %s</title>" % escape(smiles[:120])
+    svg = re.sub(r"(<svg\b[^>]*)>", r"\1 role='img'>" + title, svg, count=1)
     return svg, 200, {"Content-Type": "image/svg+xml"}
 
 

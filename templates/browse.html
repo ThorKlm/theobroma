@@ -78,16 +78,16 @@
 {% if results %}
 <div class="table-scroll">
 <table class="results-table">
-    <thead><tr>
-        <th style="width:60px;">Structure</th>
-        <th>{{ sort_header("comp_id", "ID", sort, order) }}</th>
-        <th>{{ sort_header("name", "Name", sort, order) }}</th>
-        <th>{{ sort_header("kingdom", "Kingdom (primary)", sort, order) }}</th>
-        <th>{{ sort_header("source_db", "Source", sort, order) }}</th>
-        <th>{{ sort_header("region", "Region", sort, order) }}</th>
-        <th>{{ sort_header("mw", "MW", sort, order) }}</th>
-        <th>{{ sort_header("logp", "LogP", sort, order) }}</th>
-        <th>License</th>
+    <th scope="col"ead><tr>
+        <th scope="col" style="width:60px;">Structure</th>
+        <th scope="col">{{ sort_header("comp_id", "ID", sort, order) }}</th>
+        <th scope="col">{{ sort_header("name", "Name", sort, order) }}</th>
+        <th scope="col">{{ sort_header("kingdom", "Kingdom (primary)", sort, order) }}</th>
+        <th scope="col">{{ sort_header("source_db", "Source", sort, order) }}</th>
+        <th scope="col">{{ sort_header("region", "Region", sort, order) }}</th>
+        <th scope="col">{{ sort_header("mw", "MW", sort, order) }}</th>
+        <th scope="col">{{ sort_header("logp", "LogP", sort, order) }}</th>
+        <th scope="col">License</th>
     </tr></thead>
     <tbody>
     {% for r in results %}

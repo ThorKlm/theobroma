@@ -121,6 +121,7 @@
                 </optgroup>
             </select>
             <div class="search-input-wrap" id="text-input-0">
+                <label for="search-q" class="sr-only">Suchbegriff</label>
                 <input type="text" name="q" id="search-q" value="{{ query }}" placeholder="Search compounds..." autocomplete="off">
                 <span class="dropdown-trigger" data-row-idx="0" style="position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);font-size:0.9rem;display:none;user-select:none;">&#9662;</span>
                 <div id="autocomplete-list" class="autocomplete-list"></div>
@@ -159,15 +160,15 @@
 {% if results %}
 <div class="table-scroll">
 <table class="results-table">
-    <thead><tr>
-        <th style="width:60px;">Structure</th>
-        <th>{{ sort_header("comp_id", "ID", sort, order) }}</th>
-        <th>{{ sort_header("name", "Name", sort, order) }}</th>
-        <th>{{ sort_header("kingdom", "Kingdom (primary)", sort, order) }}</th>
-        <th>{{ sort_header("source_db", "Source", sort, order) }}</th>
-        <th>{{ sort_header("source_organism", "Organism", sort, order) }}</th>
-        <th>{{ sort_header("mw", "MW", sort, order) }}</th>
-        <th>License</th>
+    <th scope="col"ead><tr>
+        <th scope="col" style="width:60px;">Structure</th>
+        <th scope="col">{{ sort_header("comp_id", "ID", sort, order) }}</th>
+        <th scope="col">{{ sort_header("name", "Name", sort, order) }}</th>
+        <th scope="col">{{ sort_header("kingdom", "Kingdom (primary)", sort, order) }}</th>
+        <th scope="col">{{ sort_header("source_db", "Source", sort, order) }}</th>
+        <th scope="col">{{ sort_header("source_organism", "Organism", sort, order) }}</th>
+        <th scope="col">{{ sort_header("mw", "MW", sort, order) }}</th>
+        <th scope="col">License</th>
     </tr></thead>
     <tbody>
     {% for r in results %}

@@ -67,6 +67,7 @@
   });
 })();
 </script>
+<a href="#content" class="skip-link">Zum Inhalt springen</a>
 <header>
     <div class="header-inner">
         <a href="/" class="logo"><img src="{{ url_for('static', filename='favicon.svg') }}" alt="THEOBROMA" class="logo-icon-img"><span class="logo-text">THEOBROMA</span></a>
@@ -91,7 +92,7 @@
     </div>
     {% endif %}
 </header>
-<main>{% block content %}{% endblock %}</main>
+<main id="content">{% block content %}{% endblock %}</main>
 <footer>
     <div class="footer-inner">
         <div class="footer-left">
@@ -105,7 +106,8 @@
                <a href="/help#cite">How to Cite</a> &middot;
                <a href="/help#license">License</a> &middot;
                <a href="/impressum">Impressum</a> &middot;
-               <a href="/datenschutz">Datenschutz</a></p>
+               <a href="/datenschutz">Datenschutz</a> &middot;
+               <a href="/barrierefreiheit">Barrierefreiheit</a></p>
             <p class="footer-license">CC BY 4.0 / CC BY-NC 4.0 / CC0</p>
         </div>
     </div>

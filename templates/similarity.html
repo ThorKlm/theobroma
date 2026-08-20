@@ -108,10 +108,10 @@
 {% if linear_tree %}{% include "_cladogram_expand.html" %}{% endif %}
 <div class="table-scroll">
 <table class="results-table">
-    <thead><tr>
-        <th style="width:60px;">Structure</th>
-        <th>Similarity</th>
-        <th>ID</th><th>Name</th><th>Kingdom</th><th>Source</th><th>Organism</th><th>MW</th><th>Region</th>
+    <th scope="col"ead><tr>
+        <th scope="col" style="width:60px;">Structure</th>
+        <th scope="col">Similarity</th>
+        <th scope="col">ID</th><th scope="col">Name</th><th scope="col">Kingdom</th><th scope="col">Source</th><th scope="col">Organism</th><th scope="col">MW</th><th scope="col">Region</th>
     </tr></thead>
     <tbody>
     {% for r in results %}

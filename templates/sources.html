@@ -5,7 +5,7 @@
 <p>THEOBROMA aggregates {{ sources|length }} source databases. Each compound retains its source license.
 Please cite the relevant source databases for any compounds you use.</p>
 <table class="results-table" style="font-size:0.82rem;">
-<tr><th>Database</th><th>Compounds</th><th>License</th><th>Citation</th></tr>
+<tr><th scope="col">Database</th><th scope="col">Compounds</th><th scope="col">License</th><th scope="col">Citation</th></tr>
 {% for s in sources %}
 <tr>
 <td><a href="{{ s.url }}" target="_blank">{{ s.name }}</a></td>

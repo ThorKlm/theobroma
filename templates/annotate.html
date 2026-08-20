@@ -147,13 +147,13 @@
     }
     function renderPreview() {
         const headers = parsed.headers, rows = parsed.rows.slice(0, 5);
-        let html = "<thead><tr>";
+        let html = "<th scope="col"ead><tr>";
         for (let i = 0; i < headers.length; i++) {
             let label = headers[i] || ("col_" + i), badge = "";
             if (i === parsed.smiCol) badge = ' <span style="background:#cfc;padding:1px 4px;border-radius:3px;font-size:0.75rem;">SMILES</span>';
             if (i === parsed.ikCol) badge = ' <span style="background:#ccf;padding:1px 4px;border-radius:3px;font-size:0.75rem;">InChIKey</span>';
             if (i === parsed.idCol) badge = ' <span style="background:#fdc;padding:1px 4px;border-radius:3px;font-size:0.75rem;">id</span>';
-            html += '<th style="text-align:left;padding:4px 8px;border-bottom:1px solid #888;font-weight:600;">' + label + badge + '</th>';
+            html += '<th scope="col" style="text-align:left;padding:4px 8px;border-bottom:1px solid #888;font-weight:600;">' + label + badge + '</th>';
         }
         html += "</tr></thead><tbody>";
         for (const r of rows) {

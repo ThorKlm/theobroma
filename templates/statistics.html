@@ -13,11 +13,11 @@
     <div class="card">
         <h3 class="card-title">Mean physicochemical properties</h3>
         <table class="prop-table">
-            <tr><th>Exact mass</th><td>{{ "%.1f"|format(prop_stats.avg_mw) if prop_stats.avg_mw else '&mdash;'|safe }}</td></tr>
-            <tr><th>LogP</th><td>{{ "%.2f"|format(prop_stats.avg_logp) if prop_stats.avg_logp else '&mdash;'|safe }}</td></tr>
-            <tr><th>TPSA</th><td>{{ "%.1f"|format(prop_stats.avg_tpsa) if prop_stats.avg_tpsa else '&mdash;'|safe }}</td></tr>
-            <tr><th>HBA</th><td>{{ "%.1f"|format(prop_stats.avg_hba) if prop_stats.avg_hba else '&mdash;'|safe }}</td></tr>
-            <tr><th>HBD</th><td>{{ "%.1f"|format(prop_stats.avg_hbd) if prop_stats.avg_hbd else '&mdash;'|safe }}</td></tr>
+            <tr><th scope="col">Exact mass</th><td>{{ "%.1f"|format(prop_stats.avg_mw) if prop_stats.avg_mw else '&mdash;'|safe }}</td></tr>
+            <tr><th scope="col">LogP</th><td>{{ "%.2f"|format(prop_stats.avg_logp) if prop_stats.avg_logp else '&mdash;'|safe }}</td></tr>
+            <tr><th scope="col">TPSA</th><td>{{ "%.1f"|format(prop_stats.avg_tpsa) if prop_stats.avg_tpsa else '&mdash;'|safe }}</td></tr>
+            <tr><th scope="col">HBA</th><td>{{ "%.1f"|format(prop_stats.avg_hba) if prop_stats.avg_hba else '&mdash;'|safe }}</td></tr>
+            <tr><th scope="col">HBD</th><td>{{ "%.1f"|format(prop_stats.avg_hbd) if prop_stats.avg_hbd else '&mdash;'|safe }}</td></tr>
         </table>
     </div>
     {% if admet_stats %}
@@ -25,7 +25,7 @@
         <h3 class="card-title">Mean ADMET predictions <span style="font-size:0.72rem;color:var(--text-muted);">(ADMET-AI)</span></h3>
         <table class="prop-table">
             {% for label, vals in admet_stats.items() %}
-            <tr><th>{{ label }}</th><td>{{ "%.3f"|format(vals.avg) }} <span style="font-size:0.7rem;color:var(--text-muted);">({{ "%.2f"|format(vals.min) }} - {{ "%.2f"|format(vals.max) }})</span></td></tr>
+            <tr><th scope="col">{{ label }}</th><td>{{ "%.3f"|format(vals.avg) }} <span style="font-size:0.7rem;color:var(--text-muted);">({{ "%.2f"|format(vals.min) }} - {{ "%.2f"|format(vals.max) }})</span></td></tr>
             {% endfor %}
         </table>
     </div>
@@ -103,7 +103,7 @@
     <details style="margin-top:0.4rem;">
       <summary style="font-size:0.78rem;color:var(--text-muted);cursor:pointer;">Show top countries (table)</summary>
       <table class="prop-table" style="margin-top:0.4rem;font-size:0.8rem;">
-        <thead><tr><th>Country</th><th style="text-align:right;">Visitors</th><th style="text-align:right;">Hits</th></tr></thead>
+        <th scope="col"ead><tr><th scope="col">Country</th><th scope="col" style="text-align:right;">Visitors</th><th scope="col" style="text-align:right;">Hits</th></tr></thead>
         <tbody>
         {% for c in visitors_by_country[:15] %}
         <tr><td>{{ c.iso2 }} ({{ c.iso3 }})</td>

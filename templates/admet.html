@@ -24,10 +24,10 @@
 <p class="results-info">{{ "{:,}".format(total) }} compounds matching ADMET criteria</p>
 <div class="table-scroll">
 <table class="results-table">
-    <thead><tr>
-        <th>ID</th><th>Name</th><th>Kingdom</th><th>MW</th>
+    <th scope="col"ead><tr>
+        <th scope="col">ID</th><th scope="col">Name</th><th scope="col">Kingdom</th><th scope="col">MW</th>
         {% for col, label, _, _ in filter_defs %}
-        <th style="font-size:0.65rem;">{{ label[:12] }}</th>
+        <th scope="col" style="font-size:0.65rem;">{{ label[:12] }}</th>
         {% endfor %}
     </tr></thead>
     <tbody>
