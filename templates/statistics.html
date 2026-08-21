@@ -94,7 +94,7 @@
 <div class="card" style="margin-top:1.5rem;">
     <h3 class="card-title">Visitors by country
       <span style="font-size:0.72rem;color:var(--text-muted);font-weight:400;">
-        ({{ visitors_meta.distinct_visitor_ips|default(0) }} non-bot IPs,
+        ({{ "{:,}".format(visitors_meta.hits|default(0)) }} requests,
          {{ visitors_meta.countries|default(0) }} countries,
          updated {{ visitors_meta.last_updated|default('') }})
       </span>
