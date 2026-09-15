@@ -3273,6 +3273,8 @@ def api_annotate():
     from rdkit import Chem
     IK_RE = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
     resolved = []
+    if not all(isinstance(x, dict) for x in inputs):
+        return jsonify({"error": "each input must be an object with smiles or inchikey"}), 400
     for i, item in enumerate(inputs):
         rid = item.get("id", i)
         ik = (item.get("inchikey") or "").strip().upper()
