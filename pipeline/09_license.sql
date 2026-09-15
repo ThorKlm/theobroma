@@ -20,6 +20,11 @@
 BEGIN;
 
 -- 0. Archive current license labels for rollback / audit.
+-- NOTE: compounds_license_pre_fix_20260802_keep (renamed 15 Sep 2026) holds the
+-- pre-removal corpus at 1,133,004 rows, before the 199 trivially small species
+-- were dropped. It is the only record of that state and the preprint v1 figures
+-- derive from it. Do not drop it. A CSV copy is in
+-- backups/reaudit_20260915/compounds_license_pre_removal_1133004.csv.gz
 DROP TABLE IF EXISTS compounds_license_pre_fix_20260802;
 CREATE TABLE compounds_license_pre_fix_20260802 AS
 SELECT comp_id, license_tier FROM compounds;
