@@ -18,6 +18,12 @@
 -- attested only by CC0 sources, the resolved tier is CC0 because no
 -- attribution-requiring source claims it.
 --
+-- NOTE on the invariant in reconcile_attestations.sql: that script asserts no
+-- compound tier changes when attestations are reconciled. That holds only while
+-- the two representations differ in encoding alone. If a source's tier in
+-- source_license_ref genuinely changes, reconciling will change compound tiers
+-- and the assertion will fire. That is the intended behaviour, not a fault.
+--
 -- Prerequisite: per_source_license_attestation must be populated for every
 -- compound (via the population script that joins all_sources with the
 -- license map derived from sources.yaml).
