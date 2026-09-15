@@ -140,3 +140,10 @@ templates/*.bak*
 !scripts/apply_license_resolver.sql
 !scripts/recompute_license_ranks.sql
 !reconcile_attestations.sql
+!license_dryrun_v134.sql
+!license_apply_v134.sql
+!license_permissive_v134.sql
+!restore_v134.sql
+!validation_probes.sql
+!validation_probes2.sql
+!reconcile_attestations.sql
