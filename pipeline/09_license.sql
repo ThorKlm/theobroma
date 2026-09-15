@@ -7,8 +7,9 @@
 -- Inputs  : per_source_license_attestation, source_license_ref
 -- Output  : compounds.license_tier + compounds.tier_rank
 -- Run     : after compounds + attestations are loaded.
--- Live dist (v1.35): CC0 1,013,320; CC BY-NC 84,956; Unspecified 27,051;
---           CC BY-NC-ND 3,758; CC BY 4.0 3,720. Commercial (CC0+CCBY) 1,017,040.
+-- Header figures below were from the v1.34 state and are superseded.
+-- Live dist (v1.35, 15 Sep 2026): CC BY 4.0 891,860; CC BY-NC 4.0 225,536;
+--           CC0 8,243; Unspecified 7,166. Open (CC0+CC BY) 900,103 (79.5%).
 -- NOTE    : original staged with operator COMMIT; trailing COMMIT left commented
 --           as in source. Pair with 09b (reconcile_attestations) which aligns
 --           the attestation rows to the ref WITHOUT changing resolved tiers.
@@ -68,7 +69,7 @@ SELECT CASE WHEN tier_rank<=1 THEN 'commercial' WHEN tier_rank<=4 THEN 'non-comm
             ELSE 'unspecified' END AS bucket, count(*),
        round(100.0*count(*)/sum(count(*)) over (),2) pct
 FROM compounds GROUP BY 1 ORDER BY 2 DESC;
-\echo '=== curcumin family (should be Unspecified now) ==='
+\echo '=== curcumin family (v1.35: six CC BY 4.0, one CC BY-NC 4.0, one Unspecified) ==='
 SELECT comp_id, license_tier, tier_rank FROM compounds
 WHERE inchikey LIKE 'VFLDPWHFBUODDF%' ORDER BY comp_id LIMIT 6;
 \echo '=== changed vs archived ==='
