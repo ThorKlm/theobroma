@@ -30,4 +30,4 @@ SELECT count(*) FILTER (WHERE tier_rank_min > tier_rank) AS w03_inversions,
        count(*) FILTER (WHERE tier_rank_min = 1) AS least_permissive
 FROM compounds;
 
--- COMMIT;  -- type by hand after reviewing
+COMMIT;

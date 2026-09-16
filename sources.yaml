@@ -153,7 +153,12 @@ sources:
   raw_compounds: 3500
   in_theobroma: 3311
   converter: convert_microbial.py streptomedb
-  license_data: CC BY 4.0
+  license_data: CC BY-NC 4.0
+  license_basis: >-
+    Confirmed by Prof. Stefan Guenther (PI, Pharmaceutical Bioinformatics,
+    Univ. Freiburg) by email, 15 September 2026: StreptomeDB runs long term
+    under CC BY-NC 4.0 and a statement is to be added to the website. No
+    licence notice was present at the time of ingestion.
   citation: 10.1093/nar/gkaa868
 - name: MIBiG
   url: https://mibig.secondarymetabolites.org
@@ -209,7 +214,12 @@ sources:
   raw_compounds: null  # download-time count not recorded reliably
   in_theobroma: 651
   converter: convert.py mycocentral
-  license_data: CC BY 4.0
+  license_data: CC BY-NC 4.0
+  license_basis: >-
+    Legal notices page (mycocentral.eu/funding, publisher ANSES): partial data
+    extraction allowed after registration; re-distribution permitted but not
+    for commercial purposes; attribution to the MycoCentral Database required.
+    Verified 15 September 2026.
   citation: 10.1016/j.foodcont.2023.110273
 - name: NaturAr
   url: https://github.com/digichem-unr/NaturAr
@@ -220,7 +230,12 @@ sources:
   raw_compounds: 560
   in_theobroma: 553
   converter: convert.py naturar
-  license_data: CC BY 4.0
+  license_data: Unspecified
+  license_basis: >-
+    No data-level licence. The source code is licensed GPL for OpenBabel
+    compatibility and third-party library licences are tabulated in the
+    preprint, but no statement covers the compound data. Clarification
+    requested from the maintainers, 15 September 2026.
   citation: 10.1021/acs.jcim.4c01507
 - name: LMDB_Lichen
   url: FDP API
@@ -242,7 +257,12 @@ sources:
   raw_compounds: null  # download-time count not recorded reliably
   in_theobroma: 561
   converter: convert.py amdb
-  license_data: CC BY 4.0
+  license_data: Unspecified
+  license_basis: >-
+    No data-level licence. The site states the database is freely accessible
+    but gives no terms of use or redistribution conditions; the Metabolites
+    article is CC BY and covers the paper. Clarification requested from the
+    maintainers, 15 September 2026.
   citation: 10.3390/metabo13101088
 - name: Phyto4Health
   url: https://way2drug.com/phyto4health/
