@@ -147,3 +147,4 @@ templates/*.bak*
 !validation_probes.sql
 !validation_probes2.sql
 !reconcile_attestations.sql
+!scripts/diff_license_reaudit.sql
