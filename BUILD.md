@@ -13,13 +13,13 @@ script, it is archived and listed in the corrections ledger (Section 13), so the
 recoverable from the deposited database plus the versioned scripts at that state. Nothing
 material is lost even where the scripts are not wired into a single runnable chain.
 
-**Corpus at time of writing.** Internal version 1.35 (public release 1.0). ~1,132,805
+**Corpus at time of writing.** Internal version 1.36. ~1,132,805
 compounds, 29 source databases, four resolved kingdoms plus an unresolved category, 13
 macro-regions (multi-valued). Deduplicated by full 27-character InChIKey, stereoisomer
 families exposed by the 14-character connectivity prefix. Live: theobroma.l3s.uni-hannover.de.
-Repository: github.com/ThorKl/theobroma.
+Repository: github.com/ThorKlm/theobroma.
 
-**Environment (pinned, v1.35).** Python 3.13.5; RDKit 2026.3.1; transformers 5.5.4 with
+**Environment (pinned, v1.36).** Python 3.13.5; RDKit 2026.3.1; transformers 5.5.4 with
 checkpoint seyonec/ChemBERTa-zinc-base-v1 (768-d, mean-pooled); torch 2.11.0 (CPU on serving,
 GPU on the embedding-compute host); scikit-learn 1.8.0; scipy 1.17.1; pandas; xgboost and
 Optuna on the training host; faiss-cpu 1.13.2 (HNSW). PostgreSQL 17, database `theobroma`,
