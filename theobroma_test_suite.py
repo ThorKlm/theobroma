@@ -23,7 +23,7 @@ BASE = os.environ.get("THEO_BASE_URL", "http://localhost:5000").rstrip("/")
 EXP = {
     "n_compounds": 1132805, "tier1": 626601, "tier2": 206042, "tier3": 300141,
     "unclassified": 21, "families": 486032, "region_compounds": 264039,
-    "macro_regions": 13, "sources": 29, "cc0_pct_min": 88.5, "cc0_pct_max": 90.5,
+    "macro_regions": 13, "sources": 29, "cc0_pct_min": 0.6, "cc0_pct_max": 0.9,
     "np_pathways": 7,
 }
 KINGDOMS = {"plant", "animal", "fungi", "bacteria", "unresolved"}
@@ -532,24 +532,22 @@ def t_prov():
     (PASS if nsrc_lic and nsrc_lic >= EXP["sources"] else WARN)("G44",
         f"source_license_ref covers {nsrc_lic} sources")
 
-    # G45: per-compound license == most-permissive across attestations (spot-check)
-    #   most-permissive == min(tier_rank). Compare to stored tier_rank for a sample.
+    # G45: the resolved tier is the most restrictive across attesting sources,
+    #   and tier_rank_min the least restrictive. src is stored lowercase in
+    #   source_license_ref and mixed case in the attestation table, so the join
+    #   must fold case or it matches almost nothing.
     try:
-        # most-permissive = min(tier_rank) across sources, EXCLUDING Unspecified (rank 5),
-        # which is an unknown fallback, not a permissive license. Only compounds whose
-        # stored tier is itself known (0-4) are checked against the known-source minimum.
         wrong = q1("""
             WITH s AS (
-              SELECT a.comp_id, min(r.tier_rank) AS best
+              SELECT a.comp_id, min(r.tier_rank) AS best, max(r.tier_rank) AS worst
               FROM per_source_license_attestation a
-              JOIN source_license_ref r ON r.src=a.source
-              WHERE r.tier_rank < 5
+              JOIN source_license_ref r ON lower(r.src) = lower(a.source)
               GROUP BY a.comp_id)
             SELECT count(*) FROM compounds c JOIN s ON s.comp_id=c.comp_id
-            WHERE c.tier_rank < 5 AND c.tier_rank <> s.best
+            WHERE c.tier_rank <> s.worst OR c.tier_rank_min <> s.best
         """)
-        check("G45", wrong == 0, "per-compound license = most-permissive across known sources",
-              f"{wrong:,} compounds violate most-permissive rule (excl. Unspecified)")
+        check("G45", wrong == 0, "tier_rank = most restrictive, tier_rank_min = least restrictive",
+              f"{wrong:,} compounds violate the resolution invariant")
     except Exception as e:
         SKIP("G45", f"attestation join failed: {type(e).__name__}")
 
