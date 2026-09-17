@@ -685,9 +685,17 @@ def search():
     # Handle extra AND filters
     extra_clauses = []
     extra_params = []
-    for i in range(1, 11):
-        et = request.args.get(f"extra_type_{i}", "")
-        eq = request.args.get(f"extra_q_{i}", "").strip()
+    # Bare kingdom/source/region parameters, as emitted by the browse page and
+    # the cladogram links, travel the same path as the extra filters so the two
+    # cannot diverge. Without this they were parsed and silently dropped.
+    _bare = [(k, request.args.get(k, "").strip()) for k in ("kingdom", "source", "region")]
+    _bare = [(k, v) for k, v in _bare if v]
+    for i in range(1, 11 + len(_bare)):
+        if i <= 10:
+            et = request.args.get(f"extra_type_{i}", "")
+            eq = request.args.get(f"extra_q_{i}", "").strip()
+        else:
+            et, eq = _bare[i - 11]
         if not et or not eq:
             continue
         emap = {
