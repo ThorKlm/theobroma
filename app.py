@@ -1755,6 +1755,9 @@ def api_taxonomy_tree():
             "npclassifier_class": ("(c.np_class ILIKE %s OR c.inferred_class ILIKE %s)", (f"%{search_q}%", f"%{search_q}%")),
             "classyfire_class": ("c.classyfire_superclass ILIKE %s", (f"%{search_q}%",)),
             "pathway": ("c.np_pathway ILIKE %s", (f"%{search_q}%",)),
+            "npclassifier_superclass": ("c.np_superclass ILIKE %s", (f"%{search_q}%",)),
+            "npclassifier_pathway": ("c.np_pathway ILIKE %s", (f"%{search_q}%",)),
+            "classyfire_superclass": ("c.classyfire_superclass ILIKE %s", (f"%{search_q}%",)),
         }
         clause_pair = type_clauses.get(search_type)
         if clause_pair:
