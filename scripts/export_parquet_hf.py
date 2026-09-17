@@ -8,12 +8,16 @@ rows each file has 23 to 31 groups with the largest at 26 MB, and the viewer loa
 import os
 import pandas as pd, pyarrow as pa, pyarrow.parquet as pq, psycopg2
 
+# source_licenses carries every source assessed during the audit. in_corpus marks
+# the 29 that contribute compounds; the rest are ingestion-file aliases, sources
+# evaluated and excluded, and sources considered but never ingested.
 TABLES = [
     ("compounds", "compounds"),
     ("compound_taxonomy", "compound_taxonomy"),
     ("resolved_taxonomy", "resolved_taxonomy"),
     ("license_attestations", "per_source_license_attestation"),
-    ("source_licenses", "source_license_ref"),
+    ("source_licenses",
+     "(SELECT r.*, (r.src IN (SELECT DISTINCT lower(source_db) FROM compounds)) AS in_corpus FROM source_license_ref r) s"),
     ("synonyms", "compound_synonyms"),
     ("regions", "compound_region_map"),
     ("admet", "admet"),
