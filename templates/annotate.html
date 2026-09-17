@@ -43,8 +43,8 @@
     </div>
     <div id="error-section" style="display:none;margin-top:1rem;padding:0.75rem;background:#fee;border-left:4px solid #c33;font-size:0.9rem;"></div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="/static/vendor/papaparse.min.js"></script>
+<script src="/static/vendor/xlsx.full.min.js"></script>
 <script>
 (function() {
     const IK_RE = /^[A-Z]{14}-[A-Z]{10}-[A-Z]$/;
@@ -147,7 +147,7 @@
     }
     function renderPreview() {
         const headers = parsed.headers, rows = parsed.rows.slice(0, 5);
-        let html = "<th scope="col"ead><tr>";
+        let html = "<thead><tr>";
         for (let i = 0; i < headers.length; i++) {
             let label = headers[i] || ("col_" + i), badge = "";
             if (i === parsed.smiCol) badge = ' <span style="background:#cfc;padding:1px 4px;border-radius:3px;font-size:0.75rem;">SMILES</span>';
