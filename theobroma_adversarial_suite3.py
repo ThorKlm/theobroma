@@ -145,7 +145,7 @@ def m06(c):
     for p in ["/", "/statistics", "/tree", "/api/stats"]:
         st, body, _ = c.get(p)
         seen |= set(re.findall(r"THEOBROMA v1\.\d\d", body.decode("utf-8", "replace")))
-    return seen in ({"THEOBROMA v1.35"}, set()), "version strings served: %s" % (sorted(seen) or "none"), \
+    return seen in ({"THEOBROMA v1.36"}, set()), "version strings served: %s" % (sorted(seen) or "none"), \
         "figure exports bake the version in; a stale one reaches the manuscript"
 
 

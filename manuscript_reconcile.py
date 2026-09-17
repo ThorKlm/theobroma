@@ -106,7 +106,7 @@ def a06(c):
 
 # --------------------------------------------------------------- B. licensing
 
-@check("B01", 891860, "Section 3, abstract, Figure S1")
+@check("B01", 887999, "Section 3, abstract, Figure S1")
 def b01(c):
     return c.q1("SELECT count(*) FROM compounds WHERE license_tier='CC BY 4.0'")
 
@@ -116,7 +116,7 @@ def b02(c):
     return c.q1("SELECT count(*) FROM compounds WHERE license_tier='CC0'")
 
 
-@check("B03", 225536, "Section 3, Figure S1")
+@check("B03", 229397, "Section 3, Figure S1")
 def b03(c):
     return c.q1("SELECT count(*) FROM compounds WHERE license_tier='CC BY-NC 4.0'")
 
@@ -126,7 +126,7 @@ def b04(c):
     return c.q1("SELECT count(*) FROM compounds WHERE license_tier='Unspecified'")
 
 
-@check("B05", 900103, "abstract, Figure 1, persona scenario")
+@check("B05", 896242, "abstract, Figure 1, persona scenario")
 def b05(c):
     return c.q1("SELECT count(*) FROM compounds WHERE tier_rank <= 1")
 
@@ -136,12 +136,12 @@ def b06(c):
     return c.q1("SELECT count(*) FROM per_source_license_attestation")
 
 
-@check("B07", 137149, "Section 3, licence interval")
+@check("B07", 137479, "Section 3, licence interval")
 def b07(c):
     return c.q1("SELECT count(*) FROM compounds WHERE tier_rank_min <> tier_rank")
 
 
-@check("B08", 1014300, "Section 3, least restrictive permissive")
+@check("B08", 1010662, "Section 3, least restrictive permissive")
 def b08(c):
     return c.q1("SELECT count(*) FROM compounds WHERE tier_rank_min = 1")
 
