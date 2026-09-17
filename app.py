@@ -5,7 +5,7 @@ spanning 27 sources across six kingdoms and six continents.
 from flask import (Flask, render_template, request, send_from_directory,
                    jsonify, abort, redirect, url_for, Response)
 from config import Config
-from config import VERSION_DISPLAY, VERSION_EXTERNAL, VERSION_INTERNAL
+from config import VERSION_DISPLAY, VERSION_INTERNAL
 import psycopg2, psycopg2.extras, os, math, re, csv, io
 import sys
 import json
@@ -42,7 +42,6 @@ def _security_headers(response):
 @app.context_processor
 def inject_version():
     return {"theobroma_version": VERSION_DISPLAY,
-            "theobroma_version_external": VERSION_EXTERNAL,
             "theobroma_version_internal": VERSION_INTERNAL,
             # Maintenance banner: on when env THEOBROMA_MAINTENANCE is set to
             # a truthy value ("1"/"true"/"on"). Flip off by unsetting it.
