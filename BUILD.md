@@ -225,22 +225,26 @@ input study). Archive stage2_backfill variant. Region is not a pending task.
 
 ## 9. License tiers
 
-- **Canonical: `license_apply_v134.sql`** (most-restrictive-wins per compound across attested
+- **Canonical: `pipeline/09_license.sql`** (most-restrictive-wins per compound across attested
   sources; the erroneous CC0 override discarded). Archives prior labels, staged transaction.
-  `reconcile_attestations.sql` reconciles per_source_license_attestation to source_license_ref.
-- **Rule (two-level):** per source, most-restrictive applicable license; per compound
-  (a structure being a fact reportable by many sources), most-permissive across its sources.
+  `pipeline/09b_reconcile_attestations.sql` reconciles per_source_license_attestation to
+  source_license_ref, and must run before the resolver when a source tier changes.
+- **Rule (two-level):** per source, most-restrictive applicable license; per compound,
+  most-restrictive across all attesting sources, so a compound may only be redistributed
+  under terms every attesting source permits.
   Tier order (source_license_ref.tier_rank, confirmed): 0 CC0, 1 CC BY 4.0, 2 CC BY-NC 4.0,
   3 CC BY-NC-SA 4.0, 4 CC BY-NC-ND 4.0, 5 Unspecified. CMNPD removed in v32 (share-alike).
-- **Live distribution (v1.35):** CC0 1,013,320; CC BY-NC 4.0 84,956; Unspecified 27,051;
-  CC BY-NC-ND 4.0 3,758; CC BY 4.0 3,720. Commercial-use (CC0 + CC BY 4.0) = 1,017,040.
+- **Live distribution (v1.36, 17 September 2026):** CC BY 4.0 887,999; CC BY-NC 4.0 229,397;
+  CC0 8,243; Unspecified 7,166. Open (CC0 + CC BY 4.0) = 896,242 (79.12%).
 
-**IMPORTANT (deposition):** this distribution differs substantially from the deposited Zenodo
-v1.34 doc (which reported CC BY 4.0 994,133 / CC0 12,044). The license re-resolution changed
-the headline numbers. The Zenodo v2, HuggingFace, and manuscript updates (done independently,
-later) must use the corrected v1.35 distribution. Recorded here so the discrepancy is not lost.
+**IMPORTANT (deposition):** the distribution above supersedes both the v1.34 Zenodo record
+(CC BY 4.0 994,133 / CC0 12,044) and the v1.35.1 record (CC BY 4.0 891,860 / CC BY-NC 4.0
+225,536 / CC0 8,243 / Unspecified 7,166). The September 2026 licence re-audit moved 3,861
+compounds from CC BY 4.0 to CC BY-NC 4.0 after StreptomeDB and MycoCentral were reassigned.
+Zenodo, HuggingFace and the manuscript must all be updated to the v1.36 figures together.
 
-**Consolidation:** canonical = license_apply_v134.sql + reconcile_attestations.sql.
+**Consolidation:** canonical = pipeline/09_license.sql + pipeline/09b_reconcile_attestations.sql
++ scripts/recompute_license_ranks.sql (the last writes tier_rank_min, which nothing else does).
 
 ---
 

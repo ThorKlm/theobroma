@@ -22,17 +22,18 @@ The CMNPD database, originally part of the corpus, was removed in v32 due to its
 
 ## License tiers
 
-Each compound carries a `license_tier` describing the terms under which its chemical **structure** may be redistributed, resolved by a two-level rule. **First**, each source database is assigned the most restrictive license applicable to its contents: sources that are non-commercial, share-alike, or whose terms cannot be resolved at the per-compound level are treated conservatively at that tier, or recorded as *Unspecified* when no license can be determined. **Second**, because a chemical structure is a fact that may be independently reported by several databases, a compound found in multiple sources takes the **most permissive** license among them, since the structure is genuinely available under that license from at least one source. The assignment is thus conservative where provenance is singular or ambiguous, and permissive only where a concrete more-permissive source exists. Tier order (permissive to restrictive): CC0 < CC BY 4.0 < CC BY-NC 4.0 < CC BY-NC-SA 4.0 < CC BY-NC-ND 4.0 < Unspecified.
+Each compound carries a `license_tier` describing the terms under which its chemical **structure** may be redistributed, resolved by a two-level rule. **First**, each source database is assigned the most restrictive license applicable to its contents: sources that are non-commercial, share-alike, or whose terms cannot be resolved at the per-compound level are treated conservatively at that tier, or recorded as *Unspecified* when no license can be determined. **Second**, a compound found in multiple sources takes the **most restrictive** license among them, so that the redistribution terms hold for every source that reports the structure. The assignment is therefore conservative throughout: a compound is placed in a permissive tier only when every source attesting it permits those terms. Tier order (permissive to restrictive): CC0 < CC BY 4.0 < CC BY-NC 4.0 < CC BY-NC-SA 4.0 < CC BY-NC-ND 4.0 < Unspecified.
 
 Across the 1,132,805 compounds:
 
-- **CC0** (1,013,320; 89.45%): COCONUT 2.0, LOTUS v11, MIBiG 4.0, SANCDB.
-- **CC BY 4.0** (3,720; 0.33%): AfroDb, CyanoMetDB, EMNPD, LanaPDB, MeFSAT, TIPdb.
-- **CC BY-NC 4.0** (84,956; 7.50%): ANPDB, CMAUP, CSIRO, FooDB, NPASS 3.0, NPAtlas, Phyto4Health, TCMBank, YMDB.
-- **CC BY-NC-ND 4.0** (3,758; 0.33%): IMPPAT 2.0.
-- **Unspecified** (27,051; 2.39%): HERB 2.0, TM-MC 2.0, StreptomeDB, phytochemdb, MicotoXilico, MycoCentral, AMDB, ConMedNP, NaturAr, LMDB, and specialized/regional collections whose license could not be resolved; excluded from both commercial and non-commercial filters pending source-license confirmation.
+- **CC0** (8,243; 0.73%): TM-MC 2.0.
+- **CC BY 4.0** (887,999; 78.39%): AfroDb, AMDB, CMAUPv2, COCONUT 2.0, CyanoMetDB, EMNPD, LOTUS, MeFSAT, MIBiG, NaturAr, SANCDB.
+- **CC BY-NC 4.0** (229,397; 20.25%): ANPDB, CSIRO, FooDB, HERB 2.0, IMPPAT 2.0, MycoCentral, NPASS 3.0, NPAtlas, Phyto4Health, phytochemdb, StreptomeDB, TIPdb.
+- **Unspecified** (7,166; 0.63%): CMDB_Cereals, LMDB_Lichen, MicotoXilico, SMDB_Spice, TMDB_Trichoderma; excluded from both commercial and non-commercial filters pending source-license confirmation.
 
-**1,017,040 compounds (89.78%) permit commercial use** (CC0 or CC BY 4.0). The `license_tier` reflects **structure** redistribution; reuse of the full integrated annotation record (source organism, references, computed metadata) may additionally require honoring the contributing sources' terms for those fields. The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause.
+No compound currently resolves to CC BY-NC-SA 4.0 or CC BY-NC-ND 4.0, though both tiers exist in the scheme. A source's compounds may appear in a more restrictive tier than the source's own assignment when co-attested elsewhere.
+
+**896,242 compounds (79.12%) permit commercial use** (CC0 or CC BY 4.0). The `license_tier` reflects **structure** redistribution; reuse of the full integrated annotation record (source organism, references, computed metadata) may additionally require honoring the contributing sources' terms for those fields. The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause.
 
 ## Deployment
 
@@ -70,7 +71,7 @@ Full OpenAPI specification at [/api](https://theobroma.l3s.uni-hannover.de/api).
 
 ## License
 
-Web application code is MIT. Compound data carries per-record license tiers resolved by the two-level rule described in the License tiers section above (conservative within an ambiguous source, most-permissive across multiple sources); see the per-compound `license_tier` field.
+Web application code is MIT. Compound data carries per-record license tiers resolved by the two-level rule described in the License tiers section above (conservative within an ambiguous source, most-restrictive across multiple sources); see the per-compound `license_tier` field.
 
 ## Citation
 
