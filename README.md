@@ -5,6 +5,7 @@ An open multi-kingdom natural products database with per-compound license tiers 
 **Live:** [https://theobroma.l3s.uni-hannover.de](https://theobroma.l3s.uni-hannover.de)
 **Repository:** [github.com/ThorKlm/theobroma](https://github.com/ThorKlm/theobroma)
 **Dataset on Hugging Face:** [huggingface.co/datasets/ThorKl/theobroma](https://huggingface.co/datasets/ThorKl/theobroma)
+**Archival record:** [10.5281/zenodo.22816330](https://doi.org/10.5281/zenodo.22816330) (v1.36; concept DOI [10.5281/zenodo.20443051](https://doi.org/10.5281/zenodo.20443051) resolves to the latest)
 
 ## Overview
 
@@ -12,7 +13,7 @@ THEOBROMA aggregates 1,132,805 natural product compounds from 29 source database
 
 ## Features
 
-Search by compound name, SMILES, InChIKey, source organism, geographic region, kingdom, source database, or chemical class. Multi-filter search combines criteria with AND logic. Browse with kingdom, source, region, and license filters plus a named-only toggle. Each compound has a detail page with structure, properties, classification, provenance across all source databases, and external links. Statistics dashboard shows kingdom, source, region, and license distributions. Bulk export as CSV. JSON API for programmatic access. Similarity search via Morgan or MACCS Tanimoto plus ChemBERTa cosine, the last accelerated by FAISS HNSW indexing. Substructure search via Morgan pre-screen plus RDKit matching. Scaffold browser groups compounds by their Bemis-Murcko core.
+Search by compound name, SMILES, InChIKey, source organism, geographic region, kingdom, source database, or chemical class. Multi-filter search combines criteria with AND logic. Browse with kingdom, source, region, and license filters plus a named-only toggle. Each compound has a detail page with structure, properties, classification, provenance across all source databases, and external links. Statistics dashboard shows kingdom, source, region, and license distributions. Bulk export as CSV. JSON API for programmatic access. Similarity search via Morgan or MACCS Tanimoto plus ChemBERTa and NaFM cosine, the embedding metrics accelerated by FAISS indexing. Substructure search via Morgan pre-screen plus RDKit matching. Scaffold browser groups compounds by their Bemis-Murcko core.
 
 ## Source databases
 
@@ -28,7 +29,7 @@ Across the 1,132,805 compounds:
 
 - **CC0** (8,243; 0.73%): TM-MC 2.0.
 - **CC BY 4.0** (887,999; 78.39%): AfroDb, AMDB, CMAUPv2, COCONUT 2.0, CyanoMetDB, EMNPD, LOTUS, MeFSAT, MIBiG, NaturAr, SANCDB.
-- **CC BY-NC 4.0** (229,397; 20.25%): ANPDB, CSIRO, FooDB, HERB 2.0, IMPPAT 2.0, MycoCentral, NPASS 3.0, NPAtlas, Phyto4Health, phytochemdb, StreptomeDB, TIPdb.
+- **CC BY-NC 4.0** (229,397; 20.25%): ANPDB, CSIRO, FooDB, HERB 2.0, IMPPAT 2.0, MycoCentral, NPASS 3.0, NPAtlas, Phyto4Health, phytochemdb, StreptomeDB, TIPdb-3D.
 - **Unspecified** (7,166; 0.63%): CMDB_Cereals, LMDB_Lichen, MicotoXilico, SMDB_Spice, TMDB_Trichoderma; excluded from both commercial and non-commercial filters pending source-license confirmation.
 
 No compound currently resolves to CC BY-NC-SA 4.0 or CC BY-NC-ND 4.0, though both tiers exist in the scheme. A source's compounds may appear in a more restrictive tier than the source's own assignment when co-attested elsewhere.
@@ -76,9 +77,11 @@ Web application code is MIT. Compound data carries per-record license tiers reso
 ## Citation
 
 ```
-Klamt, T. et al. (2026). THEOBROMA: an open multi-kingdom natural products
-database with per-compound license tiers for legally-aware drug discovery.
-Submitted to Nucleic Acids Research.
+Klamt, T., Jaczkowski, A., Franke, J. and Nejdl, W. (2026). THEOBROMA: an
+aggregated open database of 1.13 million natural products with per-compound
+license auditing, three-tier classification, and stereochemistry-aware
+deduplication. Preprint: https://doi.org/10.64898/2026.06.12.731585
+Dataset: https://doi.org/10.5281/zenodo.22816330
 ```
 
 Please also cite the original source databases for any compounds you use; per-source citations and licenses are listed at [/sources](https://theobroma.l3s.uni-hannover.de/sources).
@@ -89,4 +92,4 @@ Please also cite the original source databases for any compounds you use; per-so
 
 ## Contact
 
-For bug reports and feature requests, open an issue on [GitHub](https://github.com/ThorKlm/theobroma/issues). For other inquiries, contact Thor Klamt at [Thor.Klamt@gmail.com](mailto:Thor.Klamt@gmail.com).
+For bug reports and feature requests, open an issue on [GitHub](https://github.com/ThorKlm/theobroma/issues). For other inquiries, contact Thor Klamt at [thor.klamt@l3s.de](mailto:thor.klamt@l3s.de) or [Thor.Klamt@gmail.com](mailto:Thor.Klamt@gmail.com).
