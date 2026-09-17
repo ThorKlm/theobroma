@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""THEOBROMA v1.35 regression guards.
+"""THEOBROMA v1.36 regression guards.
 
 Standalone so the main suite is untouched this close to submission. Merge these
 into theobroma_test_suite.py afterwards.

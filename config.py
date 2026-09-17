@@ -9,6 +9,6 @@ class Config:
 # ============================================================================
 # Version
 # ============================================================================
-VERSION_INTERNAL = "1.35"
+VERSION_INTERNAL = "1.36"
 VERSION_EXTERNAL = "1.0"
 VERSION_DISPLAY = f"v{VERSION_INTERNAL}"

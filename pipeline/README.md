@@ -41,12 +41,12 @@ converter mapping); it is the citation-grade provenance file and ships with the 
 - `genus_lineage_ref` (05b), `family_lineage_ref` (05c), `apg_clade_ref` (from apg_clade_ref.sql / supplement).
 - `npc_class_parents`, `npc_super_parents` (NPClassifier ontology; no standalone builder script -- loaded from the ontology alongside stage 06 / from the enrichment bundle).
 
-## Environment (v1.35)
+## Environment (v1.36)
 Python 3.13.5; RDKit 2026.3.1; transformers 5.5.4 (seyonec/ChemBERTa-zinc-base-v1);
 torch 2.11.0; scikit-learn 1.8.0; scipy 1.17.1; faiss-cpu 1.13.2; PostgreSQL 17.
 
 ## Notes
-- These stages reflect the corrected v1.35 corpus. Numbers (esp. license distribution)
-  supersede the v1.34 Zenodo deposit; update Zenodo/HF/manuscript to v1.35 independently.
+- These stages reflect the corrected v1.36 corpus. Numbers (esp. license distribution)
+  supersede the v1.35.1 Zenodo deposit; update Zenodo/HF/manuscript to v1.36 independently.
 - The deposited DB is the ground truth; where a consolidated script approximates an applied
   correction, the DB carries the exact result. See ../BUILD.md section 13 (corrections ledger).

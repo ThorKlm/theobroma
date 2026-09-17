@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""THEOBROMA v1.35 latency benchmark and self-similarity canary.
+"""THEOBROMA v1.36 latency benchmark and self-similarity canary.
 
 Replaces the v1.34 latency figures in the manuscript (Section 5, Supplementary S11),
 which were measured against a FAISS index serving ~48 percent coverage and are
