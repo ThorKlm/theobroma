@@ -230,12 +230,11 @@ sources:
   raw_compounds: 560
   in_theobroma: 553
   converter: convert.py naturar
-  license_data: Unspecified
+  license_data: CC BY 4.0
   license_basis: >-
-    No data-level licence. The source code is licensed GPL for OpenBabel
-    compatibility and third-party library licences are tabulated in the
-    preprint, but no statement covers the compound data. Clarification
-    requested from the maintainers, 15 September 2026.
+    CC BY 4.0 confirmed by Dr Martin Lavecchia (GQC, CEQUINOR CONICET-UNLP)
+    by email, 15 September 2026: the group agreed CC BY 4.0 is the appropriate
+    licence for the curated dataset and the website is to state it explicitly.
   citation: 10.1021/acs.jcim.4c01507
 - name: LMDB_Lichen
   url: FDP API
@@ -257,12 +256,11 @@ sources:
   raw_compounds: null  # download-time count not recorded reliably
   in_theobroma: 561
   converter: convert.py amdb
-  license_data: Unspecified
+  license_data: CC BY 4.0
   license_basis: >-
-    No data-level licence. The site states the database is freely accessible
-    but gives no terms of use or redistribution conditions; the Metabolites
-    article is CC BY and covers the paper. Clarification requested from the
-    maintainers, 15 September 2026.
+    CC BY 4.0 confirmed by Dr Vadim Yanshole (Laboratory of Proteomics and
+    Metabolomics, International Tomography Center SB RAS) by email,
+    16 September 2026, forwarded via Prof. Yuri Tsentalovich.
   citation: 10.3390/metabo13101088
 - name: Phyto4Health
   url: https://way2drug.com/phyto4health/

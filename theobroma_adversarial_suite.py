@@ -20,7 +20,7 @@ import psycopg2
 
 DSN = "host=localhost dbname=theobroma user=theobroma"
 CORPUS = 1132805
-MS = {"cc_by": 891860, "cc_by_nc": 225536, "tier1": 626601,
+MS = {"cc_by": 887999, "cc_by_nc": 229397, "tier1": 626601,
       "families": 486032, "pathway": 1101638, "alkaloid": 426042}
 
 EXEMPLAR = ("type=tax_class&q=liliopsida&extra_type_1=classification"

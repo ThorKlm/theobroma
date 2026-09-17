@@ -439,7 +439,9 @@ def u08(c):
 def u09(c):
     cid = c.q1("""SELECT comp_id FROM compounds
                   WHERE coalesce(source_organism,'') <> ''
-                    AND array_length(string_to_array(source_organism,'; '),1) <= 3 LIMIT 1""")
+                    AND array_length(string_to_array(source_organism,'; '),1) <= 3
+                    AND coalesce(array_length(string_to_array(coalesce(reference_doi,''),'; '),1),0) <= 3
+                  LIMIT 1""")
     html = c.page(cid)
     return "more, show all" not in html, "%s renders no expander" % cid
 
