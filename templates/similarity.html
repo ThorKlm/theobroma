@@ -7,7 +7,7 @@
     <form action="/similarity" method="get" class="search-form" style="flex-wrap:wrap;">
         <div class="search-row" style="width:100%;">
             <input type="text" name="smiles" value="{{ query_input or query_smiles }}" placeholder="SMILES, compound name, or THEO_ID" style="flex:2;" autocomplete="off">
-            <select name="metric">
+            <select name="metric" id="sim-metric">
                 <option value="morgan" {{ 'selected' if metric == 'morgan' }}>Morgan/ECFP4</option>
                 <option value="maccs" {{ 'selected' if metric == 'maccs' }}>MACCS keys</option>
                 <option value="chemberta" {{ 'selected' if metric == 'chemberta' }}>ChemBERTa</option>
@@ -18,11 +18,15 @@
                 <option value="{{ n }}" {{ 'selected' if top_n == n }}>Top {{ n }}</option>
                 {% endfor %}
             </select>
-            <select name="threshold">
+            <select name="threshold" id="sim-threshold"
+                    title="Applies to Morgan and MACCS only; the embedding metrics return the top-N nearest neighbours.">
                 {% for t in [0.1,0.2,0.3,0.5,0.7] %}
                 <option value="{{ t }}" {{ 'selected' if threshold == t }}>Tc >= {{ t }}</option>
                 {% endfor %}
             </select>
+            <span id="sim-threshold-note" style="display:none;font-size:0.78rem;color:var(--text-muted);align-self:center;">
+                Tc does not apply to embedding metrics
+            </span>
         </div>
         <div class="search-row" style="width:100%;margin-top:0.5rem;">
             <select name="region">
@@ -167,5 +171,22 @@ document.addEventListener('DOMContentLoaded', function() {
         SmilesDrawer.parse({{ query_smiles|tojson }}, function(tree){ qd.draw(tree, qc, 'light'); }, function(){});
     }
 });
+</script>
+
+<script>
+(function () {
+    var m = document.getElementById('sim-metric');
+    var th = document.getElementById('sim-threshold');
+    var note = document.getElementById('sim-threshold-note');
+    if (!m || !th) return;
+    function sync() {
+        var embedding = (m.value === 'chemberta' || m.value === 'nafm');
+        th.disabled = embedding;
+        th.style.opacity = embedding ? '0.5' : '';
+        if (note) note.style.display = embedding ? 'inline' : 'none';
+    }
+    m.addEventListener('change', sync);
+    sync();
+})();
 </script>
 {% endblock %}
