@@ -27,13 +27,13 @@
         <div class="search-row" style="width:100%;margin-top:0.5rem;">
             <select name="region">
                 <option value="">All regions</option>
-                {% for r in ["East Asia","South Asia","Southeast Asia","Australia","Africa","Europe","Latin America","North America","Russia/CIS","Middle East","Oceania"] %}
+                {% for r in ["East Asia","South Asia","Southeast Asia","Australia","Africa","Europe","Latin America","North America","Russia/CIS","Middle East","Central Asia","Oceania","New Zealand"] %}
                 <option value="{{ r }}" {{ 'selected' if region_filter == r }}>{{ r }}</option>
                 {% endfor %}
             </select>
             <select name="kingdom">
                 <option value="">All kingdoms</option>
-                {% for k in ["plant","animal","fungi","bacteria","chromista","protozoa","unresolved"] %}
+                {% for k in ["plant","animal","fungi","bacteria","unresolved"] %}
                 <option value="{{ k }}" {{ 'selected' if kingdom_filter == k }}>{{ k }}</option>
                 {% endfor %}
             </select>
