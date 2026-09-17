@@ -16,7 +16,7 @@ Search by compound name, SMILES, InChIKey, source organism, geographic region, k
 
 ## Source databases
 
-COCONUT 2.0, LOTUS v11, FooDB, NPASS 3.0, HERB 2.0, TM-MC 2.0, IMPPAT 2.0, CSIRO Australian NP, ANPDB, NPAtlas, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 4.0, EMNPD, MeFSAT, CyanoMetDB, MycoCentral, NaturAr, LMDB_Lichen, AMDB, TIPdb-3D, Phyto4Health, AfroDb, CMAUPv2, SANCDB, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice.
+COCONUT 2.0, LOTUS v11, FooDB, NPASS 3.0, HERB 2.0, TM-MC 2.0, IMPPAT 2.0, CSIRO Australian NP, ANPDB, NPAtlas, phytochemdb, MicotoXilico, StreptomeDB, MIBiG 3.1, EMNPD, MeFSAT, CyanoMetDB, MycoCentral, NaturAr, LMDB_Lichen, AMDB, TIPdb-3D, Phyto4Health, AfroDb, CMAUPv2, SANCDB, CMDB_Cereals, TMDB_Trichoderma, SMDB_Spice.
 
 The CMNPD database, originally part of the corpus, was removed in v32 due to its CC BY-NC-SA share-alike clause; CMNPD-exclusive compounds were dropped and CMNPD provenance was stripped from multi-source rows. TIPdb-3D was integrated in v33 from the 2015 archive following decommissioning of the original server (structures only; full ethnobotanical metadata pending a successor TIPdb release). LOTUS v11 (April 2026 release) was added in v33 contributing 53,862 novel compounds and enriching 173,436 existing rows with cross-source provenance.
 
