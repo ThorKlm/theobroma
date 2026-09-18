@@ -76,8 +76,12 @@ Parameters:
   q       &mdash; search query (required)
   type    &mdash; name | smiles | inchikey | kingdom | organism |
             region | source | genus | family | order | tax_class | phylum |
-            npclassifier_class | classyfire_class |
-            class (union of chemistry-class ontologies) | pathway
+            npclassifier_class | npclassifier_superclass | classyfire_class |
+            class (union of chemistry-class ontologies) | pathway |
+            property (concrete field given in prop_type)
+  prop_type &mdash; with type=property, the concrete field: npclassifier_class,
+            npclassifier_superclass, classyfire_class, pathway, or a
+            taxonomic rank
   exact   &mdash; true to require literal equality on text-search types
             (default false; substring match)
   limit   &mdash; max results, 1-10000 (default: 50)
