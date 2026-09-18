@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: THEOBROMA
+message: If you use this software, please cite the dataset and the accompanying preprint.
+type: software
+authors:
+  - family-names: Klamt
+    given-names: Thor
+    orcid: https://orcid.org/0009-0005-6168-3655
+    affiliation: L3S Research Center, Leibniz University Hannover
+  - family-names: Jaczkowski
+    given-names: Anne
+    orcid: https://orcid.org/0009-0001-1163-7811
+    affiliation: Institute of Botany, Leibniz University Hannover
+  - family-names: Franke
+    given-names: Jakob
+    orcid: https://orcid.org/0000-0002-7603-6232
+    affiliation: Centre of Biomolecular Drug Research, Leibniz University Hannover
+  - family-names: Nejdl
+    given-names: Wolfgang
+    orcid: https://orcid.org/0000-0003-3374-2193
+    affiliation: L3S Research Center, Leibniz University Hannover
+repository-code: https://github.com/ThorKlm/theobroma
+url: https://theobroma.l3s.uni-hannover.de
+license: MIT
+version: 1.36
+date-released: 2026-09-18
