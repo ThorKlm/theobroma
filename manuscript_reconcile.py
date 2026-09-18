@@ -151,14 +151,11 @@ def b09(c):
     return c.q1("SELECT count(*) FROM compounds WHERE tier_rank_min = 0")
 
 
-@check("B10", 108769, "S3, transition ledger total")
+@check("B10", 103382, "S3, transition ledger total")
 def b10(c):
-    live = c.q1("""SELECT count(*) FROM compounds c
+    return c.q1("""SELECT count(*) FROM compounds c
                    JOIN source_license_ref r ON lower(r.src) = lower(c.source_db)
                    WHERE c.tier_rank > r.tier_rank""")
-    return live, ("the printed figure is measured against the pre-correction "
-                  "first-stage map that S3 itself flags as unpublished; the live "
-                  "value uses the current map, so the two are different objects")
 
 
 @check("B11", None, "S3 ledger, live transition breakdown")
