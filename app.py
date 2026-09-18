@@ -673,9 +673,9 @@ def search():
         "tax_class":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.taxclass) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.taxclass ILIKE %s {oc}", (f"%{q}%",))),
         "clade":   ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.taxclass) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.taxclass ILIKE %s {oc}", (f"%{q}%",))),
         "phylum":  ((f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE LOWER(rt.phylum) = LOWER(%s) {oc}", (q,)) if exact else (f"SELECT c.* FROM compounds c JOIN resolved_taxonomy rt ON rt.comp_id = c.comp_id WHERE rt.phylum ILIKE %s {oc}", (f"%{q}%",))),
-        "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR np_superclass ILIKE %s OR effective_pathway ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%")),
+        "class":   (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR effective_superclass ILIKE %s OR effective_pathway ILIKE %s {oc}", (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%")),
         "npclassifier_class": (f"SELECT * FROM compounds WHERE np_class ILIKE %s OR inferred_class ILIKE %s {oc}", (f"%{q}%", f"%{q}%")),
-        "npclassifier_superclass": (f"SELECT * FROM compounds WHERE np_superclass ILIKE %s {oc}", (f"%{q}%",)),
+        "npclassifier_superclass": (f"SELECT * FROM compounds WHERE effective_superclass ILIKE %s {oc}", (f"%{q}%",)),
         "classyfire_class":   (f"SELECT * FROM compounds WHERE classyfire_superclass ILIKE %s {oc}", (f"%{q}%",)),
         "pathway": (f"SELECT * FROM compounds WHERE effective_pathway ILIKE %s {oc}", (f"%{q}%",)),
         "mw":      (f"SELECT * FROM compounds WHERE 1=1 {oc}", ()),
@@ -706,7 +706,7 @@ def search():
             "source": "LOWER(source_db) = LOWER(%s)",
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
-            "npclassifier_superclass": "np_superclass ILIKE %s",
+            "npclassifier_superclass": "effective_superclass ILIKE %s",
             "classyfire_class": "classyfire_superclass ILIKE %s",
             "pathway": "effective_pathway ILIKE %s",
             "genus":  "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = base.comp_id AND LOWER(rt.genus) = LOWER(%s))",
@@ -1711,7 +1711,7 @@ def api_taxonomy_tree():
             "clade": (("LOWER(rt.taxclass) = LOWER(%s)", (eq,)) if exact else ("rt.taxclass ILIKE %s", (f"%{eq}%",))),
             "phylum": (("LOWER(rt.phylum) = LOWER(%s)", (eq,)) if exact else ("rt.phylum ILIKE %s", (f"%{eq}%",))),
             "npclassifier_class": ("(c.np_class ILIKE %s OR c.inferred_class ILIKE %s)", (f"%{eq}%", f"%{eq}%")),
-            "npclassifier_superclass": ("c.np_superclass ILIKE %s", (f"%{eq}%",)),
+            "npclassifier_superclass": ("c.effective_superclass ILIKE %s", (f"%{eq}%",)),
             "npclassifier_pathway": ("c.effective_pathway ILIKE %s", (f"%{eq}%",)),
             "classyfire_superclass": ("c.classyfire_superclass ILIKE %s", (f"%{eq}%",)),
         }
@@ -1763,7 +1763,7 @@ def api_taxonomy_tree():
             "npclassifier_class": ("(c.np_class ILIKE %s OR c.inferred_class ILIKE %s)", (f"%{search_q}%", f"%{search_q}%")),
             "classyfire_class": ("c.classyfire_superclass ILIKE %s", (f"%{search_q}%",)),
             "pathway": ("c.effective_pathway ILIKE %s", (f"%{search_q}%",)),
-            "npclassifier_superclass": ("c.np_superclass ILIKE %s", (f"%{search_q}%",)),
+            "npclassifier_superclass": ("c.effective_superclass ILIKE %s", (f"%{search_q}%",)),
             "npclassifier_pathway": ("c.effective_pathway ILIKE %s", (f"%{search_q}%",)),
             "classyfire_superclass": ("c.classyfire_superclass ILIKE %s", (f"%{search_q}%",)),
         }
@@ -2047,6 +2047,23 @@ def api_search():
     """JSON API for programmatic access. Supports name, smiles, inchikey, kingdom, organism, region, source searches."""
     q = request.args.get("q","").strip()
     st = request.args.get("type","name")
+    # "property" and "classification" are meta-types: the concrete field arrives
+    # in prop_type. Resolve it the same way the HTML search route does, so the
+    # documented /api/search?type=property form filters instead of falling
+    # through to a name match.
+    if st in ("property", "classification"):
+        st = {"class": "npclassifier_class", "chemical_class": "npclassifier_class",
+              "chem_class": "npclassifier_class", "npclassifier_class": "npclassifier_class",
+              "npc_class": "npclassifier_class", "np_class": "npclassifier_class",
+              "superclass": "npclassifier_superclass", "np_superclass": "npclassifier_superclass",
+              "npclassifier_superclass": "npclassifier_superclass",
+              "classyfire_class": "classyfire_class", "cf_class": "classyfire_class",
+              "classyfire_superclass": "classyfire_class",
+              "pathway": "pathway", "np_pathway": "pathway",
+              "npclassifier_pathway": "pathway",
+              "genus": "genus", "family": "family", "order": "order",
+              "tax_class": "tax_class", "phylum": "phylum",
+              }.get(request.args.get("prop_type", "").strip().lower(), "npclassifier_class")
     try:
         limit = min(10000, max(1, int(request.args.get("limit", 50))))
         offset = max(0, int(request.args.get("offset", 0)))
@@ -2110,9 +2127,9 @@ def api_search():
               "clade": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.taxclass) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.taxclass ILIKE %s)"),
               "phylum": ("EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.phylum) = LOWER(%s))" if exact else "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND rt.phylum ILIKE %s)"),
               "region":"EXISTS(SELECT 1 FROM compound_region_map crm WHERE crm.comp_id = compounds.comp_id AND LOWER(crm.macro_region) = LOWER(%s))","source":"LOWER(source_db) = LOWER(%s)",
-              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR np_superclass ILIKE %s OR effective_pathway ILIKE %s",
+              "class":"np_class ILIKE %s OR classyfire_superclass ILIKE %s OR inferred_class ILIKE %s OR effective_superclass ILIKE %s OR effective_pathway ILIKE %s",
               "npclassifier_class":"np_class ILIKE %s OR inferred_class ILIKE %s",
-              "npclassifier_superclass":"np_superclass ILIKE %s",
+              "npclassifier_superclass":"effective_superclass ILIKE %s",
               "classyfire_class":"classyfire_superclass ILIKE %s",
               "pathway":"effective_pathway ILIKE %s"}
         cl = tc.get(st, "LOWER(name) LIKE %s")
@@ -2145,7 +2162,7 @@ def api_search():
             "class": "(np_class ILIKE %s OR classyfire_superclass ILIKE %s)",
             "npclassifier_class": "(np_class ILIKE %s OR inferred_class ILIKE %s)",
             "classyfire_class": "classyfire_superclass ILIKE %s",
-            "npclassifier_superclass": "np_superclass ILIKE %s",
+            "npclassifier_superclass": "effective_superclass ILIKE %s",
             "pathway": "effective_pathway ILIKE %s",
             "genus":  "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.genus) = LOWER(%s))",
             "family": "EXISTS(SELECT 1 FROM resolved_taxonomy rt WHERE rt.comp_id = compounds.comp_id AND LOWER(rt.family) = LOWER(%s))",
@@ -2908,7 +2925,7 @@ def api_filter_options():
             clades = tax_classes
             cur.execute("SELECT DISTINCT phylum FROM resolved_taxonomy WHERE phylum IS NOT NULL AND phylum != '' ORDER BY phylum")
             phyla = [r[0] for r in cur.fetchall()]
-            cur.execute("SELECT DISTINCT TRIM(sc) AS scls FROM compounds, regexp_split_to_table(np_superclass, ' *[|$] *') AS sc WHERE np_superclass IS NOT NULL AND np_superclass != '' AND TRIM(sc) != '' ORDER BY scls")
+            cur.execute("SELECT DISTINCT TRIM(sc) AS scls FROM compounds, regexp_split_to_table(effective_superclass, ' *[|$] *') AS sc WHERE effective_superclass IS NOT NULL AND effective_superclass != '' AND TRIM(sc) != '' ORDER BY scls")
             npc_superclasses = [r[0] for r in cur.fetchall()]
             cur.execute("SELECT DISTINCT TRIM(pw) AS pwy FROM compounds, regexp_split_to_table(effective_pathway, ' *[|$] *') AS pw WHERE effective_pathway IS NOT NULL AND effective_pathway != '' AND TRIM(pw) != '' ORDER BY pwy")
             np_pathways = [r[0] for r in cur.fetchall()]
